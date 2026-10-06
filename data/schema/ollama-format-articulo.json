@@ -1,0 +1,130 @@
+{
+  "type": "object",
+  "properties": {
+    "op": {
+      "type": "string",
+      "enum": [
+        "crear",
+        "actualizar",
+        "desactivar",
+        "reactivar"
+      ]
+    },
+    "entidad": {
+      "type": "string",
+      "enum": [
+        "articulo"
+      ]
+    },
+    "id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "art-0000; null si op=crear"
+    },
+    "campos": {
+      "type": "object",
+      "properties": {
+        "titulo": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "resumen": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "bloques": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "tipo": {
+                "type": "string",
+                "enum": [
+                  "parrafo",
+                  "subtitulo",
+                  "lista",
+                  "cita"
+                ]
+              },
+              "texto": {
+                "type": "string"
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "tipo",
+              "texto",
+              "items"
+            ]
+          }
+        },
+        "productos_relacionados": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "alt_portada": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "titulo",
+        "resumen",
+        "bloques",
+        "productos_relacionados",
+        "alt_portada"
+      ]
+    },
+    "campos_inferidos": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "titulo",
+          "resumen",
+          "bloques",
+          "productos_relacionados",
+          "alt_portada"
+        ]
+      }
+    },
+    "faltantes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "titulo",
+          "resumen",
+          "bloques",
+          "productos_relacionados",
+          "alt_portada",
+          "id",
+          "tema"
+        ]
+      }
+    }
+  },
+  "required": [
+    "op",
+    "entidad",
+    "id",
+    "campos",
+    "campos_inferidos",
+    "faltantes"
+  ]
+}

@@ -1,0 +1,18 @@
+# Saltos de línea normalizados a LF en el repo (el hash CSP y los diffs no dependen de Windows)
+* text=auto eol=lf
+
+# Los .bat de Windows necesitan CRLF (cmd.exe falla con etiquetas y GOTO en LF)
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binarios: sin conversión ni diff de texto
+*.webp binary
+*.woff2 binary
+*.woff binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.avif binary
+*.gif binary
+*.ico binary
+*.pdf binary

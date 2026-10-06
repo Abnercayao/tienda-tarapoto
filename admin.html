@@ -1,0 +1,1048 @@
+<!doctype html>
+<html lang="es-PE">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  admin.html: panel LOCAL de Palmera Brava (PLAN D12 y F2-A4).
+  - Solo funciona en la PC de la tienda: http://127.0.0.1:8080/tienda-tarapoto/admin.html (tools\iniciar-todo.bat).
+    En cualquier otro sitio (GitHub Pages, file://) muestra solo el aviso y no hace ninguna petición.
+  - Un único <script> en línea; su hash va en la CSP (node tools/csp.js; el hook pre-commit lo comprueba).
+  - Habla con: n8n 127.0.0.1:5678 (estado, webhook crear-imagen y estado del bot), Ollama 127.0.0.1:11434
+    (versión y liberar VRAM) y sd-server 127.0.0.1:1234 (estado y "Generar sin n8n").
+  - La clave X-Tienda-Key se pide al usarla y vive solo en sessionStorage (se borra al cerrar la pestaña).
+-->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'sha256-vqoVgBvFzU0l1n1E1l6QS6fdPxBQkiNXzss7Cr9VmkU='; connect-src 'self' http://127.0.0.1:5678 http://localhost:5678 http://127.0.0.1:1234 http://127.0.0.1:11434; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#0F5C46">
+<title>Panel de la tienda | Palmera Brava</title>
+<link rel="preload" href="assets/fonts/bricolage-grotesque-latin-var.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/figtree-latin-var.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+/* =====================================================================
+   Fuentes locales (OFL) y tokens de marca: los mismos de index.html
+   (docs/investigacion/web-design.md, "Selva pop editorial").
+   ===================================================================== */
+@font-face{font-family:"Bricolage Grotesque";src:url("assets/fonts/bricolage-grotesque-latin-var.woff2") format("woff2");font-weight:200 800;font-display:swap}
+@font-face{font-family:"Figtree";src:url("assets/fonts/figtree-latin-var.woff2") format("woff2");font-weight:300 900;font-display:swap}
+@font-face{font-family:"Instrument Serif";src:url("assets/fonts/instrument-serif-latin-italic.woff2") format("woff2");font-style:italic;font-weight:400;font-display:swap}
+@font-face{font-family:"Instrument Serif";src:url("assets/fonts/instrument-serif-latin-regular.woff2") format("woff2");font-style:normal;font-weight:400;font-display:swap}
+
+:root{
+  --c-sand-50:#FBF6EC;--c-sand-200:#F1E6CF;--c-ink:#10231C;--c-ink-muted:#4A5D55;
+  --c-palm:#0F5C46;--c-palm-700:#0A4535;--c-palm-100:#DCEFE6;
+  --c-lagoon:#14A3A0;--c-lagoon-700:#0B7A78;--c-lagoon-100:#D3F1EF;
+  --c-mango:#FF8A1F;--c-mango-700:#A34E00;--c-hibiscus:#C41E50;--c-sun:#FFD23F;--c-cacao:#5A3825;
+  --bg:var(--c-sand-50);--surface:#FFFFFF;--surface-2:var(--c-sand-200);
+  --text:var(--c-ink);--text-muted:var(--c-ink-muted);
+  --primary:var(--c-palm);--on-primary:#FFFFFF;--accent:var(--c-mango);--on-accent:var(--c-ink);
+  --link:var(--c-lagoon-700);--sale:var(--c-hibiscus);--border:#7A8F86;--border-soft:#E4D9C3;--focus:var(--c-mango-700);
+  --ok:#0F5C46;--off:#C41E50;--wait:#A34E00;
+  --arch-bg:var(--c-palm);--arch-text:#F3EEDF;
+  --radius-s:8px;--radius-m:16px;--radius-l:28px;--radius-arch:999px 999px 24px 24px;
+  --shadow-1:0 1px 2px rgb(16 35 28/.08),0 4px 12px rgb(16 35 28/.06);
+  --shadow-2:0 14px 32px -10px rgb(15 92 70/.30);
+  --ease-out:cubic-bezier(.2,.7,.2,1);
+  --font-display:"Bricolage Grotesque",system-ui,sans-serif;
+  --font-body:"Figtree",system-ui,sans-serif;
+  --font-accent:"Instrument Serif",Georgia,serif;
+  color-scheme:light;
+}
+:root[data-theme="dark"]{
+  --bg:#0B1712;--surface:#13261E;--surface-2:#1B3328;--text:#F3EEDF;--text-muted:#A9B8AF;
+  --primary:#3FC79A;--on-primary:#0B1712;--accent:#FFA24D;--on-accent:#0B1712;
+  --link:#4FD6D2;--sale:#FF6B93;--border:#4E6A5D;--border-soft:#24402F;--focus:#FFD23F;
+  --ok:#3FC79A;--off:#FF6B93;--wait:#FFA24D;--arch-bg:#0A4535;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0B1712;--surface:#13261E;--surface-2:#1B3328;--text:#F3EEDF;--text-muted:#A9B8AF;
+    --primary:#3FC79A;--on-primary:#0B1712;--accent:#FFA24D;--on-accent:#0B1712;
+    --link:#4FD6D2;--sale:#FF6B93;--border:#4E6A5D;--border-soft:#24402F;--focus:#FFD23F;
+    --ok:#3FC79A;--off:#FF6B93;--wait:#FFA24D;--arch-bg:#0A4535;
+    color-scheme:dark;
+  }
+}
+
+/* ---- Base ---- */
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:400 1rem/1.55 var(--font-body)}
+[hidden]{display:none!important}
+a{color:var(--link)}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:6px}
+h1,h2,h3{font-family:var(--font-display);letter-spacing:-.015em;line-height:1.15;margin:0}
+h2{font-size:clamp(1.35rem,1.1rem + 1vw,1.75rem);font-weight:700}
+h3{font-size:1.05rem;font-weight:700}
+p{margin:0}
+.envoltura{width:100%;max-width:1240px;margin:0 auto;padding:0 clamp(16px,3vw,32px)}
+.atenuado{color:var(--text-muted)}
+.pequeno{font-size:.9rem}
+
+/* ---- Guardia (fuera de la PC de la tienda) ---- */
+.guardia{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px 16px;text-align:center}
+.guardia__caja{max-width:34rem}
+.guardia h1{font-size:clamp(1.8rem,1.3rem + 2.4vw,2.8rem);margin:18px 0 12px}
+.guardia p{color:var(--text-muted);margin-bottom:10px}
+.guardia svg{width:56px;height:56px;color:var(--primary)}
+
+/* ---- Cabecera ---- */
+.cabecera{border-bottom:1px solid var(--border-soft);background:var(--surface)}
+.cabecera .envoltura{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;padding-top:14px;padding-bottom:14px}
+.marca{display:flex;align-items:center;gap:10px;margin-right:auto;text-decoration:none;color:var(--text)}
+.marca svg{width:30px;height:30px;flex:none;color:var(--primary)}
+.marca strong{font:700 1.2rem/1 var(--font-display)}
+.marca span{display:block;font-size:.85rem;color:var(--text-muted);margin-top:3px}
+.nav{display:flex;flex-wrap:wrap;gap:6px 16px;font-weight:600;font-size:.95rem}
+.tema{display:inline-flex;border:1px solid var(--border);border-radius:999px;padding:2px}
+.tema button{border:0;background:none;color:var(--text);font:600 .85rem/1 var(--font-body);padding:8px 12px;border-radius:999px;cursor:pointer;min-height:36px}
+.tema button[aria-pressed="true"]{background:var(--primary);color:var(--on-primary)}
+
+/* ---- Servicios (estado en vivo) ---- */
+.servicios{padding:18px 0 6px}
+.servicios__fila{display:flex;flex-wrap:wrap;align-items:stretch;gap:10px}
+.servicio{flex:1 1 220px;display:flex;gap:12px;align-items:flex-start;background:var(--surface);border:1px solid var(--border-soft);
+  border-radius:var(--radius-m);padding:12px 14px}
+.punto{width:12px;height:12px;border-radius:50%;margin-top:6px;flex:none;background:var(--border);box-shadow:0 0 0 3px var(--surface-2)}
+.servicio[data-estado="ok"] .punto{background:var(--ok)}
+.servicio[data-estado="off"] .punto{background:var(--off)}
+.servicio[data-estado="revisando"] .punto{background:var(--wait)}
+.servicio__nombre{font-weight:700}
+.servicio__detalle{font-size:.88rem;color:var(--text-muted);overflow-wrap:anywhere}
+.servicio__paso{font-size:.85rem;margin-top:4px}
+.servicios__pie{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin-top:10px;font-size:.88rem;color:var(--text-muted)}
+
+/* ---- Botones y campos ---- */
+.boton{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 18px;border-radius:999px;
+  border:2px solid transparent;font:600 .98rem/1.2 var(--font-body);cursor:pointer;text-decoration:none;color:var(--text);background:none}
+.boton:active{transform:scale(.97)}
+.boton:disabled{opacity:.55;cursor:not-allowed;transform:none}
+.boton--principal{background:var(--accent);color:var(--on-accent)}
+.boton--secundario{background:var(--primary);color:var(--on-primary)}
+.boton--borde{border-color:var(--border);background:var(--surface)}
+.boton--borde:hover:not(:disabled){border-color:var(--primary)}
+.boton--chico{min-height:36px;padding:6px 12px;font-size:.88rem}
+.campo{display:grid;gap:6px}
+.campo label,.campo legend,.etiqueta{font-weight:600;font-size:.95rem}
+.ayuda{font-size:.85rem;color:var(--text-muted)}
+input[type="text"],input[type="password"],input[type="number"],select,textarea{width:100%;font:400 1rem/1.4 var(--font-body);color:var(--text);
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-s);padding:10px 12px;min-height:44px}
+textarea{resize:vertical;min-height:120px}
+fieldset{border:0;margin:0;padding:0;min-width:0}
+
+/* ---- Taller de imágenes: formulario + arco ---- */
+.taller{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:clamp(20px,3vw,40px);padding:28px 0 8px;align-items:start}
+.tarjeta{background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius-l);padding:clamp(16px,2.4vw,28px);box-shadow:var(--shadow-1)}
+.tarjeta > h2{margin-bottom:6px}
+.tarjeta > .atenuado{margin-bottom:18px}
+.form{display:grid;gap:18px}
+.tipos{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:6px}
+.tipo{position:relative}
+.tipo input{position:absolute;opacity:0;inset:0;width:100%;height:100%;margin:0;cursor:pointer}
+.tipo span{display:grid;gap:2px;height:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-m);background:var(--surface)}
+.tipo b{font:700 .98rem/1.2 var(--font-display)}
+.tipo small{font-size:.8rem;color:var(--text-muted)}
+.tipo input:checked + span{border-color:var(--primary);box-shadow:inset 0 0 0 2px var(--primary);background:var(--surface-2)}
+.tipo input:focus-visible + span{outline:3px solid var(--focus);outline-offset:2px}
+.plantillas{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.plantilla{border:1px dashed var(--border);background:var(--surface);color:var(--text);border-radius:999px;padding:7px 12px;
+  font:500 .88rem/1.2 var(--font-body);cursor:pointer;min-height:36px}
+.plantilla:hover{border-style:solid;border-color:var(--primary)}
+.fila2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:.95rem}
+.check input{width:20px;height:20px;margin-top:2px;accent-color:var(--primary);flex:none}
+.nota{border-left:4px solid var(--accent);background:var(--surface-2);padding:10px 12px;border-radius:0 var(--radius-s) var(--radius-s) 0;font-size:.92rem}
+.nota--error{border-left-color:var(--sale)}
+.nota--ok{border-left-color:var(--primary)}
+.acciones{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+details.prompt-final{border:1px solid var(--border-soft);border-radius:var(--radius-m);padding:10px 14px;background:var(--bg)}
+details.prompt-final summary{cursor:pointer;font-weight:600}
+details.prompt-final p{margin-top:8px;font-size:.88rem;color:var(--text-muted);white-space:pre-wrap;overflow-wrap:anywhere}
+
+/* El elemento memorable: la vista previa con marco de arco (dosel de palmera). */
+.vista{position:sticky;top:16px;display:grid;gap:14px;justify-items:center}
+.arco{position:relative;width:min(100%,420px);aspect-ratio:3/4;border-radius:var(--radius-arch);overflow:hidden;background:var(--arch-bg);
+  box-shadow:var(--shadow-2);outline:10px solid var(--surface);display:grid;place-items:center}
+.arco[data-forma="horizontal"]{aspect-ratio:4/3}
+.arco[data-forma="cuadrada"]{aspect-ratio:1/1}
+.arco img{width:100%;height:100%;object-fit:contain;background:#0A4535}
+.arco__vacio{padding:18% 14% 10%;text-align:center;color:var(--arch-text)}
+.arco__vacio p{font:italic 400 clamp(1.6rem,1.2rem + 1.6vw,2.3rem)/1.15 var(--font-accent)}
+.arco__vacio small{display:block;margin-top:12px;font-size:.9rem;opacity:.85}
+.arco__hojas{position:absolute;inset:auto 0 0 0;height:38%;pointer-events:none;opacity:.25}
+.arco[data-lleno] .arco__hojas{display:none}
+.etiqueta-ia{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);background:rgb(16 35 28/.8);color:#FBF6EC;
+  font:600 .78rem/1 var(--font-body);padding:7px 12px;border-radius:999px;white-space:nowrap}
+.progreso{position:absolute;inset:0;display:grid;place-items:center;align-content:center;gap:10px;background:rgb(10 69 53/.82);color:#F3EEDF;text-align:center;padding:20px}
+.progreso b{font:700 2.4rem/1 var(--font-display)}
+.sol{width:46px;height:46px;border-radius:50%;border:4px solid rgb(255 210 63/.35);border-top-color:var(--c-sun);animation:girar 1.1s linear infinite}
+@keyframes girar{to{transform:rotate(360deg)}}
+.meta{width:min(100%,420px);font-size:.88rem;color:var(--text-muted);text-align:center;overflow-wrap:anywhere}
+.historial{width:min(100%,420px)}
+.historial ol{list-style:none;margin:6px 0 0;padding:0;display:flex;gap:8px;flex-wrap:wrap}
+.historial button{border:2px solid var(--border-soft);border-radius:12px;padding:0;width:56px;height:56px;overflow:hidden;background:var(--surface-2);cursor:pointer}
+.historial button[aria-current="true"]{border-color:var(--primary)}
+.historial img{width:100%;height:100%;object-fit:cover;display:block}
+
+/* ---- Herramientas, cifras y bot ---- */
+.bloques{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(16px,2vw,24px);padding:24px 0 40px}
+.bloques .tarjeta{border-radius:var(--radius-m)}
+.bloques h2{font-size:1.25rem;margin-bottom:6px}
+.lista-acciones{list-style:none;margin:14px 0 0;padding:0;display:grid;gap:10px}
+.lista-acciones li{display:grid;gap:4px}
+.cifras{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:14px 0 0}
+.cifra{background:var(--bg);border-radius:var(--radius-s);padding:10px 12px}
+.cifra dt{font-size:.82rem;color:var(--text-muted)}
+.cifra dd{margin:2px 0 0;font:700 1.35rem/1.1 var(--font-display)}
+.texto-bot{margin:12px 0 0;white-space:pre-wrap;font:400 .9rem/1.5 var(--font-body);background:var(--bg);border-radius:var(--radius-s);padding:12px;max-height:280px;overflow:auto;overflow-wrap:anywhere}
+.pie{border-top:1px solid var(--border-soft);padding:18px 0 28px;font-size:.88rem;color:var(--text-muted)}
+
+@media (max-width:1000px){
+  .taller{grid-template-columns:1fr}
+  .vista{position:static}
+  .bloques{grid-template-columns:1fr}
+}
+@media (max-width:560px){
+  .tipos{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .fila2{grid-template-columns:1fr}
+  .arco{width:min(100%,320px)}
+}
+@media (prefers-reduced-motion:reduce){
+  .sol{animation:none;border-top-color:rgb(255 210 63/.35)}
+  .boton:active{transform:none}
+}
+</style>
+<script>
+/* =====================================================================
+   Único script en línea de admin.html (su sha256 va en la CSP: node tools/csp.js).
+   1) Tema sin parpadeo (misma clave que el sitio: pb:theme).
+   2) Guardia de hostname: fuera de 127.0.0.1/localhost NO se hace ninguna petición.
+   3) Estado en vivo de n8n, Ollama y sd-server.
+   4) "Crear imagen con IA" vía n8n (webhook crear-imagen + X-Tienda-Key) o directo a sd-server.
+   5) Atajos, cifras del catálogo (tools/kpis.js) y estado del bot (webhook estado).
+   ===================================================================== */
+(function () {
+  'use strict';
+
+  // ---------- 1) Tema ----------
+  var CLAVE_TEMA = 'pb:theme';
+  function leerTema() { try { return localStorage.getItem(CLAVE_TEMA) || 'system'; } catch (e) { return 'system'; } }
+  function aplicarTema(t) {
+    if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+    else document.documentElement.removeAttribute('data-theme');
+  }
+  aplicarTema(leerTema());
+
+  // ---------- Configuración ----------
+  var N8N = 'http://127.0.0.1:5678';
+  var OLLAMA = 'http://127.0.0.1:11434';
+  var SD = 'http://127.0.0.1:1234';
+  var URL_CREAR = N8N + '/webhook/crear-imagen';
+  var URL_ESTADO_BOT = N8N + '/webhook/estado';
+  var CLAVE_SESION = 'pb:tienda-key';
+  var HOSTS_LOCALES = ['localhost', '127.0.0.1', '[::1]'];
+
+  // Mismo estilo que tools/image-prompts.json (fotos de muestra): coherencia visual del catálogo.
+  var ESTILO = 'Editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon. Warm tropical golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, color palette of warm sand, palm green, lagoon turquoise, terracotta and mango orange. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.';
+  var SIN_ROSTRO = 'The photo is cropped at the neck, no face, no head visible, adults only: the top edge of the frame cuts across the collarbones, so the chin, mouth and face are completely outside the picture.';
+  var SIN_PERSONAS = 'No people, no mannequin, no hands, product only.';
+  var RE_NINOS = /(ni[ñn][oa]s?\b|infantil|beb[ée]s?\b|\bchild|\bkids?\b|\bboys?\b|\bgirls?\b|toddler|\bbaby\b)/i;
+  var RE_ROSTRO = /(\bface\b|portrait|smil|\beyes\b|rostro|\bcara\b|retrato|sonr[ií]|\bojos\b)/i;
+
+  var TIPOS = {
+    'hero': { tamano: '1344x768', nombre: 'Hero' },
+    'lookbook': { tamano: '768x1024', nombre: 'Lookbook' },
+    'blog': { tamano: '1216x832', nombre: 'Blog' },
+    'producto-muestra': { tamano: '768x1024', nombre: 'Producto de muestra' }
+  };
+  // Con personas adultas se genera más alto y se recortan píxeles ARRIBA (docs/CONTRATO.md §12:
+  // Z-Image Turbo suele dejar el mentón dentro del encuadre aunque el prompt pida cortar en el cuello).
+  var GENERAR_ALTO = {
+    '768x1024': { generar: '768x1216', recorte: 192 },
+    '1344x768': { generar: '1344x1024', recorte: 256 },
+    '1216x832': { generar: '1216x1088', recorte: 256 },
+    '1024x1024': { generar: '1024x1216', recorte: 192 }
+  };
+
+  // Plantillas de marca (en inglés: el modelo las sigue mejor). Niños y accesorios: SIN personas.
+  var PLANTILLAS = [
+    { tipo: 'hero', personas: 'adultos', etiqueta: 'Hero: dos looks de lino', texto: 'Two adults standing side by side, one in a sand-beige linen shirt and light trousers, the other in a terracotta linen midi dress, in front of a warm plaster wall with palm leaf shadows, framed from the shoulders down.' },
+    { tipo: 'hero', personas: 'ninguna', etiqueta: 'Hero: bodegón de verano', texto: 'Folded linen clothes in sand and palm green, a woven palm-leaf hat and leather sandals arranged on a rattan chair, surrounded by fresh palm leaves.' },
+    { tipo: 'lookbook', personas: 'adultos', etiqueta: 'Look de mercado', texto: 'An adult woman wearing a loose white cotton gauze blouse, palm-green linen shorts and a jute bag, walking through a local fruit market, framed from the shoulders to the knees.' },
+    { tipo: 'lookbook', personas: 'adultos', etiqueta: 'Look junto a la laguna', texto: 'An adult man wearing a sand linen shirt, beige bermuda shorts and leather sandals next to a calm turquoise lagoon surrounded by jungle, framed from the shoulders to the feet.' },
+    { tipo: 'blog', personas: 'ninguna', etiqueta: 'Blog: telas en detalle', texto: 'Close-up of natural linen and soft white pima cotton swatches folded side by side on a wooden table with a sprig of palm leaf, warm side light revealing the weave.' },
+    { tipo: 'blog', personas: 'ninguna', etiqueta: 'Blog: camisa con vista a la selva', texto: 'A linen shirt hanging on a wooden hanger on a terrace overlooking green Amazon hills and a distant waterfall, late afternoon light.' },
+    { tipo: 'producto-muestra', personas: 'adultos', etiqueta: 'Prenda en persona adulta', texto: 'An adult wearing a [color] [garment, e.g. short-sleeve linen shirt], framed from the shoulders to the hips, against a warm terracotta plaster wall.' },
+    { tipo: 'producto-muestra', personas: 'ninguna', etiqueta: 'Niños: prenda extendida', texto: 'Flat lay product photo of a children\'s [garment, e.g. UV protection t-shirt] in [color], laid flat on a light sand-colored linen cloth with a few monstera leaves around it, seen from directly above.' },
+    { tipo: 'producto-muestra', personas: 'ninguna', etiqueta: 'Prenda en percha', texto: 'A [color] [garment] hanging on a natural wooden hanger against a sand-colored wall with soft palm leaf shadows.' },
+    { tipo: 'producto-muestra', personas: 'ninguna', etiqueta: 'Accesorio en bodegón', texto: 'A [accessory, e.g. woven palm-leaf hat] placed on a weathered wooden bench with palm leaf shadows and a few tropical flowers.' }
+  ];
+
+  // ---------- Utilidades ----------
+  function $(sel) { return document.querySelector(sel); }
+  function $all(sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); }
+  function texto(el, t) { if (el) el.textContent = t; }
+  function leerSesion(k) { try { return sessionStorage.getItem(k) || ''; } catch (e) { return ''; } }
+  function guardarSesion(k, v) { try { if (v) sessionStorage.setItem(k, v); else sessionStorage.removeItem(k); } catch (e) { /* sin almacenamiento */ } }
+  function conTiempo(ms, externo) {
+    var c = new AbortController();
+    var t = setTimeout(function () { c.abort(); }, ms);
+    if (externo) externo.addEventListener('abort', function () { c.abort(); });
+    return { signal: c.signal, fin: function () { clearTimeout(t); } };
+  }
+  function semillaAleatoria() { return 1 + Math.floor(Math.random() * 2147483000); }
+  function hora() { return new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' }); }
+  function segundos(ms) { return (ms / 1000).toLocaleString('es-PE', { maximumFractionDigits: 1 }) + ' s'; }
+  function nota(el, mensaje, tipo) {
+    if (!el) return;
+    el.hidden = !mensaje;
+    el.className = 'nota' + (tipo ? ' nota--' + tipo : '');
+    el.textContent = mensaje || '';
+  }
+  function b64ABlob(b64, tipo) {
+    var bin = atob(b64);
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new Blob([bytes], { type: tipo || 'image/webp' });
+  }
+  function tipoImagen(b64) {
+    if (b64.indexOf('UklGR') === 0) return 'image/webp';
+    if (b64.indexOf('iVBOR') === 0) return 'image/png';
+    if (b64.indexOf('/9j/') === 0) return 'image/jpeg';
+    return 'image/webp';
+  }
+  async function copiar(t) {
+    try { await navigator.clipboard.writeText(t); return true; } catch (e) {
+      var ta = document.createElement('textarea');
+      ta.value = t; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      var ok = false; try { ok = document.execCommand('copy'); } catch (e2) { ok = false; }
+      ta.remove();
+      return ok;
+    }
+  }
+
+  // ---------- 3) Estado en vivo ----------
+  function pintarServicio(id, estado, detalle, paso) {
+    var el = document.getElementById('srv-' + id);
+    if (!el) return;
+    el.setAttribute('data-estado', estado);
+    texto(el.querySelector('.servicio__estado'), estado === 'ok' ? 'En línea' : estado === 'off' ? 'No responde' : 'Revisando…');
+    texto(el.querySelector('.servicio__detalle'), detalle || '');
+    var p = el.querySelector('.servicio__paso');
+    p.hidden = !paso;
+    texto(p, paso ? 'Siguiente paso: ' + paso : '');
+  }
+
+  async function revisarN8n() {
+    var t = conTiempo(4000);
+    try {
+      // /healthz no envía CORS: en modo no-cors la respuesta es opaca, pero si llega, n8n está vivo.
+      await fetch(N8N + '/healthz', { mode: 'no-cors', cache: 'no-store', signal: t.signal });
+      pintarServicio('n8n', 'ok', 'Bot de Telegram y webhooks del panel (127.0.0.1:5678).', '');
+      return true;
+    } catch (e) {
+      pintarServicio('n8n', 'off', 'Sin n8n el bot no responde y "Crear imagen" no funciona.', 'abre Docker Desktop; el contenedor n8n arranca solo (1-2 min).');
+      return false;
+    } finally { t.fin(); }
+  }
+
+  async function revisarOllama() {
+    var t = conTiempo(4000);
+    try {
+      var r = await fetch(OLLAMA + '/api/version', { cache: 'no-store', signal: t.signal });
+      var v = await r.json();
+      var enVram = '';
+      try {
+        var ps = await (await fetch(OLLAMA + '/api/ps', { cache: 'no-store', signal: t.signal })).json();
+        var nombres = (ps.models || []).map(function (m) { return m.name; });
+        enVram = nombres.length ? 'En VRAM: ' + nombres.join(', ') + '.' : 'Ningún modelo en VRAM.';
+      } catch (e2) { enVram = ''; }
+      pintarServicio('ollama', 'ok', 'Versión ' + (v.version || '?') + '. ' + enVram, '');
+      return true;
+    } catch (e) {
+      pintarServicio('ollama', 'off', 'Sin Ollama el bot arma borradores con una plantilla manual.', 'abre "Ollama" desde el menú Inicio.');
+      return false;
+    } finally { t.fin(); }
+  }
+
+  async function revisarSd() {
+    var t = conTiempo(4000);
+    try {
+      var r = await fetch(SD + '/sdcpp/v1/capabilities', { cache: 'no-store', signal: t.signal });
+      var c = await r.json();
+      var modelo = (c.model && (c.model.stem || c.model.name)) || 'modelo cargado';
+      var fmts = (c.output_formats_by_mode && c.output_formats_by_mode.img_gen) || c.output_formats || [];
+      pintarServicio('sd', 'ok', modelo + (fmts.length ? ' (formatos: ' + fmts.join(', ') + ')' : '') + '.', '');
+      return true;
+    } catch (e) {
+      pintarServicio('sd', 'off', 'Motor de imágenes de Open Generative AI (127.0.0.1:1234). Tarda 1-2 min en cargar.', 'ejecuta tools\\iniciar-sd-server.bat (o tools\\iniciar-todo.bat).');
+      return false;
+    } finally { t.fin(); }
+  }
+
+  var revisando = false;
+  async function revisarTodo() {
+    if (revisando) return;
+    revisando = true;
+    ['n8n', 'ollama', 'sd'].forEach(function (id) {
+      var el = document.getElementById('srv-' + id);
+      if (el && !el.getAttribute('data-estado')) pintarServicio(id, 'revisando', '', '');
+    });
+    await Promise.all([revisarN8n(), revisarOllama(), revisarSd()]);
+    texto($('#srv-hora'), 'Revisado: ' + hora() + ' (se repite cada 20 s)');
+    revisando = false;
+  }
+
+  // ---------- 4) Crear imagen ----------
+  var estado = { generando: false, abortar: null, historial: [], actual: -1 };
+
+  function tipoElegido() { var r = $('input[name="tipo"]:checked'); return r ? r.value : 'producto-muestra'; }
+  function personasElegidas() { return $('#personas').value; }
+
+  // Arma el prompt final y las decisiones (tamaños, recorte, avisos).
+  function armarPedido() {
+    var tipo = tipoElegido();
+    var usuario = $('#prompt').value.trim().replace(/\s+/g, ' ');
+    var personas = personasElegidas();
+    var avisos = [];
+    if (personas === 'adultos' && RE_NINOS.test(usuario)) {
+      personas = 'ninguna';
+      avisos.push('Mencionas ropa o personas de niños: se genera sin personas (regla de la tienda).');
+    }
+    if (personas === 'adultos' && RE_ROSTRO.test(usuario)) avisos.push('La tienda no muestra rostros: quita del texto lo que pida cara, ojos, sonrisa o retrato.');
+    if (usuario && !/[.!?]$/.test(usuario)) usuario += '.';
+    var final = $('#tamano').value;
+    var alto = personas === 'adultos' && $('#recortar').checked ? GENERAR_ALTO[final] : null;
+    var semillaTxt = $('#semilla').value.trim();
+    var semilla = /^\d{1,10}$/.test(semillaTxt) ? Math.min(parseInt(semillaTxt, 10), 2147483646) : semillaAleatoria();
+    var prompt = [usuario, personas === 'adultos' ? SIN_ROSTRO : SIN_PERSONAS, ESTILO].filter(Boolean).join(' ');
+    return {
+      tipo: tipo, personas: personas, promptUsuario: usuario, prompt: prompt, semilla: semilla,
+      tamanoFinal: final, tamanoGenerar: alto ? alto.generar : final, recorte: alto ? alto.recorte : 0, avisos: avisos
+    };
+  }
+
+  function actualizarPromptFinal() {
+    var p = armarPedido();
+    texto($('#prompt-final-texto'), p.promptUsuario ? p.prompt : 'Escribe una descripción o elige una plantilla.');
+    texto($('#prompt-final-tam'), 'Se pide a sd-server: ' + p.tamanoGenerar + (p.recorte ? ' y se recortan ' + p.recorte + ' px arriba para quedar en ' + p.tamanoFinal : '') + '.');
+    nota($('#avisos-prompt'), p.avisos.join(' '), '');
+    $('#recortar').disabled = personasElegidas() !== 'adultos';
+  }
+
+  function elegirTipo(tipo) {
+    var cfg = TIPOS[tipo];
+    if (cfg) $('#tamano').value = cfg.tamano;
+    pintarPlantillas();
+    actualizarPromptFinal();
+  }
+
+  function pintarPlantillas() {
+    var tipo = tipoElegido();
+    var cont = $('#plantillas');
+    cont.textContent = '';
+    PLANTILLAS.filter(function (p) { return p.tipo === tipo; }).forEach(function (p) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'plantilla';
+      b.textContent = p.etiqueta;
+      b.addEventListener('click', function () {
+        $('#prompt').value = p.texto;
+        $('#personas').value = p.personas;
+        actualizarPromptFinal();
+        $('#prompt').focus();
+        var i = p.texto.indexOf('[');
+        if (i >= 0) $('#prompt').setSelectionRange(i, p.texto.indexOf(']', i) + 1);
+      });
+      cont.appendChild(b);
+    });
+  }
+
+  function formaDe(tam) {
+    var m = /^(\d+)x(\d+)$/.exec(tam); if (!m) return 'vertical';
+    var w = +m[1], h = +m[2];
+    return w === h ? 'cuadrada' : w > h ? 'horizontal' : 'vertical';
+  }
+
+  // Recorta "arriba" en el navegador (canvas) y reexporta WebP q0.8. Si falla, devuelve la original.
+  function recortarArriba(blob, recorte, tamFinal) {
+    return new Promise(function (resolver) {
+      if (!recorte) { resolver({ blob: blob, recortada: false }); return; }
+      var url = URL.createObjectURL(blob);
+      var img = new Image();
+      img.onload = function () {
+        var m = /^(\d+)x(\d+)$/.exec(tamFinal);
+        var w = img.naturalWidth, hFinal = m ? Math.min(+m[2], img.naturalHeight - recorte) : img.naturalHeight - recorte;
+        var y = img.naturalHeight - hFinal; // gravedad Sur: se conserva la parte de abajo
+        var c = document.createElement('canvas');
+        c.width = w; c.height = hFinal;
+        c.getContext('2d').drawImage(img, 0, y, w, hFinal, 0, 0, w, hFinal);
+        URL.revokeObjectURL(url);
+        c.toBlob(function (b) { resolver(b ? { blob: b, recortada: true } : { blob: blob, recortada: false }); }, 'image/webp', 0.8);
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); resolver({ blob: blob, recortada: false }); };
+      img.src = url;
+    });
+  }
+
+  function claveActual() {
+    var k = $('#clave').value.trim() || leerSesion(CLAVE_SESION);
+    if (k) guardarSesion(CLAVE_SESION, k);
+    return k;
+  }
+
+  async function pedirAN8n(p, senal) {
+    var clave = claveActual();
+    if (!clave) {
+      var e0 = new Error('Escribe la clave del panel (X-Tienda-Key) para usar n8n, o usa "Generar sin n8n".');
+      e0.paso = 'la clave es el valor de la credencial Header Auth "X-Tienda-Key" que creaste en n8n.';
+      throw e0;
+    }
+    var r;
+    try {
+      r = await fetch(URL_CREAR, {
+        method: 'POST', cache: 'no-store', signal: senal,
+        headers: { 'Content-Type': 'application/json', 'X-Tienda-Key': clave },
+        body: JSON.stringify({
+          prompt: p.prompt, prompt_usuario: p.promptUsuario, tipo: p.tipo, personas: p.personas,
+          size: p.tamanoGenerar, tamano_final: p.tamanoFinal, recortar_arriba: p.recorte, seed: p.semilla, origen: 'panel'
+        })
+      });
+    } catch (e) {
+      if (e.name === 'AbortError') throw e;
+      var e1 = new Error('n8n no respondió o bloqueó la petición (CORS).');
+      e1.paso = 'revisa que n8n esté en línea y que WF8 Panel-API esté publicado con Allowed Origins "http://localhost:8080,http://127.0.0.1:8080" (sin espacios). Este panel está en ' + location.origin + '.';
+      throw e1;
+    }
+    var tipo = (r.headers.get('Content-Type') || '').toLowerCase();
+    if (r.ok && tipo.indexOf('image/') === 0) return { blob: await r.blob(), via: 'n8n' };
+    var cuerpo = null, crudo = '';
+    try { crudo = await r.text(); cuerpo = JSON.parse(crudo); } catch (e) { cuerpo = null; }
+    if (r.ok && cuerpo) {
+      var b64 = cuerpo.b64_json || cuerpo.imagen_b64 || cuerpo.image || (cuerpo.data && cuerpo.data[0] && cuerpo.data[0].b64_json);
+      if (typeof b64 === 'string' && b64.length > 100) { b64 = b64.replace(/^data:[^,]+,/, ''); return { blob: b64ABlob(b64, tipoImagen(b64)), via: 'n8n' }; }
+    }
+    var msg = (cuerpo && (cuerpo.error || cuerpo.mensaje || cuerpo.message)) || crudo.slice(0, 200) || ('HTTP ' + r.status);
+    var err = new Error('n8n respondió ' + r.status + ': ' + msg);
+    if (r.status === 401 || r.status === 403) err.paso = 'la clave no coincide: revisa la credencial Header Auth X-Tienda-Key en n8n y vuelve a escribirla aquí.';
+    else if (r.status === 404) err.paso = 'el webhook crear-imagen no está activo: en n8n abre "WF8 Panel-API" y pulsa Publish.';
+    else if (r.status === 409 || r.status === 423 || r.status === 429) err.paso = 'la GPU está ocupada con otro trabajo; intenta en un minuto.';
+    else err.paso = (cuerpo && cuerpo.siguiente_paso) || 'revisa el estado de sd-server arriba y la ejecución de WF8 en n8n.';
+    throw err;
+  }
+
+  async function liberarVramOllama() {
+    var t = conTiempo(5000);
+    try {
+      var ps = await (await fetch(OLLAMA + '/api/ps', { cache: 'no-store', signal: t.signal })).json();
+      var modelos = (ps.models || []).map(function (m) { return m.name; });
+      for (var i = 0; i < modelos.length; i++) {
+        await fetch(OLLAMA + '/api/generate', {
+          method: 'POST', signal: t.signal, headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: modelos[i], keep_alive: 0 })
+        });
+      }
+      return modelos.length;
+    } catch (e) { return 0; } finally { t.fin(); }
+  }
+
+  async function pedirASd(p, senal) {
+    texto($('#progreso-texto'), 'Liberando la VRAM de Ollama…');
+    await liberarVramOllama();
+    texto($('#progreso-texto'), 'sd-server está generando la imagen…');
+    var extra = { seed: p.semilla, sample_params: { sample_steps: 8, sample_method: 'euler', scheduler: 'simple', guidance: { txt_cfg: 1.0 } } };
+    var r;
+    try {
+      r = await fetch(SD + '/v1/images/generations', {
+        method: 'POST', cache: 'no-store', signal: senal, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: p.prompt + ' <sd_cpp_extra_args>' + JSON.stringify(extra) + '</sd_cpp_extra_args>',
+          n: 1, size: p.tamanoGenerar, output_format: 'webp', output_compression: 80
+        })
+      });
+    } catch (e) {
+      if (e.name === 'AbortError') throw e;
+      var e1 = new Error('sd-server no respondió.');
+      e1.paso = 'ejecuta tools\\iniciar-sd-server.bat y espera 1-2 min a que cargue el modelo.';
+      throw e1;
+    }
+    var j = null;
+    try { j = await r.json(); } catch (e) { j = null; }
+    var b64 = j && j.data && j.data[0] && j.data[0].b64_json;
+    if (!r.ok || !b64) {
+      var e2 = new Error('sd-server respondió ' + r.status + ((j && j.error && (j.error.message || j.error)) ? ': ' + (j.error.message || j.error) : ' sin imagen.'));
+      e2.paso = 'si la VRAM está llena, cierra Open Generative AI y Wan2GP, o reinicia sd-server.';
+      throw e2;
+    }
+    return { blob: b64ABlob(b64, tipoImagen(b64)), via: 'sd-server directo' };
+  }
+
+  function bloquear(si) {
+    estado.generando = si;
+    ['#btn-n8n', '#btn-directo'].forEach(function (s) { $(s).disabled = si; });
+    $('#btn-cancelar').hidden = !si;
+    $('#progreso').hidden = !si;
+    $('#vista-arco').setAttribute('aria-busy', si ? 'true' : 'false');
+  }
+
+  function mostrar(i) {
+    var h = estado.historial[i];
+    if (!h) return;
+    estado.actual = i;
+    var arco = $('#vista-arco');
+    arco.setAttribute('data-forma', formaDe(h.tamano));
+    arco.setAttribute('data-lleno', '');
+    $('#vista-vacio').hidden = true;
+    var img = $('#vista-img');
+    img.src = h.url;
+    img.alt = 'Imagen generada con IA: ' + (h.promptUsuario || 'sin descripción');
+    img.hidden = false;
+    $('#etiqueta-ia').hidden = false;
+    var a = $('#btn-descargar');
+    a.href = h.url;
+    a.setAttribute('download', h.archivo);
+    a.removeAttribute('aria-disabled');
+    a.hidden = false;
+    $('#btn-copiar-usado').hidden = false;
+    texto($('#vista-meta'), h.tamano + ', semilla ' + h.semilla + ', ' + segundos(h.ms) + ', vía ' + h.via + (h.recortada ? ', recortada arriba' : '') + '. ' + h.tipoNombre + '.');
+    $all('#historial button').forEach(function (b, j) { b.setAttribute('aria-current', j === i ? 'true' : 'false'); });
+  }
+
+  function pintarHistorial() {
+    var ol = $('#historial ol');
+    ol.textContent = '';
+    estado.historial.forEach(function (h, i) {
+      var li = document.createElement('li');
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('aria-label', 'Ver imagen ' + (i + 1) + ' (semilla ' + h.semilla + ')');
+      var im = document.createElement('img');
+      im.src = h.url; im.alt = '';
+      b.appendChild(im);
+      b.addEventListener('click', function () { mostrar(i); });
+      li.appendChild(b);
+      ol.appendChild(li);
+    });
+    $('#historial').hidden = estado.historial.length < 2;
+  }
+
+  async function generar(modo) {
+    if (estado.generando) return;
+    var p = armarPedido();
+    var msg = $('#msg-generar');
+    if (!p.promptUsuario || p.promptUsuario.length < 12) {
+      nota(msg, 'Describe la imagen con al menos una frase (o elige una plantilla).', 'error');
+      $('#prompt').focus();
+      return;
+    }
+    if (/\[[^\]]+\]/.test(p.promptUsuario)) {
+      nota(msg, 'Completa los espacios entre corchetes de la plantilla, por ejemplo [color].', 'error');
+      return;
+    }
+    nota(msg, '', '');
+    var c = new AbortController();
+    estado.abortar = c;
+    bloquear(true);
+    var t0 = Date.now();
+    texto($('#progreso-texto'), modo === 'n8n' ? 'n8n espera el turno de la GPU y genera…' : 'Preparando…');
+    var reloj = setInterval(function () { texto($('#progreso-seg'), segundos(Date.now() - t0)); }, 250);
+    // n8n puede esperar el lock de la GPU hasta 10 min; directo, 5 min.
+    var lim = conTiempo(modo === 'n8n' ? 11 * 60000 : 5 * 60000, c.signal);
+    try {
+      var res = modo === 'n8n' ? await pedirAN8n(p, lim.signal) : await pedirASd(p, lim.signal);
+      texto($('#progreso-texto'), 'Ajustando el encuadre…');
+      var rec = await recortarArriba(res.blob, p.recorte, p.tamanoFinal);
+      var url = URL.createObjectURL(rec.blob);
+      var ext = /png/.test(rec.blob.type) ? 'png' : /jpe?g/.test(rec.blob.type) ? 'jpg' : 'webp';
+      estado.historial.unshift({
+        url: url, archivo: 'palmera-brava-' + p.tipo + '-' + p.semilla + '.' + ext, prompt: p.prompt, promptUsuario: p.promptUsuario,
+        semilla: p.semilla, tamano: rec.recortada ? p.tamanoFinal : p.tamanoGenerar, via: res.via, ms: Date.now() - t0,
+        recortada: rec.recortada, tipoNombre: TIPOS[p.tipo].nombre
+      });
+      while (estado.historial.length > 6) URL.revokeObjectURL(estado.historial.pop().url);
+      pintarHistorial();
+      mostrar(0);
+      if (window.matchMedia('(max-width: 1000px)').matches) {
+        $('#vista-arco').scrollIntoView({ block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      }
+      nota(msg, 'Imagen lista. Revísala antes de usarla: sin rostro, sin niños con personas, sin texto ni logos.' +
+        (res.via === 'n8n' ? ' También llegó a Telegram con los botones Portada / Hero / Lookbook / Descartar.' : ' Para publicarla, envíala al bot por Telegram como foto.'), 'ok');
+    } catch (e) {
+      if (e.name === 'AbortError') nota(msg, c.signal.aborted ? 'Cancelado. La GPU termina el trabajo en curso antes de aceptar otro.' : 'Se agotó el tiempo de espera. Revisa el estado de los servicios arriba.', 'error');
+      else nota(msg, e.message + (e.paso ? ' Siguiente paso: ' + e.paso : ''), 'error');
+    } finally {
+      lim.fin();
+      clearInterval(reloj);
+      bloquear(false);
+      estado.abortar = null;
+    }
+  }
+
+  // ---------- 5) Cifras del catálogo y estado del bot ----------
+  async function cargarCifras() {
+    var caja = $('#cifras');
+    var aviso = $('#cifras-aviso');
+    if (!window.PBKpis) { nota(aviso, 'No se cargó tools/kpis.js.', 'error'); return; }
+    try {
+      var docs = {};
+      var nombres = ['products', 'articles', 'site'];
+      for (var i = 0; i < nombres.length; i++) {
+        var r = await fetch('data/' + nombres[i] + '.json', { cache: 'no-cache' });
+        if (!r.ok) throw new Error('data/' + nombres[i] + '.json: HTTP ' + r.status);
+        docs[nombres[i]] = await r.text();
+      }
+      var k = window.PBKpis.calcularKpis(docs, {});
+      var filas = [
+        ['Productos visibles', k.productos_activos],
+        ['De muestra / reales', k.muestras_activas + ' / ' + k.reales_activos],
+        ['H / M / N / A', ['hombres', 'mujeres', 'ninos', 'accesorios'].map(function (c) { return k.por_categoria[c]; }).join(' / ')],
+        ['En oferta', k.en_oferta],
+        ['Artículos publicados', k.articulos_activos + ' de ' + k.articulos_total],
+        ['WhatsApp', k.whatsapp_configurado ? 'Configurado' : 'Falta']
+      ];
+      caja.textContent = '';
+      filas.forEach(function (f) {
+        var d = document.createElement('div'); d.className = 'cifra';
+        var dt = document.createElement('dt'); dt.textContent = f[0];
+        var dd = document.createElement('dd'); dd.textContent = String(f[1]);
+        d.appendChild(dt); d.appendChild(dd); caja.appendChild(d);
+      });
+      nota(aviso, k.categorias_cuadran ? '' : 'Las categorías no suman el total: revisa con /lista.', k.categorias_cuadran ? '' : 'error');
+      texto($('#cifras-estado'), window.PBKpis.textoEstado(k));
+    } catch (e) {
+      nota(aviso, 'No pude leer los datos locales (' + e.message + ').', 'error');
+    }
+  }
+
+  async function estadoBot() {
+    var salida = $('#bot-estado');
+    var aviso = $('#bot-aviso');
+    var clave = claveActual();
+    if (!clave) { nota(aviso, 'Escribe la clave del panel (X-Tienda-Key) en "Crear imagen con IA".', 'error'); $('#clave').focus(); return; }
+    nota(aviso, 'Consultando…', '');
+    var t = conTiempo(10000);
+    try {
+      var r = await fetch(URL_ESTADO_BOT, { cache: 'no-store', signal: t.signal, headers: { 'X-Tienda-Key': clave } });
+      var crudo = await r.text();
+      if (!r.ok) {
+        var paso = r.status === 404 ? 'publica "WF8 Panel-API" en n8n.' : (r.status === 401 || r.status === 403) ? 'revisa la clave X-Tienda-Key.' : 'revisa la ejecución en n8n.';
+        nota(aviso, 'n8n respondió ' + r.status + '. Siguiente paso: ' + paso, 'error');
+        return;
+      }
+      var mostrarTxt = crudo;
+      try { var j = JSON.parse(crudo); mostrarTxt = typeof j.texto === 'string' ? j.texto : JSON.stringify(j, null, 2); } catch (e) { /* texto plano */ }
+      salida.hidden = false;
+      salida.textContent = mostrarTxt;
+      nota(aviso, 'Actualizado: ' + hora(), 'ok');
+    } catch (e) {
+      nota(aviso, 'n8n no respondió. Siguiente paso: revisa que esté en línea y que WF8 tenga Allowed Origins con este panel.', 'error');
+    } finally { t.fin(); }
+  }
+
+  // ---------- 2) Guardia + arranque ----------
+  function iniciar() {
+    var local = HOSTS_LOCALES.indexOf(location.hostname) >= 0 && location.protocol === 'http:';
+    if (!local) {
+      if (location.protocol === 'file:') texto($('#guardia-detalle'), 'Lo abriste como archivo. Ejecuta tools\\iniciar-todo.bat: abre http://127.0.0.1:8080/tienda-tarapoto/admin.html');
+      return; // fuera de la PC de la tienda no se hace NINGUNA petición
+    }
+    $('#guardia').hidden = true;
+    $('#app').hidden = false;
+    document.title = 'Panel de la tienda | Palmera Brava (local)';
+    if (location.port !== '8080') nota($('#aviso-puerto'), 'Abriste el panel en el puerto ' + (location.port || '80') + '. Los webhooks de n8n solo aceptan el 8080: usa tools\\iniciar-todo.bat o python tools\\serve.py.', 'error');
+
+    // Tema (3 estados)
+    var actual = leerTema();
+    $all('.tema button').forEach(function (b) {
+      b.setAttribute('aria-pressed', b.value === actual ? 'true' : 'false');
+      b.addEventListener('click', function () {
+        try { if (b.value === 'system') localStorage.removeItem(CLAVE_TEMA); else localStorage.setItem(CLAVE_TEMA, b.value); } catch (e) { /* sin almacenamiento */ }
+        aplicarTema(b.value);
+        $all('.tema button').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+      });
+    });
+
+    // Estado en vivo
+    $('#btn-revisar').addEventListener('click', revisarTodo);
+    revisarTodo();
+    setInterval(function () { if (document.visibilityState === 'visible') revisarTodo(); }, 20000);
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') revisarTodo(); });
+
+    // Formulario
+    if (leerSesion(CLAVE_SESION)) { $('#clave').placeholder = 'Guardada en esta pestaña'; $('#btn-olvidar').hidden = false; }
+    $('#clave').addEventListener('change', function () {
+      if ($('#clave').value.trim()) { guardarSesion(CLAVE_SESION, $('#clave').value.trim()); $('#btn-olvidar').hidden = false; }
+    });
+    $('#btn-olvidar').addEventListener('click', function () {
+      guardarSesion(CLAVE_SESION, ''); $('#clave').value = ''; $('#clave').placeholder = 'Valor de la credencial Header Auth';
+      $('#btn-olvidar').hidden = true;
+    });
+    $all('input[name="tipo"]').forEach(function (r) { r.addEventListener('change', function () { elegirTipo(r.value); }); });
+    ['#prompt', '#personas', '#tamano', '#semilla', '#recortar'].forEach(function (s) {
+      $(s).addEventListener('input', actualizarPromptFinal);
+      $(s).addEventListener('change', actualizarPromptFinal);
+    });
+    $('#form-imagen').addEventListener('submit', function (ev) { ev.preventDefault(); generar('n8n'); });
+    $('#btn-directo').addEventListener('click', function () { generar('directo'); });
+    $('#btn-cancelar').addEventListener('click', function () { if (estado.abortar) estado.abortar.abort(); });
+    $('#btn-copiar').addEventListener('click', async function () {
+      var p = armarPedido();
+      var ok = await copiar(p.prompt);
+      nota($('#msg-generar'), ok ? 'Prompt copiado. Pégalo en Open Generative AI o en la UI de sd-server.' : 'No se pudo copiar: selecciona el texto de "Prompt final" y cópialo a mano.', ok ? 'ok' : 'error');
+    });
+    $('#btn-copiar-usado').addEventListener('click', async function () {
+      var h = estado.historial[estado.actual];
+      if (!h) return;
+      var ok = await copiar(h.prompt);
+      nota($('#msg-generar'), ok ? 'Prompt de esta imagen copiado (semilla ' + h.semilla + ').' : 'No se pudo copiar.', ok ? 'ok' : 'error');
+    });
+    $('#btn-oga').addEventListener('click', async function () {
+      var ok = await copiar(armarPedido().prompt);
+      var pasos = $('#oga-pasos');
+      pasos.hidden = false;
+      texto($('#oga-copiado'), ok ? 'Prompt copiado al portapapeles.' : 'No se pudo copiar el prompt; cópialo desde "Prompt final".');
+      pasos.focus();
+    });
+    elegirTipo(tipoElegido());
+
+    // Cifras y bot
+    cargarCifras();
+    $('#btn-cifras').addEventListener('click', cargarCifras);
+    $('#btn-bot').addEventListener('click', estadoBot);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
+  else iniciar();
+})();
+</script>
+<script src="tools/kpis.js" defer></script>
+</head>
+<body>
+
+<!-- ============ Guardia: visible por defecto (sin JS o fuera de la PC de la tienda) ============ -->
+<section class="guardia" id="guardia" aria-labelledby="guardia-titulo">
+  <div class="guardia__caja">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M16 30c-.6 0-1-.4-1-1V15.6c-2.4-1.9-6.3-2.2-9.4-.6 1.2-3.6 5.3-5.3 9-4.2C12.4 8.3 8.3 7.6 5 8.8 7.2 5.4 12 4.6 15.4 7c.3-3 2.6-5.4 5.6-6-1.4 2-1.8 4.3-1.4 6.5 3.4-1.9 7.6-1.2 10.2 1.6-3.4-.6-6.6.4-8.8 2.6 3.6-.3 7 1.9 8 5.3-2.9-1.9-6.8-2-9.9-.4V29c0 .6-.5 1-1.1 1z"/></svg>
+    <h1 id="guardia-titulo">Panel solo disponible en la PC de la tienda</h1>
+    <p id="guardia-detalle">Este panel controla la IA local y el bot de la tienda, así que solo funciona en esa computadora, en http://127.0.0.1:8080/tienda-tarapoto/admin.html.</p>
+    <noscript><p>Además, necesita JavaScript activado.</p></noscript>
+    <p><a href="./">Ir a la tienda Palmera Brava</a></p>
+  </div>
+</section>
+
+<!-- ============ Panel (solo en 127.0.0.1 / localhost) ============ -->
+<div id="app" hidden>
+
+  <!-- Cabecera -->
+  <header class="cabecera">
+    <div class="envoltura">
+      <a class="marca" href="./">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M16 30c-.6 0-1-.4-1-1V15.6c-2.4-1.9-6.3-2.2-9.4-.6 1.2-3.6 5.3-5.3 9-4.2C12.4 8.3 8.3 7.6 5 8.8 7.2 5.4 12 4.6 15.4 7c.3-3 2.6-5.4 5.6-6-1.4 2-1.8 4.3-1.4 6.5 3.4-1.9 7.6-1.2 10.2 1.6-3.4-.6-6.6.4-8.8 2.6 3.6-.3 7 1.9 8 5.3-2.9-1.9-6.8-2-9.9-.4V29c0 .6-.5 1-1.1 1z"/></svg>
+        <div><strong>Palmera Brava</strong><span>Panel de la tienda, solo en esta PC</span></div>
+      </a>
+      <nav class="nav" aria-label="Sitios">
+        <a href="./">Sitio local</a>
+        <a href="https://abnercayao.github.io/tienda-tarapoto/" rel="noopener">Sitio publicado</a>
+      </nav>
+      <div class="tema" role="group" aria-label="Tema de color">
+        <button type="button" value="system" aria-pressed="true">Sistema</button>
+        <button type="button" value="light" aria-pressed="false">Claro</button>
+        <button type="button" value="dark" aria-pressed="false">Oscuro</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="envoltura">
+
+    <!-- Estado en vivo de los servicios locales -->
+    <section class="servicios" aria-labelledby="titulo-servicios">
+      <h2 id="titulo-servicios" class="pequeno atenuado" style="font-size:.95rem;font-family:var(--font-body);font-weight:600;margin-bottom:8px">Servicios de esta PC</h2>
+      <div class="servicios__fila" aria-live="polite">
+        <div class="servicio" id="srv-n8n">
+          <span class="punto" aria-hidden="true"></span>
+          <div><div><span class="servicio__nombre">n8n</span>: <span class="servicio__estado">Revisando…</span></div>
+            <div class="servicio__detalle"></div><div class="servicio__paso" hidden></div></div>
+        </div>
+        <div class="servicio" id="srv-ollama">
+          <span class="punto" aria-hidden="true"></span>
+          <div><div><span class="servicio__nombre">Ollama</span>: <span class="servicio__estado">Revisando…</span></div>
+            <div class="servicio__detalle"></div><div class="servicio__paso" hidden></div></div>
+        </div>
+        <div class="servicio" id="srv-sd">
+          <span class="punto" aria-hidden="true"></span>
+          <div><div><span class="servicio__nombre">sd-server</span>: <span class="servicio__estado">Revisando…</span></div>
+            <div class="servicio__detalle"></div><div class="servicio__paso" hidden></div></div>
+        </div>
+      </div>
+      <div class="servicios__pie">
+        <button type="button" class="boton boton--borde boton--chico" id="btn-revisar">Revisar ahora</button>
+        <span id="srv-hora"></span>
+      </div>
+      <p id="aviso-puerto" class="nota" hidden style="margin-top:10px"></p>
+    </section>
+
+    <!-- Taller: crear imagen con IA -->
+    <div class="taller">
+      <section class="tarjeta" aria-labelledby="titulo-crear">
+        <h2 id="titulo-crear">Crear imagen con IA</h2>
+        <p class="atenuado">Usa el motor de Open Generative AI (Z-Image Turbo) en esta PC. Las fotos muestran la prenda en personas adultas sin rostro; la ropa de niños, siempre sin personas.</p>
+
+        <form class="form" id="form-imagen" novalidate>
+          <fieldset class="campo">
+            <legend>Para qué es</legend>
+            <div class="tipos">
+              <label class="tipo"><input type="radio" name="tipo" value="hero"><span><b>Hero</b><small>Portada, 1344×768</small></span></label>
+              <label class="tipo"><input type="radio" name="tipo" value="lookbook"><span><b>Lookbook</b><small>Look, 768×1024</small></span></label>
+              <label class="tipo"><input type="radio" name="tipo" value="blog"><span><b>Blog</b><small>Artículo, 1216×832</small></span></label>
+              <label class="tipo"><input type="radio" name="tipo" value="producto-muestra" checked><span><b>Producto</b><small>De muestra, 768×1024</small></span></label>
+            </div>
+          </fieldset>
+
+          <div class="campo">
+            <span class="etiqueta" id="titulo-plantillas">Plantillas de la marca</span>
+            <div class="plantillas" id="plantillas" role="group" aria-labelledby="titulo-plantillas"></div>
+          </div>
+
+          <div class="campo">
+            <label for="prompt">Describe la imagen</label>
+            <textarea id="prompt" rows="5" maxlength="1200" aria-describedby="ayuda-prompt" placeholder="Por ejemplo: An adult wearing a lagoon-turquoise linen blouse, framed from the shoulders to the hips, next to palm leaves."></textarea>
+            <span class="ayuda" id="ayuda-prompt">Funciona mejor en inglés. El estilo de la marca y la regla de encuadre se añaden solos.</span>
+            <p id="avisos-prompt" class="nota" hidden></p>
+          </div>
+
+          <div class="fila2">
+            <div class="campo">
+              <label for="personas">Personas</label>
+              <select id="personas">
+                <option value="adultos">Persona adulta, sin rostro</option>
+                <option value="ninguna">Sin personas (prenda sola)</option>
+              </select>
+            </div>
+            <div class="campo">
+              <label for="tamano">Tamaño final</label>
+              <select id="tamano">
+                <option value="768x1024">Vertical 768×1024 (producto, look)</option>
+                <option value="1344x768">Horizontal 1344×768 (hero)</option>
+                <option value="1216x832">Horizontal 1216×832 (blog)</option>
+                <option value="1024x1024">Cuadrada 1024×1024 (redes)</option>
+              </select>
+            </div>
+          </div>
+
+          <label class="check"><input type="checkbox" id="recortar" checked>
+            <span>Generar más alto y recortar arriba <span class="atenuado">(recomendado con personas: evita que asome el mentón)</span></span></label>
+
+          <div class="fila2">
+            <div class="campo">
+              <label for="semilla">Semilla</label>
+              <input type="number" id="semilla" min="1" max="2147483646" inputmode="numeric" placeholder="Al azar" aria-describedby="ayuda-semilla">
+              <span class="ayuda" id="ayuda-semilla">Repite la misma semilla para obtener la misma imagen.</span>
+            </div>
+            <div class="campo">
+              <label for="clave">Clave del panel (X-Tienda-Key)</label>
+              <input type="password" id="clave" autocomplete="off" spellcheck="false" placeholder="Valor de la credencial Header Auth" aria-describedby="ayuda-clave">
+              <span class="ayuda" id="ayuda-clave">Se guarda solo en esta pestaña. <button type="button" class="boton boton--borde boton--chico" id="btn-olvidar" hidden>Olvidar clave</button></span>
+            </div>
+          </div>
+
+          <details class="prompt-final">
+            <summary>Prompt final</summary>
+            <p id="prompt-final-texto"></p>
+            <p id="prompt-final-tam"></p>
+          </details>
+
+          <div class="acciones">
+            <button type="submit" class="boton boton--principal" id="btn-n8n">Crear imagen</button>
+            <button type="button" class="boton boton--secundario" id="btn-directo">Generar sin n8n</button>
+            <button type="button" class="boton boton--borde" id="btn-copiar">Copiar prompt</button>
+            <button type="button" class="boton boton--borde" id="btn-cancelar" hidden>Cancelar</button>
+          </div>
+          <p class="ayuda">"Crear imagen" pasa por n8n: respeta el turno de la GPU y también la envía a Telegram. "Generar sin n8n" llama directo a sd-server; úsalo solo si el bot no está generando nada.</p>
+          <p id="msg-generar" class="nota" role="status" hidden></p>
+        </form>
+      </section>
+
+      <!-- Vista previa con marco de arco -->
+      <section class="vista" aria-labelledby="titulo-vista">
+        <h2 id="titulo-vista" class="pequeno" style="font-size:1rem;font-family:var(--font-body);font-weight:600">Vista previa</h2>
+        <div class="arco" id="vista-arco" data-forma="vertical" aria-busy="false">
+          <div class="arco__vacio" id="vista-vacio">
+            <p>Tu imagen aparecerá aquí</p>
+            <small>Entre 15 y 40 segundos con la GPU libre.</small>
+          </div>
+          <svg class="arco__hojas" viewBox="0 0 400 160" preserveAspectRatio="xMidYMax slice" aria-hidden="true"><path fill="#3FC79A" d="M0 160c40-70 90-110 150-120-40 30-62 70-70 120zm400 0c-36-64-84-100-140-112 36 30 56 66 62 112zM160 160c20-50 52-84 96-100-26 28-40 62-44 100z"/></svg>
+          <img id="vista-img" alt="" hidden>
+          <span class="etiqueta-ia" id="etiqueta-ia" hidden>Imagen referencial (IA)</span>
+          <div class="progreso" id="progreso" hidden role="status" aria-live="polite">
+            <span class="sol" aria-hidden="true"></span>
+            <b id="progreso-seg">0 s</b>
+            <span id="progreso-texto">Generando…</span>
+          </div>
+        </div>
+        <p class="meta" id="vista-meta"></p>
+        <div class="acciones" style="justify-content:center">
+          <a class="boton boton--principal" id="btn-descargar" hidden>Descargar</a>
+          <button type="button" class="boton boton--borde" id="btn-copiar-usado" hidden>Copiar su prompt</button>
+        </div>
+        <div class="historial" id="historial" hidden>
+          <span class="etiqueta pequeno">En esta sesión</span>
+          <ol></ol>
+        </div>
+      </section>
+    </div>
+
+    <!-- Atajos, cifras del catálogo y estado del bot -->
+    <div class="bloques">
+      <section class="tarjeta" aria-labelledby="titulo-atajos">
+        <h2 id="titulo-atajos">Otras formas de trabajar</h2>
+        <ul class="lista-acciones">
+          <li><button type="button" class="boton boton--borde" id="btn-oga">Abrir Open Generative AI</button>
+            <div id="oga-pasos" class="nota" tabindex="-1" hidden>
+              <p id="oga-copiado"></p>
+              <p>1. Detén sd-server con tools\detener-sd-server.bat: la app y sd-server comparten la VRAM.</p>
+              <p>2. Abre «Open Generative AI» desde el menú Inicio de Windows.</p>
+              <p>3. Pega el prompt (Ctrl+V). La app no lo recibe sola.</p>
+            </div></li>
+          <li><a class="boton boton--borde" href="http://127.0.0.1:1234/" target="_blank" rel="noopener">Abrir UI de sd-server</a>
+            <span class="ayuda">La interfaz propia del motor de imágenes.</span></li>
+          <li><a class="boton boton--borde" href="http://127.0.0.1:5678/form/tienda" target="_blank" rel="noopener">Formulario de productos (n8n)</a>
+            <span class="ayuda">Crea un borrador con foto; se confirma con Publicar en Telegram.</span></li>
+          <li><a class="boton boton--borde" href="http://127.0.0.1:5678/" target="_blank" rel="noopener">Abrir n8n</a>
+            <span class="ayuda">Workflows, credenciales y ejecuciones.</span></li>
+        </ul>
+      </section>
+
+      <section class="tarjeta" aria-labelledby="titulo-cifras">
+        <h2 id="titulo-cifras">Cifras del catálogo</h2>
+        <p class="ayuda">Datos de esta carpeta, calculados con tools/kpis.js (las mismas cifras que el README y /estado). Haz git pull para ver lo último que publicó el bot.</p>
+        <dl class="cifras" id="cifras"></dl>
+        <p id="cifras-aviso" class="nota" hidden></p>
+        <details class="prompt-final" style="margin-top:12px">
+          <summary>Texto de /estado</summary>
+          <p id="cifras-estado"></p>
+        </details>
+        <p style="margin-top:12px"><button type="button" class="boton boton--borde boton--chico" id="btn-cifras">Recalcular</button></p>
+      </section>
+
+      <section class="tarjeta" aria-labelledby="titulo-bot">
+        <h2 id="titulo-bot">Estado del bot</h2>
+        <p class="ayuda">Pregunta a n8n (WF8, GET /webhook/estado) por la cola, los borradores y el último commit. Usa la misma clave del panel.</p>
+        <p style="margin-top:12px"><button type="button" class="boton boton--secundario" id="btn-bot">Consultar estado del bot</button></p>
+        <p id="bot-aviso" class="nota" role="status" hidden></p>
+        <pre class="texto-bot" id="bot-estado" hidden></pre>
+      </section>
+    </div>
+  </main>
+
+  <footer class="pie">
+    <div class="envoltura">
+      <p>Panel local de Palmera Brava. No se publica nada desde aquí: toda publicación pasa por un borrador y el botón Publicar en Telegram. Guía de operación: docs/RUNBOOK.md.</p>
+    </div>
+  </footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,81 @@
+#!/bin/sh
+# tools/hooks/pre-commit — Barrera local antes de cada commit de Palmera Brava (PLAN D14 y F3).
+#
+# Activación (una sola vez, en la raíz del repo):
+#     git config core.hooksPath tools/hooks
+#
+# Qué revisa (si algo falla, el commit NO se hace):
+#   1. git grep de secretos sobre lo que se va a commitear (el índice), con forma real de token:
+#      Telegram (NNNNNNNNN:35 caracteres), GitHub (ghp_, github_pat_, gho_/ghu_/ghs_/ghr_) y claves privadas.
+#   2. node tools/validar.js              (contrato de data/*.json)
+#   3. node tools/csp.js --check          (hash del <script> en línea de index.html y admin.html)
+#   4. node tools/limpiar-workflows.js --check   (n8n/workflows/*.json sin pinData, ids de credenciales ni instanceId)
+# Los pasos 2-4 miran los archivos del disco (no solo lo preparado con git add).
+#
+# No uses "git commit --no-verify" para saltarlo. Si encuentra un secreto: quítalo, ROTA ese token
+# (docs/RUNBOOK.md, "Si se filtra un token") y vuelve a intentarlo.
+
+cd "$(git rev-parse --show-toplevel)" || exit 1
+fallo=0
+
+# --- 1. Secretos -------------------------------------------------------------------------------
+# Patrones con la forma completa del token (la palabra suelta "ghp_" aparece en la documentación).
+PATRON='[0-9]{8,10}:[A-Za-z0-9_-]{35}|bot[0-9]{6,10}:[A-Za-z0-9_-]{30,}|ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{22,}|gh[ousr]_[A-Za-z0-9]{36}|-----BEGIN [A-Z ]*PRIVATE KEY-----'
+# Valores FALSOS que tools/test-validar.js usa para probar que el validador los rechaza.
+# Se quitan de cada línea antes de volver a buscar, así un token real en la misma línea sí se detecta.
+# (Partidos en dos trozos para que este archivo no tenga la forma de un token.)
+FALSO1='AAHk9xQwErTyUiOpAsDfGh''JkLzXcVbNm123'
+FALSO2='github_pat_11ABCDEFG0123456789''_abcdefghijklmnopqrstuvwxyz'
+FALSO3='ghp_0123456789abcdefghij''klmnopqrstuvwxyzAB'
+
+hallados=$(git grep --cached -I -n -E "$PATRON" -- . ':(exclude)assets/img/**' 2>/dev/null \
+  | sed -e "s/$FALSO1//g" -e "s/$FALSO2//g" -e "s/$FALSO3//g" \
+  | grep -E "$PATRON")
+if [ -n "$hallados" ]; then
+  echo "FALLA (secretos): hay algo con forma de token en lo que vas a commitear:"
+  # Solo archivo y línea: no se vuelve a imprimir el posible token en la consola.
+  echo "$hallados" | cut -d: -f1,2 | sed 's/^/  - /'
+  echo "Siguiente paso: quítalo del archivo, ejecuta git add de nuevo y rota ese token (docs/RUNBOOK.md)."
+  fallo=1
+else
+  echo "OK  secretos: ninguno en el índice."
+fi
+
+# --- 2-4. Validador, CSP y workflows -----------------------------------------------------------
+if ! command -v node >/dev/null 2>&1; then
+  echo "FALLA: no encuentro node en el PATH (hace falta para validar.js y csp.js)."
+  exit 1
+fi
+
+if node tools/validar.js >/tmp/pb-validar.$$ 2>&1; then
+  echo "OK  validar.js: $(tail -n 1 /tmp/pb-validar.$$)"
+else
+  echo "FALLA (validar.js):"; sed 's/^/  /' /tmp/pb-validar.$$; fallo=1
+fi
+rm -f /tmp/pb-validar.$$
+
+if node tools/csp.js --check >/tmp/pb-csp.$$ 2>&1; then
+  echo "OK  csp.js --check"
+else
+  echo "FALLA (csp.js --check):"; sed 's/^/  /' /tmp/pb-csp.$$
+  echo "  Siguiente paso: node tools/csp.js  (recalcula el hash) y git add index.html admin.html"
+  fallo=1
+fi
+rm -f /tmp/pb-csp.$$
+
+if [ -f tools/limpiar-workflows.js ]; then
+  if node tools/limpiar-workflows.js --check >/tmp/pb-wf.$$ 2>&1; then
+    echo "OK  limpiar-workflows.js --check"
+  else
+    echo "FALLA (workflows de n8n):"; sed 's/^/  /' /tmp/pb-wf.$$
+    echo "  Siguiente paso: node tools/limpiar-workflows.js y git add n8n/workflows"
+    fallo=1
+  fi
+  rm -f /tmp/pb-wf.$$
+fi
+
+if [ "$fallo" -ne 0 ]; then
+  echo "Commit cancelado por el hook pre-commit (tools/hooks/pre-commit)."
+  exit 1
+fi
+exit 0

@@ -1,0 +1,53 @@
+# .gitignore — Palmera Brava (repo PÚBLICO: todo lo que entra aquí lo puede leer cualquiera)
+
+# Registros y temporales
+*.log
+*.tmp
+*.tmp-*
+*.bak
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Dependencias (el proyecto no usa npm; por si acaso)
+node_modules/
+
+# Secretos: nunca al repo (tokens de Telegram/GitHub, X-Tienda-Key, API key de n8n)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secretos/
+secrets/
+*.secrets.json
+*.secreto.*
+n8n-deploy.local.*
+
+# Copias de seguridad de n8n (contienen la clave de cifrado y el token del bot)
+backups/
+*.backup
+n8n-backup*/
+*.sqlite
+*.sqlite-*
+database.sqlite*
+
+# Exportaciones de n8n SIN limpiar (lo limpio va en n8n/workflows/ tras tools/limpiar-workflows.js)
+n8n/import/
+n8n/export-crudo/
+
+# Fotos originales (pueden traer EXIF/GPS) e imágenes sin recortar
+originales/
+_crudo/
+*.orig.*
+
+# Documentos pesados del curso (el PDF de 44.9 MB no entra)
+*.pdf
+
+# Editores y Claude Code (ajustes locales; la skill de .claude/skills sí se versiona)
+.vscode/
+.idea/
+.claude/settings.local.json

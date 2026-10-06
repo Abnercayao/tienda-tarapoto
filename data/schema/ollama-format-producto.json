@@ -1,0 +1,289 @@
+{
+  "type": "object",
+  "properties": {
+    "op": {
+      "type": "string",
+      "enum": [
+        "crear",
+        "actualizar",
+        "desactivar",
+        "reactivar",
+        "stock",
+        "agregar_imagen"
+      ]
+    },
+    "entidad": {
+      "type": "string",
+      "enum": [
+        "producto"
+      ]
+    },
+    "id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "prd-0000 del catálogo; null si op=crear"
+    },
+    "campos": {
+      "type": "object",
+      "properties": {
+        "nombre": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "categoria": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "hombres",
+            "mujeres",
+            "ninos",
+            "accesorios",
+            null
+          ]
+        },
+        "subcategoria": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "polos",
+            "camisas",
+            "blusas",
+            "vestidos",
+            "faldas",
+            "shorts",
+            "bermudas",
+            "pantalones",
+            "conjuntos",
+            "ropa-de-bano",
+            "pijamas",
+            "sombreros",
+            "gorros",
+            "gorras",
+            "sandalias",
+            "lentes",
+            "bolsos",
+            "otros",
+            null
+          ]
+        },
+        "precio": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "precio_oferta": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "tallas": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "XS",
+              "S",
+              "M",
+              "L",
+              "XL",
+              "XXL",
+              "2",
+              "4",
+              "6",
+              "8",
+              "10",
+              "12",
+              "14",
+              "16",
+              "35",
+              "36",
+              "37",
+              "38",
+              "39",
+              "40",
+              "41",
+              "42",
+              "43",
+              "44",
+              "UNICA"
+            ]
+          }
+        },
+        "stock_tallas": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "talla": {
+                "type": "string",
+                "enum": [
+                  "XS",
+                  "S",
+                  "M",
+                  "L",
+                  "XL",
+                  "XXL",
+                  "2",
+                  "4",
+                  "6",
+                  "8",
+                  "10",
+                  "12",
+                  "14",
+                  "16",
+                  "35",
+                  "36",
+                  "37",
+                  "38",
+                  "39",
+                  "40",
+                  "41",
+                  "42",
+                  "43",
+                  "44",
+                  "UNICA"
+                ]
+              },
+              "cantidad": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "talla",
+              "cantidad"
+            ]
+          }
+        },
+        "stock_modo": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "fijar",
+            "sumar",
+            "restar",
+            null
+          ],
+          "description": "fijar = cantidad total nueva; sumar = llegaron N más; restar = se vendieron N"
+        },
+        "colores": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "material": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "descripcion": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "etiquetas": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "alt_imagen": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "destacado": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "nombre",
+        "categoria",
+        "subcategoria",
+        "precio",
+        "precio_oferta",
+        "tallas",
+        "stock_tallas",
+        "stock_modo",
+        "colores",
+        "material",
+        "descripcion",
+        "etiquetas",
+        "alt_imagen",
+        "destacado"
+      ]
+    },
+    "campos_inferidos": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "nombre",
+          "categoria",
+          "subcategoria",
+          "precio",
+          "precio_oferta",
+          "tallas",
+          "stock_tallas",
+          "stock_modo",
+          "colores",
+          "material",
+          "descripcion",
+          "etiquetas",
+          "alt_imagen",
+          "destacado"
+        ]
+      }
+    },
+    "faltantes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "nombre",
+          "categoria",
+          "subcategoria",
+          "precio",
+          "precio_oferta",
+          "tallas",
+          "stock_tallas",
+          "stock_modo",
+          "colores",
+          "material",
+          "descripcion",
+          "etiquetas",
+          "alt_imagen",
+          "destacado",
+          "id",
+          "foto"
+        ]
+      }
+    }
+  },
+  "required": [
+    "op",
+    "entidad",
+    "id",
+    "campos",
+    "campos_inferidos",
+    "faltantes"
+  ]
+}

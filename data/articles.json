@@ -1,0 +1,240 @@
+{
+  "$schema": "./schema/articles.schema.json",
+  "schema_version": 1,
+  "version": 1,
+  "actualizado": "2026-10-06T06:00:00-05:00",
+  "borradores_aplicados": [],
+  "articulos": [
+    {
+      "id": "art-0001",
+      "slug": "como-vestir-fresco-en-tarapoto",
+      "titulo": "Cómo vestir fresco en Tarapoto",
+      "resumen": "Telas, cortes y colores que te ayudan a llevar mejor el calor húmedo de la Ciudad de las Palmeras, del mediodía a la noche.",
+      "portada": {
+        "src": "assets/img/blog/como-vestir-fresco-en-tarapoto.webp",
+        "alt": "Camisas y vestidos de lino colgados en una terraza con palmeras al fondo",
+        "origen": "ia_local",
+        "ancho": 1216,
+        "alto": 832
+      },
+      "bloques": [
+        {
+          "tipo": "parrafo",
+          "texto": "En Tarapoto el calor llega con humedad: durante buena parte del año las máximas rondan los 30 a 33 °C y la ropa que no deja pasar el aire se pega al cuerpo en minutos. Vestir fresco no depende solo de usar menos ropa, sino de elegir bien la tela, el corte y el color."
+        },
+        {
+          "tipo": "subtitulo",
+          "texto": "1. Elige telas naturales que respiren"
+        },
+        {
+          "tipo": "parrafo",
+          "texto": "El lino y el algodón dejan circular el aire y absorben el sudor. Las fibras sintéticas comunes, como el poliéster de muchas prendas económicas, retienen más el calor y la humedad; déjalas para la ropa deportiva técnica, que está diseñada para secar rápido."
+        },
+        {
+          "tipo": "subtitulo",
+          "texto": "2. Prefiere cortes holgados"
+        },
+        {
+          "tipo": "parrafo",
+          "texto": "Una prenda que no se pega a la piel deja una capa de aire que ayuda a refrescar. Las camisas de manga corta amplia, los vestidos con vuelo y los shorts de pierna ancha son buenos aliados para el día a día."
+        },
+        {
+          "tipo": "subtitulo",
+          "texto": "3. Colores claros para las horas de más sol"
+        },
+        {
+          "tipo": "parrafo",
+          "texto": "Los tonos claros, como arena, blanco hueso o celeste, absorben menos calor del sol que los oscuros. Los colores intensos, como el mango o el verde palma, quedan muy bien para la tarde y la noche."
+        },
+        {
+          "tipo": "lista",
+          "items": [
+            "Lino o algodón en las prendas que van pegadas a la piel.",
+            "Cortes sueltos y mangas amplias.",
+            "Colores claros para salir entre las 10 a. m. y las 4 p. m.",
+            "Sombrero o gorro de ala ancha para el sol del mediodía.",
+            "Sandalias o calzado ventilado."
+          ]
+        },
+        {
+          "tipo": "cita",
+          "texto": "Si dudas entre dos prendas, quédate con la de tela más ligera y corte más suelto.",
+          "autor": "Equipo Palmera Brava"
+        },
+        {
+          "tipo": "producto",
+          "ids": [
+            "prd-0001",
+            "prd-0005",
+            "prd-0013"
+          ]
+        },
+        {
+          "tipo": "parrafo",
+          "texto": "¿Tienes dudas sobre tallas o telas? Escríbenos por WhatsApp y te ayudamos a elegir."
+        }
+      ],
+      "productos_relacionados": [
+        "prd-0001",
+        "prd-0002",
+        "prd-0005",
+        "prd-0013"
+      ],
+      "autor": "Equipo Palmera Brava",
+      "fecha": "2026-09-20T09:00:00-05:00",
+      "activo": true,
+      "muestra": true
+    },
+    {
+      "id": "art-0002",
+      "slug": "telas-que-respiran-lino-vs-algodon",
+      "titulo": "Telas que respiran: lino vs. algodón",
+      "resumen": "Comparamos el lino y el algodón, incluido el pima peruano, para que sepas cuál conviene según el uso, el cuidado y el presupuesto.",
+      "portada": {
+        "src": "assets/img/blog/telas-que-respiran-lino-vs-algodon.webp",
+        "alt": "Primer plano de telas de lino natural y algodón pima blanco sobre una mesa de madera",
+        "origen": "ia_local",
+        "ancho": 1216,
+        "alto": 832
+      },
+      "bloques": [
+        {
+          "tipo": "parrafo",
+          "texto": "Cuando hace calor, la tela importa tanto como el diseño. El lino y el algodón son las dos fibras naturales más usadas en la ropa de verano, pero no se comportan igual."
+        },
+        {
+          "tipo": "subtitulo",
+          "texto": "Lino: el más fresco"
+        },
+        {
+          "tipo": "parrafo",
+          "texto": "El lino se obtiene de la planta del mismo nombre. Su fibra es larga y algo rígida, por eso la tela queda con una trama abierta que deja pasar el aire y se seca rápido. Se arruga con facilidad, pero en la ropa de verano esa textura es parte de su encanto."
+        },
+        {
+          "tipo": "subtitulo",
+          "texto": "Algodón: suave y versátil"
+        },
+        {
+          "tipo": "parrafo",
+          "texto": "El algodón es suave al tacto, absorbe bien el sudor y es fácil de lavar, aunque tarda un poco más en secar que el lino. El algodón pima, que se cultiva en la costa norte del Perú, tiene una fibra extralarga que da polos más suaves y resistentes al uso diario."
+        },
+        {
+          "tipo": "subtitulo",
+          "texto": "¿Cuál elegir?"
+        },
+        {
+          "tipo": "lista",
+          "items": [
+            "Para el mediodía y las salidas largas al sol: lino.",
+            "Para el uso diario y la ropa de los niños: algodón, por su suavidad y fácil lavado.",
+            "Para dormir: algodón ligero.",
+            "Si no te gusta planchar: mezclas de lino y algodón, que se arrugan menos."
+          ]
+        },
+        {
+          "tipo": "subtitulo",
+          "texto": "Cuidados básicos"
+        },
+        {
+          "tipo": "lista",
+          "items": [
+            "Lava con agua fría y jabón suave.",
+            "Seca a la sombra para cuidar el color.",
+            "Plancha el lino ligeramente húmedo.",
+            "Guarda la ropa bien seca: la humedad de la selva favorece la aparición de hongos."
+          ]
+        },
+        {
+          "tipo": "producto",
+          "ids": [
+            "prd-0001",
+            "prd-0003",
+            "prd-0005"
+          ]
+        }
+      ],
+      "productos_relacionados": [
+        "prd-0001",
+        "prd-0003",
+        "prd-0005",
+        "prd-0007"
+      ],
+      "autor": "Equipo Palmera Brava",
+      "fecha": "2026-09-27T09:00:00-05:00",
+      "activo": true,
+      "muestra": true
+    },
+    {
+      "id": "art-0003",
+      "slug": "proteccion-solar-para-ninos-en-la-selva",
+      "titulo": "Protección solar para niños en la selva",
+      "resumen": "En la selva la radiación ultravioleta suele ser muy alta. Te contamos cómo proteger a los niños con ropa adecuada, sombra y buenos hábitos.",
+      "portada": {
+        "src": "assets/img/blog/proteccion-solar-para-ninos-en-la-selva.webp",
+        "alt": "Polo infantil de manga larga, gorro con cubrenuca y frasco de bloqueador sobre una tela clara con hojas tropicales",
+        "origen": "ia_local",
+        "ancho": 1216,
+        "alto": 832
+      },
+      "bloques": [
+        {
+          "tipo": "parrafo",
+          "texto": "La piel de los niños es más delicada que la de un adulto y en la selva el índice de radiación ultravioleta suele llegar a niveles muy altos, sobre todo entre las 10 a. m. y las 4 p. m. La ropa es la primera barrera y la más fácil de usar todos los días."
+        },
+        {
+          "tipo": "subtitulo",
+          "texto": "Ropa con protección UV"
+        },
+        {
+          "tipo": "parrafo",
+          "texto": "Las prendas con factor UPF 50+ bloquean la mayor parte de la radiación ultravioleta. Los polos de manga larga de tela ligera y secado rápido protegen brazos y espalda en la piscina o el río. Busca la etiqueta UPF 50+ y revisa que la prenda siga en buen estado: el desgaste reduce la protección."
+        },
+        {
+          "tipo": "subtitulo",
+          "texto": "Gorro con ala o cubrenuca"
+        },
+        {
+          "tipo": "parrafo",
+          "texto": "Un gorro tipo legionario, con una tela que cae sobre la nuca y las orejas, protege zonas que el bloqueador suele olvidar."
+        },
+        {
+          "tipo": "subtitulo",
+          "texto": "Hábitos que suman"
+        },
+        {
+          "tipo": "lista",
+          "items": [
+            "Busca la sombra entre las 10 a. m. y las 4 p. m.",
+            "Usa bloqueador en las zonas que la ropa no cubre y renuévalo como indique el envase, sobre todo después de bañarse.",
+            "Ofrece agua con frecuencia.",
+            "En bebés menores de 6 meses, la mejor protección es la sombra y la ropa: consulta con su pediatra antes de usar bloqueador."
+          ]
+        },
+        {
+          "tipo": "cita",
+          "texto": "La mejor protección combina ropa, sombra y bloqueador; ninguna medida por sí sola es suficiente."
+        },
+        {
+          "tipo": "producto",
+          "ids": [
+            "prd-0009",
+            "prd-0012"
+          ]
+        },
+        {
+          "tipo": "parrafo",
+          "texto": "Este artículo es informativo y no reemplaza la consulta con un profesional de la salud."
+        }
+      ],
+      "productos_relacionados": [
+        "prd-0009",
+        "prd-0010",
+        "prd-0012"
+      ],
+      "autor": "Equipo Palmera Brava",
+      "fecha": "2026-10-03T09:00:00-05:00",
+      "activo": true,
+      "muestra": true
+    }
+  ]
+}

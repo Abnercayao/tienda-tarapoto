@@ -1,0 +1,494 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Palmera Brava — data/site.json",
+  "description": "Datos de la tienda, hero, categorías, lookbook y textos de aviso. Generado desde tools/validar.js.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "version",
+    "actualizado",
+    "borradores_aplicados",
+    "nombre",
+    "lema",
+    "whatsapp",
+    "telefono_visible",
+    "ciudad",
+    "region",
+    "pais",
+    "direccion",
+    "horario",
+    "envio",
+    "zonas_reparto",
+    "metodos_pago",
+    "redes",
+    "mapa",
+    "hero",
+    "categorias",
+    "lookbook",
+    "testimonios",
+    "aviso_muestra",
+    "aviso_ia",
+    "mensajes"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "pattern": "^\\./schema/[a-z-]+\\.schema\\.json$"
+    },
+    "schema_version": {
+      "const": 1,
+      "description": "Versión del contrato (cambia solo si cambia el esquema)."
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Revisión de los datos: WF5 la incrementa en cada commit. La web repinta si cambia."
+    },
+    "actualizado": {
+      "type": "string",
+      "pattern": "^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])T([01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(\\.\\d{1,3})?(Z|[+-]([01]\\d|2[0-3]):[0-5]\\d)$",
+      "description": "Fecha ISO 8601 con zona (-05:00) del último cambio publicado."
+    },
+    "borradores_aplicados": {
+      "type": "array",
+      "maxItems": 100,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^drf-[a-z0-9]{6,20}$"
+      },
+      "description": "Últimos 100 draft_id aplicados a site.json (idempotencia de WF5, D5)."
+    },
+    "nombre": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 40,
+      "pattern": "^[^<>]*$"
+    },
+    "lema": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 90,
+      "pattern": "^[^<>]*$"
+    },
+    "whatsapp": {
+      "type": "string",
+      "pattern": "^(51\\d{9})?$",
+      "description": "Formato wa.me: 51 + 9 dígitos, sin +, espacios ni guiones. Vacío = la web oculta los botones de pedido."
+    },
+    "telefono_visible": {
+      "type": "string",
+      "maxLength": 24,
+      "pattern": "^[^<>]*$",
+      "description": "Mismo número para mostrar, p. ej. \"+51 995 542 938\"."
+    },
+    "ciudad": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 40,
+      "pattern": "^[^<>]*$"
+    },
+    "region": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 40,
+      "pattern": "^[^<>]*$"
+    },
+    "pais": {
+      "const": "PE"
+    },
+    "direccion": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 120,
+      "pattern": "^[^<>]*$",
+      "description": "Sin dirección exacta mientras el dueño no la confirme."
+    },
+    "horario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "texto",
+        "tramos"
+      ],
+      "properties": {
+        "texto": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 120,
+          "pattern": "^[^<>]*$"
+        },
+        "tramos": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 7,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "dias",
+              "abre",
+              "cierra"
+            ],
+            "properties": {
+              "dias": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 7,
+                "uniqueItems": true,
+                "items": {
+                  "enum": [
+                    "lu",
+                    "ma",
+                    "mi",
+                    "ju",
+                    "vi",
+                    "sa",
+                    "do"
+                  ]
+                }
+              },
+              "abre": {
+                "type": "string",
+                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+              },
+              "cierra": {
+                "type": "string",
+                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+              }
+            }
+          }
+        }
+      }
+    },
+    "envio": {
+      "type": "string",
+      "minLength": 5,
+      "maxLength": 400,
+      "pattern": "^[^<>]*$"
+    },
+    "zonas_reparto": {
+      "type": "array",
+      "maxItems": 12,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 60,
+        "pattern": "^[^<>]*$"
+      }
+    },
+    "metodos_pago": {
+      "type": "array",
+      "maxItems": 10,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 40,
+        "pattern": "^[^<>]*$"
+      }
+    },
+    "anuncio": {
+      "type": "string",
+      "maxLength": 140,
+      "pattern": "^[^<>]*$",
+      "description": "Opcional: barra de anuncio."
+    },
+    "redes": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "red",
+          "url"
+        ],
+        "properties": {
+          "red": {
+            "enum": [
+              "instagram",
+              "facebook",
+              "tiktok",
+              "youtube",
+              "x"
+            ]
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 200,
+            "pattern": "^https://[^\\s<>\"'`]+$"
+          }
+        }
+      }
+    },
+    "mapa": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "embed",
+        "enlace",
+        "lat",
+        "lng"
+      ],
+      "properties": {
+        "embed": {
+          "type": "string",
+          "maxLength": 400,
+          "pattern": "^https://[^\\s<>\"'`]+$"
+        },
+        "enlace": {
+          "type": "string",
+          "maxLength": 300,
+          "pattern": "^https://[^\\s<>\"'`]+$"
+        },
+        "lat": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "lng": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "nota": {
+          "type": "string",
+          "maxLength": 160,
+          "pattern": "^[^<>]*$"
+        }
+      }
+    },
+    "hero": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "imagenes"
+      ],
+      "properties": {
+        "imagenes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/imagen"
+          }
+        }
+      }
+    },
+    "categorias": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "nombre",
+          "descripcion",
+          "imagen"
+        ],
+        "properties": {
+          "id": {
+            "enum": [
+              "hombres",
+              "mujeres",
+              "ninos",
+              "accesorios"
+            ]
+          },
+          "nombre": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 30,
+            "pattern": "^[^<>]*$"
+          },
+          "descripcion": {
+            "type": "string",
+            "maxLength": 140,
+            "pattern": "^[^<>]*$"
+          },
+          "imagen": {
+            "$ref": "#/$defs/imagen"
+          }
+        }
+      }
+    },
+    "lookbook": {
+      "type": "array",
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "titulo",
+          "imagen",
+          "productos"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^look-\\d{1,3}$"
+          },
+          "titulo": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 60,
+            "pattern": "^[^<>]*$"
+          },
+          "descripcion": {
+            "type": "string",
+            "maxLength": 200,
+            "pattern": "^[^<>]*$"
+          },
+          "imagen": {
+            "$ref": "#/$defs/imagen"
+          },
+          "productos": {
+            "type": "array",
+            "maxItems": 6,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^prd-\\d{4,6}$"
+            }
+          }
+        }
+      }
+    },
+    "testimonios": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "nombre",
+          "texto",
+          "fuente",
+          "fecha",
+          "verificado"
+        ],
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 40,
+            "pattern": "^[^<>]*$"
+          },
+          "texto": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 400,
+            "pattern": "^[^<>]*$"
+          },
+          "fuente": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 60,
+            "pattern": "^[^<>]*$"
+          },
+          "fecha": {
+            "type": "string",
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])T([01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(\\.\\d{1,3})?(Z|[+-]([01]\\d|2[0-3]):[0-5]\\d)$"
+          },
+          "verificado": {
+            "const": true
+          }
+        }
+      },
+      "description": "Solo testimonios REALES y verificados; nunca inventados."
+    },
+    "aviso_muestra": {
+      "type": "string",
+      "minLength": 5,
+      "maxLength": 120,
+      "pattern": "^[^<>]*$"
+    },
+    "aviso_ia": {
+      "type": "string",
+      "minLength": 5,
+      "maxLength": 80,
+      "pattern": "^[^<>]*$"
+    },
+    "mensajes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pedido",
+        "consulta_muestra",
+        "consulta"
+      ],
+      "description": "Plantillas de WhatsApp. Marcadores: {nombre} {id} {url}.",
+      "properties": {
+        "pedido": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 300,
+          "pattern": "^[^<>]*$"
+        },
+        "consulta_muestra": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 400,
+          "pattern": "^[^<>]*$"
+        },
+        "consulta": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 300,
+          "pattern": "^[^<>]*$"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "imagen": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "src",
+        "alt",
+        "origen"
+      ],
+      "description": "Imagen de sitio: assets/img/brand|lookbook|blog|placeholders/. ia_local permitido.",
+      "properties": {
+        "src": {
+          "type": "string",
+          "maxLength": 160,
+          "pattern": "^assets/img/(blog|lookbook|brand|placeholders)/[a-z0-9]+(-[a-z0-9]+)*\\.(webp|avif|jpg|jpeg|png|svg)$",
+          "description": "Ruta RELATIVA dentro del repo; nunca URL externa."
+        },
+        "alt": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 160,
+          "pattern": "^[^<>]*$",
+          "description": "Texto alternativo en español que describe la imagen."
+        },
+        "origen": {
+          "enum": [
+            "foto",
+            "ia_local",
+            "placeholder"
+          ],
+          "description": "foto = foto real de la tienda; ia_local = generada con IA local (sd-server); placeholder = ilustración provisional."
+        },
+        "ancho": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6000
+        },
+        "alto": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6000
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,860 @@
+{
+  "$schema": "./schema/products.schema.json",
+  "schema_version": 1,
+  "version": 1,
+  "actualizado": "2026-10-06T06:00:00-05:00",
+  "borradores_aplicados": [],
+  "moneda": "PEN",
+  "productos": [
+    {
+      "id": "prd-0001",
+      "slug": "camisa-lino-manga-corta-hombre",
+      "nombre": "Camisa de lino manga corta",
+      "categoria": "hombres",
+      "subcategoria": "camisas",
+      "precio": 89.9,
+      "precio_oferta": 74.9,
+      "tallas": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "stock_por_talla": {
+        "S": 3,
+        "M": 5,
+        "L": 4,
+        "XL": 2
+      },
+      "stock": 14,
+      "colores": [
+        {
+          "nombre": "Arena",
+          "hex": "#E8DCC4"
+        },
+        {
+          "nombre": "Blanco hueso",
+          "hex": "#F4F1E8"
+        }
+      ],
+      "material": "Lino 100%",
+      "frescura": 5,
+      "descripcion": "Camisa de lino de corte recto y cuello clásico. La trama abierta deja pasar el aire y se seca rápido: ideal para el mediodía en Tarapoto.",
+      "etiquetas": [
+        "lino",
+        "camisa",
+        "fresca"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0001-1.webp",
+          "alt": "Camisa de lino color arena de manga corta en un modelo adulto, encuadre de hombros a cintura sin rostro",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024
+        }
+      ],
+      "destacado": true,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-09-28T10:00:00-05:00",
+      "fecha_actualizacion": "2026-09-28T10:00:00-05:00"
+    },
+    {
+      "id": "prd-0002",
+      "slug": "guayabera-algodon-hombre",
+      "nombre": "Guayabera de algodón",
+      "categoria": "hombres",
+      "subcategoria": "camisas",
+      "precio": 79.9,
+      "tallas": [
+        "S",
+        "M",
+        "L",
+        "XL",
+        "XXL"
+      ],
+      "stock_por_talla": {
+        "S": 2,
+        "M": 4,
+        "L": 4,
+        "XL": 3,
+        "XXL": 1
+      },
+      "stock": 14,
+      "colores": [
+        {
+          "nombre": "Blanco hueso",
+          "hex": "#F4F1E8"
+        },
+        {
+          "nombre": "Celeste",
+          "hex": "#A9D8E8"
+        }
+      ],
+      "material": "Algodón 100%",
+      "frescura": 4,
+      "descripcion": "Guayabera clásica de algodón con cuatro bolsillos y pliegues verticales. Fresca y elegante para reuniones, fiestas y la oficina.",
+      "etiquetas": [
+        "guayabera",
+        "algodon",
+        "clasica"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0002-1.webp",
+          "alt": "Guayabera blanca de algodón con pliegues verticales en un modelo adulto, encuadre sin rostro",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-09-10T10:00:00-05:00",
+      "fecha_actualizacion": "2026-09-10T10:00:00-05:00"
+    },
+    {
+      "id": "prd-0003",
+      "slug": "polo-algodon-pima-hombre",
+      "nombre": "Polo de algodón pima",
+      "categoria": "hombres",
+      "subcategoria": "polos",
+      "precio": 49.9,
+      "tallas": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "stock_por_talla": {
+        "S": 5,
+        "M": 8,
+        "L": 6,
+        "XL": 0
+      },
+      "stock": 19,
+      "colores": [
+        {
+          "nombre": "Verde palma",
+          "hex": "#0F5C46"
+        },
+        {
+          "nombre": "Arena",
+          "hex": "#E8DCC4"
+        },
+        {
+          "nombre": "Azul laguna",
+          "hex": "#14A3A0"
+        }
+      ],
+      "material": "Algodón pima 100%",
+      "frescura": 4,
+      "descripcion": "Polo de algodón pima peruano, suave y resistente. Cuello redondo y corte regular para el uso diario.",
+      "etiquetas": [
+        "pima",
+        "polo",
+        "basico"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0003-1.webp",
+          "alt": "Polo verde palma de algodón pima en un modelo adulto, encuadre de hombros a cintura sin rostro",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024
+        }
+      ],
+      "destacado": true,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-10-02T10:00:00-05:00",
+      "fecha_actualizacion": "2026-10-02T10:00:00-05:00"
+    },
+    {
+      "id": "prd-0004",
+      "slug": "bermuda-lino-hombre",
+      "nombre": "Bermuda de lino con cordón",
+      "categoria": "hombres",
+      "subcategoria": "bermudas",
+      "precio": 59.9,
+      "tallas": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "stock_por_talla": {
+        "S": 2,
+        "M": 5,
+        "L": 5,
+        "XL": 3
+      },
+      "stock": 15,
+      "colores": [
+        {
+          "nombre": "Beige",
+          "hex": "#D9C7A7"
+        },
+        {
+          "nombre": "Verde oliva",
+          "hex": "#6B7B3A"
+        }
+      ],
+      "material": "Lino 55%, algodón 45%",
+      "frescura": 5,
+      "descripcion": "Bermuda de lino y algodón con pretina elástica y cordón. Bolsillos laterales y largo sobre la rodilla.",
+      "etiquetas": [
+        "bermuda",
+        "lino",
+        "verano"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0004-1.webp",
+          "alt": "Bermuda beige de lino con cordón en un modelo adulto, encuadre de pecho a rodillas sin rostro",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-09-15T10:00:00-05:00",
+      "fecha_actualizacion": "2026-09-15T10:00:00-05:00"
+    },
+    {
+      "id": "prd-0005",
+      "slug": "vestido-midi-lino-mujer",
+      "nombre": "Vestido midi de lino",
+      "categoria": "mujeres",
+      "subcategoria": "vestidos",
+      "precio": 109.9,
+      "precio_oferta": 89.9,
+      "tallas": [
+        "XS",
+        "S",
+        "M",
+        "L"
+      ],
+      "stock_por_talla": {
+        "XS": 2,
+        "S": 4,
+        "M": 4,
+        "L": 2
+      },
+      "stock": 12,
+      "colores": [
+        {
+          "nombre": "Terracota",
+          "hex": "#C0603A"
+        },
+        {
+          "nombre": "Arena",
+          "hex": "#E8DCC4"
+        }
+      ],
+      "material": "Lino 100%",
+      "frescura": 5,
+      "descripcion": "Vestido midi de lino con tirantes anchos y falda con vuelo. Ligero y fresco para el día o una cena al aire libre.",
+      "etiquetas": [
+        "vestido",
+        "lino",
+        "midi"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0005-1.webp",
+          "alt": "Vestido midi de lino color terracota en una modelo adulta, encuadre desde los hombros sin rostro",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024
+        }
+      ],
+      "destacado": true,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-09-30T10:00:00-05:00",
+      "fecha_actualizacion": "2026-09-30T10:00:00-05:00"
+    },
+    {
+      "id": "prd-0006",
+      "slug": "blusa-gasa-algodon-mujer",
+      "nombre": "Blusa de gasa de algodón",
+      "categoria": "mujeres",
+      "subcategoria": "blusas",
+      "precio": 54.9,
+      "tallas": [
+        "XS",
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "stock_por_talla": {
+        "XS": 1,
+        "S": 4,
+        "M": 5,
+        "L": 3,
+        "XL": 2
+      },
+      "stock": 15,
+      "colores": [
+        {
+          "nombre": "Blanco hueso",
+          "hex": "#F4F1E8"
+        },
+        {
+          "nombre": "Amarillo sol",
+          "hex": "#FFD23F"
+        }
+      ],
+      "material": "Gasa de algodón 100%",
+      "frescura": 5,
+      "descripcion": "Blusa holgada de gasa de algodón con mangas tres cuartos y escote en V. Una tela muy ligera que casi no se siente.",
+      "etiquetas": [
+        "blusa",
+        "algodon",
+        "ligera"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0006-1.webp",
+          "alt": "Blusa blanca de gasa de algodón con escote en V en una modelo adulta, encuadre sin rostro",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-09-05T10:00:00-05:00",
+      "fecha_actualizacion": "2026-09-05T10:00:00-05:00"
+    },
+    {
+      "id": "prd-0007",
+      "slug": "short-lino-tiro-alto-mujer",
+      "nombre": "Short de lino tiro alto",
+      "categoria": "mujeres",
+      "subcategoria": "shorts",
+      "precio": 49.9,
+      "tallas": [
+        "XS",
+        "S",
+        "M",
+        "L"
+      ],
+      "stock_por_talla": {
+        "XS": 3,
+        "S": 5,
+        "M": 4,
+        "L": 0
+      },
+      "stock": 12,
+      "colores": [
+        {
+          "nombre": "Verde palma",
+          "hex": "#0F5C46"
+        },
+        {
+          "nombre": "Arena",
+          "hex": "#E8DCC4"
+        }
+      ],
+      "material": "Lino 70%, algodón 30%",
+      "frescura": 5,
+      "descripcion": "Short de tiro alto con pretina elástica en la espalda y pierna amplia. Combina con blusas y polos para el día a día.",
+      "etiquetas": [
+        "short",
+        "lino",
+        "tiro-alto"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0007-1.webp",
+          "alt": "Short de lino verde palma de tiro alto en una modelo adulta, encuadre de pecho a muslos sin rostro",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-10-04T10:00:00-05:00",
+      "fecha_actualizacion": "2026-10-04T10:00:00-05:00"
+    },
+    {
+      "id": "prd-0008",
+      "slug": "pantalon-palazzo-viscosa-mujer",
+      "nombre": "Pantalón palazzo de viscosa",
+      "categoria": "mujeres",
+      "subcategoria": "pantalones",
+      "precio": 69.9,
+      "precio_oferta": 59.9,
+      "tallas": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "stock_por_talla": {
+        "S": 3,
+        "M": 4,
+        "L": 3,
+        "XL": 2
+      },
+      "stock": 12,
+      "colores": [
+        {
+          "nombre": "Azul laguna",
+          "hex": "#14A3A0"
+        },
+        {
+          "nombre": "Hibisco",
+          "hex": "#C41E50"
+        }
+      ],
+      "material": "Viscosa 100%",
+      "frescura": 4,
+      "descripcion": "Pantalón palazzo de viscosa con caída fluida y pretina elástica. Fresco, cómodo y elegante para la tarde.",
+      "etiquetas": [
+        "palazzo",
+        "pantalon",
+        "fluido"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0008-1.webp",
+          "alt": "Pantalón palazzo azul laguna de caída fluida en una modelo adulta, encuadre de pecho a pies sin rostro",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-09-12T10:00:00-05:00",
+      "fecha_actualizacion": "2026-09-12T10:00:00-05:00"
+    },
+    {
+      "id": "prd-0009",
+      "slug": "polo-uv-manga-larga-ninos",
+      "nombre": "Polo UV manga larga para niños",
+      "categoria": "ninos",
+      "subcategoria": "polos",
+      "precio": 39.9,
+      "tallas": [
+        "4",
+        "6",
+        "8",
+        "10",
+        "12"
+      ],
+      "stock_por_talla": {
+        "4": 3,
+        "6": 4,
+        "8": 4,
+        "10": 3,
+        "12": 2
+      },
+      "stock": 16,
+      "colores": [
+        {
+          "nombre": "Azul laguna",
+          "hex": "#14A3A0"
+        },
+        {
+          "nombre": "Mango",
+          "hex": "#FF8A1F"
+        }
+      ],
+      "material": "Poliéster 85%, elastano 15% (UPF 50+)",
+      "frescura": 3,
+      "descripcion": "Polo de manga larga con protección solar UPF 50+, tela de secado rápido y costuras planas. Para la piscina, el río y los días de sol.",
+      "etiquetas": [
+        "uv",
+        "upf-50",
+        "ninos"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0009-1.webp",
+          "alt": "Polo infantil de manga larga azul laguna con protección UV, extendido sobre una superficie clara",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024
+        }
+      ],
+      "destacado": true,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-10-01T10:00:00-05:00",
+      "fecha_actualizacion": "2026-10-01T10:00:00-05:00"
+    },
+    {
+      "id": "prd-0010",
+      "slug": "vestido-algodon-nina",
+      "nombre": "Vestido de algodón para niña",
+      "categoria": "ninos",
+      "subcategoria": "vestidos",
+      "precio": 44.9,
+      "precio_oferta": 37.9,
+      "tallas": [
+        "2",
+        "4",
+        "6",
+        "8",
+        "10"
+      ],
+      "stock_por_talla": {
+        "2": 2,
+        "4": 3,
+        "6": 3,
+        "8": 2,
+        "10": 1
+      },
+      "stock": 11,
+      "colores": [
+        {
+          "nombre": "Rosa guayaba",
+          "hex": "#F2A7B5"
+        },
+        {
+          "nombre": "Amarillo sol",
+          "hex": "#FFD23F"
+        }
+      ],
+      "material": "Algodón 100%",
+      "frescura": 4,
+      "descripcion": "Vestido de algodón suave con tirantes regulables y falda amplia para jugar con libertad.",
+      "etiquetas": [
+        "vestido",
+        "nina",
+        "algodon"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0010-1.webp",
+          "alt": "Vestido de algodón rosa guayaba para niña colgado en una percha de madera",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-09-18T10:00:00-05:00",
+      "fecha_actualizacion": "2026-09-18T10:00:00-05:00"
+    },
+    {
+      "id": "prd-0011",
+      "slug": "bermuda-drill-nino",
+      "nombre": "Bermuda de drill para niño",
+      "categoria": "ninos",
+      "subcategoria": "bermudas",
+      "precio": 34.9,
+      "tallas": [
+        "4",
+        "6",
+        "8",
+        "10",
+        "12",
+        "14"
+      ],
+      "stock_por_talla": {
+        "4": 2,
+        "6": 3,
+        "8": 4,
+        "10": 3,
+        "12": 2,
+        "14": 0
+      },
+      "stock": 14,
+      "colores": [
+        {
+          "nombre": "Beige",
+          "hex": "#D9C7A7"
+        },
+        {
+          "nombre": "Verde oliva",
+          "hex": "#6B7B3A"
+        }
+      ],
+      "material": "Drill de algodón 100%",
+      "frescura": 3,
+      "descripcion": "Bermuda resistente de drill de algodón con pretina elástica regulable y bolsillos funcionales.",
+      "etiquetas": [
+        "bermuda",
+        "nino",
+        "drill"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0011-1.webp",
+          "alt": "Bermuda beige de drill para niño doblada sobre una superficie de madera clara",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-09-08T10:00:00-05:00",
+      "fecha_actualizacion": "2026-09-08T10:00:00-05:00"
+    },
+    {
+      "id": "prd-0012",
+      "slug": "gorro-legionario-uv-ninos",
+      "nombre": "Gorro legionario UV para niños",
+      "categoria": "ninos",
+      "subcategoria": "gorros",
+      "precio": 24.9,
+      "tallas": [
+        "UNICA"
+      ],
+      "stock_por_talla": {
+        "UNICA": 15
+      },
+      "stock": 15,
+      "colores": [
+        {
+          "nombre": "Azul laguna",
+          "hex": "#14A3A0"
+        },
+        {
+          "nombre": "Mango",
+          "hex": "#FF8A1F"
+        }
+      ],
+      "material": "Poliéster con UPF 50+",
+      "frescura": 4,
+      "descripcion": "Gorro con visera y cubrenuca que protege orejas y cuello del sol. Ajuste con cordón.",
+      "etiquetas": [
+        "gorro",
+        "uv",
+        "ninos"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0012-1.webp",
+          "alt": "Gorro legionario infantil azul laguna con cubrenuca sobre hojas de palma",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-10-03T10:00:00-05:00",
+      "fecha_actualizacion": "2026-10-03T10:00:00-05:00"
+    },
+    {
+      "id": "prd-0013",
+      "slug": "sombrero-palma-tejido",
+      "nombre": "Sombrero de palma tejido",
+      "categoria": "accesorios",
+      "subcategoria": "sombreros",
+      "precio": 44.9,
+      "tallas": [
+        "UNICA"
+      ],
+      "stock_por_talla": {
+        "UNICA": 10
+      },
+      "stock": 10,
+      "colores": [
+        {
+          "nombre": "Natural",
+          "hex": "#D8C3A0"
+        }
+      ],
+      "material": "Fibra de palma natural",
+      "frescura": 5,
+      "descripcion": "Sombrero de ala ancha tejido a mano en fibra de palma, con cinta interior ajustable. Da sombra al rostro y al cuello sin dar calor.",
+      "etiquetas": [
+        "sombrero",
+        "palma",
+        "artesanal"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0013-1.webp",
+          "alt": "Sombrero de ala ancha de fibra de palma natural apoyado sobre un banco de madera",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024
+        }
+      ],
+      "destacado": true,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-09-25T10:00:00-05:00",
+      "fecha_actualizacion": "2026-09-25T10:00:00-05:00"
+    },
+    {
+      "id": "prd-0014",
+      "slug": "gorro-pescador-algodon",
+      "nombre": "Gorro pescador de algodón",
+      "categoria": "accesorios",
+      "subcategoria": "gorros",
+      "precio": 29.9,
+      "tallas": [
+        "M",
+        "L"
+      ],
+      "stock_por_talla": {
+        "M": 6,
+        "L": 5
+      },
+      "stock": 11,
+      "colores": [
+        {
+          "nombre": "Verde palma",
+          "hex": "#0F5C46"
+        },
+        {
+          "nombre": "Arena",
+          "hex": "#E8DCC4"
+        }
+      ],
+      "material": "Algodón 100%",
+      "frescura": 4,
+      "descripcion": "Gorro tipo pescador de algodón con ala corta y ojalillos de ventilación. Liviano y fácil de llevar en la mochila.",
+      "etiquetas": [
+        "gorro",
+        "pescador",
+        "algodon"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0014-1.webp",
+          "alt": "Gorro pescador de algodón verde palma colgado en una pared color arena",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-09-02T10:00:00-05:00",
+      "fecha_actualizacion": "2026-09-02T10:00:00-05:00"
+    },
+    {
+      "id": "prd-0015",
+      "slug": "sandalias-cuero-unisex",
+      "nombre": "Sandalias de cuero unisex",
+      "categoria": "accesorios",
+      "subcategoria": "sandalias",
+      "precio": 79.9,
+      "precio_oferta": 64.9,
+      "tallas": [
+        "36",
+        "37",
+        "38",
+        "39",
+        "40",
+        "41",
+        "42",
+        "43"
+      ],
+      "stock_por_talla": {
+        "36": 1,
+        "37": 2,
+        "38": 3,
+        "39": 3,
+        "40": 3,
+        "41": 2,
+        "42": 2,
+        "43": 1
+      },
+      "stock": 17,
+      "colores": [
+        {
+          "nombre": "Cacao",
+          "hex": "#5A3825"
+        },
+        {
+          "nombre": "Natural",
+          "hex": "#D8C3A0"
+        }
+      ],
+      "material": "Cuero y planta de caucho",
+      "frescura": 4,
+      "descripcion": "Sandalias de cuero con tiras cruzadas y planta de caucho antideslizante, cómodas para caminar por la ciudad.",
+      "etiquetas": [
+        "sandalias",
+        "cuero",
+        "unisex"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0015-1.webp",
+          "alt": "Par de sandalias de cuero color cacao sobre baldosas de terracota con sombras de palmera",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-09-22T10:00:00-05:00",
+      "fecha_actualizacion": "2026-09-22T10:00:00-05:00"
+    },
+    {
+      "id": "prd-0016",
+      "slug": "bolso-yute-tejido",
+      "nombre": "Bolso de yute tejido",
+      "categoria": "accesorios",
+      "subcategoria": "bolsos",
+      "precio": 39.9,
+      "tallas": [
+        "UNICA"
+      ],
+      "stock_por_talla": {
+        "UNICA": 8
+      },
+      "stock": 8,
+      "colores": [
+        {
+          "nombre": "Natural",
+          "hex": "#D8C3A0"
+        },
+        {
+          "nombre": "Mango",
+          "hex": "#FF8A1F"
+        }
+      ],
+      "material": "Yute con asas de algodón",
+      "descripcion": "Bolso amplio de yute con asas de algodón y bolsillo interior. Ideal para el mercado, un paseo a la laguna o el día a día.",
+      "etiquetas": [
+        "bolso",
+        "yute",
+        "tejido"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0016-1.webp",
+          "alt": "Bolso de yute tejido con asas de algodón sobre un banco de madera junto a hojas de palma",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-08-20T10:00:00-05:00",
+      "fecha_actualizacion": "2026-08-20T10:00:00-05:00"
+    }
+  ]
+}

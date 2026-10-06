@@ -1,0 +1,349 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Palmera Brava — data/products.json",
+  "description": "Catálogo. Generado desde tools/validar.js (no editar a mano). Reglas entre campos: ver docs/CONTRATO.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "version",
+    "actualizado",
+    "borradores_aplicados",
+    "moneda",
+    "productos"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "pattern": "^\\./schema/[a-z-]+\\.schema\\.json$"
+    },
+    "schema_version": {
+      "const": 1,
+      "description": "Versión del contrato (cambia solo si cambia el esquema)."
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Revisión de los datos: WF5 la incrementa en cada commit. La web repinta si cambia."
+    },
+    "actualizado": {
+      "type": "string",
+      "pattern": "^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])T([01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(\\.\\d{1,3})?(Z|[+-]([01]\\d|2[0-3]):[0-5]\\d)$",
+      "description": "Fecha ISO 8601 con zona (-05:00) del último cambio publicado."
+    },
+    "borradores_aplicados": {
+      "type": "array",
+      "maxItems": 100,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^drf-[a-z0-9]{6,20}$"
+      },
+      "description": "Últimos 100 draft_id aplicados a products.json (idempotencia de WF5, D5)."
+    },
+    "moneda": {
+      "const": "PEN"
+    },
+    "productos": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": {
+        "$ref": "#/$defs/producto"
+      }
+    }
+  },
+  "$defs": {
+    "producto": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "slug",
+        "nombre",
+        "categoria",
+        "subcategoria",
+        "precio",
+        "tallas",
+        "stock_por_talla",
+        "stock",
+        "colores",
+        "descripcion",
+        "etiquetas",
+        "imagenes",
+        "destacado",
+        "activo",
+        "muestra",
+        "fecha_creacion",
+        "fecha_actualizacion"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^prd-\\d{4,6}$",
+          "description": "prd-0001; inmutable; lo asigna el código (máximo + 1), nunca el LLM."
+        },
+        "slug": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 80,
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "nombre": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 70,
+          "pattern": "^[^<>]*$"
+        },
+        "categoria": {
+          "enum": [
+            "hombres",
+            "mujeres",
+            "ninos",
+            "accesorios"
+          ]
+        },
+        "subcategoria": {
+          "enum": [
+            "polos",
+            "camisas",
+            "blusas",
+            "vestidos",
+            "faldas",
+            "shorts",
+            "bermudas",
+            "pantalones",
+            "conjuntos",
+            "ropa-de-bano",
+            "pijamas",
+            "sombreros",
+            "gorros",
+            "gorras",
+            "sandalias",
+            "lentes",
+            "bolsos",
+            "otros"
+          ]
+        },
+        "precio": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 9999,
+          "description": "Soles (PEN), máximo 2 decimales."
+        },
+        "precio_oferta": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 9999,
+          "description": "Opcional. Ausente o null = sin oferta. Debe ser menor que precio."
+        },
+        "tallas": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "XS",
+              "S",
+              "M",
+              "L",
+              "XL",
+              "XXL",
+              "2",
+              "4",
+              "6",
+              "8",
+              "10",
+              "12",
+              "14",
+              "16",
+              "35",
+              "36",
+              "37",
+              "38",
+              "39",
+              "40",
+              "41",
+              "42",
+              "43",
+              "44",
+              "UNICA"
+            ]
+          }
+        },
+        "stock_por_talla": {
+          "type": "object",
+          "propertyNames": {
+            "enum": [
+              "XS",
+              "S",
+              "M",
+              "L",
+              "XL",
+              "XXL",
+              "2",
+              "4",
+              "6",
+              "8",
+              "10",
+              "12",
+              "14",
+              "16",
+              "35",
+              "36",
+              "37",
+              "38",
+              "39",
+              "40",
+              "41",
+              "42",
+              "43",
+              "44",
+              "UNICA"
+            ]
+          },
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9999
+          },
+          "description": "Una clave por cada talla de \"tallas\" (ni más ni menos)."
+        },
+        "stock": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 99999,
+          "description": "Suma de stock_por_talla (lo recalcula el código)."
+        },
+        "colores": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": {
+            "$ref": "#/$defs/color"
+          }
+        },
+        "material": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60,
+          "pattern": "^[^<>]*$"
+        },
+        "frescura": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5,
+          "description": "Opcional: índice de frescura (1–5 hojitas)."
+        },
+        "descripcion": {
+          "type": "string",
+          "maxLength": 600,
+          "pattern": "^[^<>]*$"
+        },
+        "etiquetas": {
+          "type": "array",
+          "maxItems": 10,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 24,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+          }
+        },
+        "imagenes": {
+          "type": "array",
+          "maxItems": 6,
+          "items": {
+            "$ref": "#/$defs/imagen"
+          }
+        },
+        "destacado": {
+          "type": "boolean"
+        },
+        "activo": {
+          "type": "boolean",
+          "description": "false = oculto (borrado suave). Ojo: sigue siendo público en el JSON."
+        },
+        "muestra": {
+          "type": "boolean",
+          "description": "true = producto de demostración (imagen IA permitida, botón \"Consultar\")."
+        },
+        "fecha_creacion": {
+          "type": "string",
+          "pattern": "^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])T([01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(\\.\\d{1,3})?(Z|[+-]([01]\\d|2[0-3]):[0-5]\\d)$"
+        },
+        "fecha_actualizacion": {
+          "type": "string",
+          "pattern": "^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])T([01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(\\.\\d{1,3})?(Z|[+-]([01]\\d|2[0-3]):[0-5]\\d)$"
+        }
+      }
+    },
+    "color": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nombre",
+        "hex"
+      ],
+      "properties": {
+        "nombre": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 24,
+          "pattern": "^[^<>]*$"
+        },
+        "hex": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        }
+      }
+    },
+    "imagen": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "src",
+        "alt",
+        "origen"
+      ],
+      "description": "Imagen de producto: assets/img/products/ o assets/img/placeholders/. origen \"ia_local\" solo si muestra:true.",
+      "properties": {
+        "src": {
+          "type": "string",
+          "maxLength": 160,
+          "pattern": "^assets/img/(products|placeholders)/[a-z0-9]+(-[a-z0-9]+)*\\.(webp|avif|jpg|jpeg|png|svg)$",
+          "description": "Ruta RELATIVA dentro del repo; nunca URL externa."
+        },
+        "alt": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 160,
+          "pattern": "^[^<>]*$",
+          "description": "Texto alternativo en español que describe la imagen."
+        },
+        "origen": {
+          "enum": [
+            "foto",
+            "ia_local",
+            "placeholder"
+          ],
+          "description": "foto = foto real de la tienda; ia_local = generada con IA local (sd-server); placeholder = ilustración provisional."
+        },
+        "ancho": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6000
+        },
+        "alto": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6000
+        }
+      }
+    }
+  }
+}

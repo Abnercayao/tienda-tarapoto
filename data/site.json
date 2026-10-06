@@ -1,0 +1,192 @@
+{
+  "$schema": "./schema/site.schema.json",
+  "schema_version": 1,
+  "version": 1,
+  "actualizado": "2026-10-06T06:00:00-05:00",
+  "borradores_aplicados": [],
+  "nombre": "Palmera Brava",
+  "lema": "Ropa fresca para el calor de la selva",
+  "whatsapp": "51995542938",
+  "telefono_visible": "+51 995 542 938",
+  "ciudad": "Tarapoto",
+  "region": "San Martín",
+  "pais": "PE",
+  "direccion": "Tarapoto, San Martín",
+  "horario": {
+    "texto": "Todos los días, de 8:00 a. m. a 8:00 p. m.",
+    "tramos": [
+      {
+        "dias": [
+          "lu",
+          "ma",
+          "mi",
+          "ju",
+          "vi",
+          "sa",
+          "do"
+        ],
+        "abre": "08:00",
+        "cierra": "20:00"
+      }
+    ]
+  },
+  "envio": "Coordinamos la entrega por WhatsApp. Delivery en motocarro dentro de Tarapoto; el costo y las demás zonas se confirman al momento del pedido.",
+  "zonas_reparto": [
+    "Tarapoto"
+  ],
+  "metodos_pago": [],
+  "anuncio": "Pide por WhatsApp · Atendemos todos los días de 8:00 a. m. a 8:00 p. m.",
+  "redes": [],
+  "mapa": {
+    "embed": "https://www.openstreetmap.org/export/embed.html?bbox=-76.3900%2C-6.5100%2C-76.3400%2C-6.4650&layer=mapnik",
+    "enlace": "https://www.openstreetmap.org/#map=14/-6.4875/-76.3650",
+    "lat": -6.4875,
+    "lng": -76.365,
+    "nota": "Mapa de referencia de Tarapoto; la dirección exacta se coordina por WhatsApp."
+  },
+  "hero": {
+    "imagenes": [
+      {
+        "src": "assets/img/brand/hero-1.webp",
+        "alt": "Camisa de lino arena y vestido terracota en modelos adultos, encuadre sin rostro, frente a una pared cálida con sombras de palmera",
+        "origen": "ia_local",
+        "ancho": 1344,
+        "alto": 768
+      },
+      {
+        "src": "assets/img/brand/hero-2.webp",
+        "alt": "Ropa de lino doblada, sombrero de palma y sandalias de cuero sobre una silla de ratán con hojas de palma",
+        "origen": "ia_local",
+        "ancho": 1344,
+        "alto": 768
+      }
+    ]
+  },
+  "categorias": [
+    {
+      "id": "hombres",
+      "nombre": "Hombres",
+      "descripcion": "Camisas de lino, guayaberas, polos pima y bermudas frescas.",
+      "imagen": {
+        "src": "assets/img/brand/cat-hombres.webp",
+        "alt": "Guayabera blanca en un modelo adulto, encuadre de hombros a cintura sin rostro",
+        "origen": "ia_local",
+        "ancho": 768,
+        "alto": 1024
+      }
+    },
+    {
+      "id": "mujeres",
+      "nombre": "Mujeres",
+      "descripcion": "Vestidos, blusas, shorts y palazzos ligeros.",
+      "imagen": {
+        "src": "assets/img/brand/cat-mujeres.webp",
+        "alt": "Vestido de lino en una modelo adulta, encuadre desde los hombros sin rostro",
+        "origen": "ia_local",
+        "ancho": 768,
+        "alto": 1024
+      }
+    },
+    {
+      "id": "ninos",
+      "nombre": "Niños",
+      "descripcion": "Ropa cómoda y con protección UV para jugar al sol.",
+      "imagen": {
+        "src": "assets/img/brand/cat-ninos.webp",
+        "alt": "Ropa infantil de algodón y gorro UV extendidos sobre una tela clara, sin personas",
+        "origen": "ia_local",
+        "ancho": 768,
+        "alto": 1024
+      }
+    },
+    {
+      "id": "accesorios",
+      "nombre": "Accesorios",
+      "descripcion": "Sombreros, gorros, sandalias y bolsos para el calor.",
+      "imagen": {
+        "src": "assets/img/brand/cat-accesorios.webp",
+        "alt": "Sombrero de palma, sandalias de cuero y bolso de yute sobre un banco de madera",
+        "origen": "ia_local",
+        "ancho": 768,
+        "alto": 1024
+      }
+    }
+  ],
+  "lookbook": [
+    {
+      "id": "look-1",
+      "titulo": "Mañana de mercado",
+      "descripcion": "Blusa de gasa, short de lino y bolso de yute.",
+      "imagen": {
+        "src": "assets/img/lookbook/look-1.webp",
+        "alt": "Modelo adulta con blusa blanca de gasa, short verde de lino y bolso de yute en un mercado, encuadre sin rostro",
+        "origen": "ia_local",
+        "ancho": 768,
+        "alto": 1024
+      },
+      "productos": [
+        "prd-0006",
+        "prd-0007",
+        "prd-0016"
+      ]
+    },
+    {
+      "id": "look-2",
+      "titulo": "Tarde en la laguna",
+      "descripcion": "Camisa de lino, bermuda y sandalias de cuero.",
+      "imagen": {
+        "src": "assets/img/lookbook/look-2.webp",
+        "alt": "Modelo adulto con camisa de lino arena, bermuda beige y sandalias de cuero junto a una laguna, encuadre de hombros a pies sin rostro",
+        "origen": "ia_local",
+        "ancho": 768,
+        "alto": 1024
+      },
+      "productos": [
+        "prd-0001",
+        "prd-0004",
+        "prd-0015"
+      ]
+    },
+    {
+      "id": "look-3",
+      "titulo": "Cena al aire libre",
+      "descripcion": "Vestido midi de lino terracota.",
+      "imagen": {
+        "src": "assets/img/lookbook/look-3.webp",
+        "alt": "Modelo adulta con vestido midi de lino terracota al atardecer, encuadre sin rostro",
+        "origen": "ia_local",
+        "ancho": 768,
+        "alto": 1024
+      },
+      "productos": [
+        "prd-0005",
+        "prd-0015"
+      ]
+    },
+    {
+      "id": "look-4",
+      "titulo": "Día de sol en familia",
+      "descripcion": "Protección UV para los niños y sombrero de palma.",
+      "imagen": {
+        "src": "assets/img/lookbook/look-4.webp",
+        "alt": "Polo UV infantil, gorro legionario y sombrero de palma extendidos sobre una tela clara, sin personas",
+        "origen": "ia_local",
+        "ancho": 768,
+        "alto": 1024
+      },
+      "productos": [
+        "prd-0009",
+        "prd-0012",
+        "prd-0013"
+      ]
+    }
+  ],
+  "testimonios": [],
+  "aviso_muestra": "Catálogo de muestra · precios referenciales",
+  "aviso_ia": "Imagen referencial (IA)",
+  "mensajes": {
+    "pedido": "Hola Palmera Brava, quiero hacer un pedido:",
+    "consulta_muestra": "Hola Palmera Brava, vi en su web la prenda de referencia \"{nombre}\" ({id}). ¿Tienen prendas similares disponibles? Entiendo que la imagen y el precio son referenciales.",
+    "consulta": "Hola Palmera Brava, quisiera hacer una consulta."
+  }
+}
