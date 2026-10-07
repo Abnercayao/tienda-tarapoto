@@ -1,0 +1,1232 @@
+{
+  "id": "pbWf08PanelApi00",
+  "name": "PB WF8 Panel-API",
+  "active": false,
+  "nodes": [
+    {
+      "id": "ddfbdc36-239d-4eba-a958-75e2f2d9b5df",
+      "name": "Nota 1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -980
+      ],
+      "parameters": {
+        "content": "## WF8 · Panel-API (webhooks de admin.html)\nAmbos con **Header Auth** `X-Tienda-Key` (credencial **Header X-Tienda-Key**; sin clave o con otra → 403) y Allowed Origins `http://localhost:8080,http://127.0.0.1:8080`. CORS no es autenticación: la clave sí.\n- `POST /webhook/crear-imagen` → espera el lock `worker` (cada 5 s, máx. 10 min; GPU compartida con WF2) → WF6 → **libera el lock** → responde la imagen `image/webp` (cabeceras `X-Draft-Id`, `X-Telegram`, `X-Seed`). Ocupado 10 min → 423.\n- `GET /webhook/estado` → cola, borradores, lock, pausa, último commit, poller y salud de Ollama / sd-server (sin token ni ids).",
+        "width": 900,
+        "height": 400,
+        "color": 4
+      }
+    },
+    {
+      "id": "a67ebacb-7a22-42b2-ab77-c2ad77524bc3",
+      "name": "POST crear-imagen",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "crear-imagen",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:8080,http://127.0.0.1:8080"
+        }
+      },
+      "webhookId": "5b50b3a6-d3f7-4efd-b7e2-aaa35a0213bc",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Header X-Tienda-Key"
+        }
+      }
+    },
+    {
+      "id": "8f1b5a64-0c94-4d08-b683-dbc1bc4c8d4a",
+      "name": "Leer config",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_config"
+        },
+        "matchType": "allConditions",
+        "filters": {},
+        "returnAll": true
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "6f456f74-03c5-44c9-a1c0-143e918c2798",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// --- comun.js (Palmera Brava): ayudas compartidas por los nodos Code del núcleo (WF0, WF1, WF2, WF5, WF9) ---\n// Se inserta donde un Code dice \"// @incluir comun\". Sin require ni crypto (el task runner los bloquea).\nconst PB_TABLAS = { config: 'pb_config', locks: 'pb_locks', inbox: 'pb_inbox', borradores: 'pb_borradores', imagenes: 'pb_imagenes' };\n// Escapa texto para parse_mode HTML de Telegram.\nfunction h(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Quita tokens de Telegram, PAT de GitHub y similares de cualquier texto que vaya a un mensaje o a una tabla.\nfunction censurar(s) {\n  return String(s === null || s === undefined ? '' : s)\n    .replace(/bot\\d+:[\\w-]+/g, 'bot***')\n    .replace(/\\d{8,10}:[\\w-]{30,}/g, '***')\n    .replace(/github_pat_\\w+/g, 'github_pat_***')\n    .replace(/gh[pousr]_\\w+/g, 'gh*_***')\n    .replace(/(authorization[\"':=\\s]+)(token|bearer)\\s+[^\\s\"',}]+/gi, '$1$2 ***');\n}\n// Mensaje para Telegram (HTML). El texto YA debe venir escapado y terminar en \"Siguiente paso: ...\".\nfunction enviar(chatId, texto, extra) {\n  const t = String(texto || '');\n  if (!/\\nSiguiente paso: \\S/.test(t)) throw new Error('Mensaje sin \"Siguiente paso\": ' + t.slice(0, 60));\n  return { metodo: 'sendMessage', cuerpo: Object.assign({ chat_id: Number(chatId), text: t.slice(0, 4096), parse_mode: 'HTML', link_preview_options: { is_disabled: true } }, extra || {}) };\n}\nfunction quitarTeclado(chatId, messageId) {\n  return { metodo: 'editMessageReplyMarkup', cuerpo: { chat_id: Number(chatId), message_id: Number(messageId), reply_markup: { inline_keyboard: [] } } };\n}\nfunction botones(filas) { return { reply_markup: { inline_keyboard: filas } }; }\n// pb_config (filas {clave, valor}) -> objeto con tipos ya convertidos. Valores raros se ignoran (token con formato inválido = sin token).\nfunction armarConfig(filas) {\n  const c = {};\n  (filas || []).forEach(function (f) { if (f && typeof f.clave === 'string') c[f.clave] = f.valor === null || f.valor === undefined ? '' : String(f.valor); });\n  const num = function (k, d) { const n = Number(c[k]); return c[k] !== undefined && c[k] !== '' && Number.isFinite(n) ? n : d; };\n  const json = function (k, d) { try { const v = JSON.parse(c[k]); return v === null || v === undefined ? d : v; } catch (e) { return d; } };\n  const tok = String(c.BOT_TOKEN || '').trim();\n  let aut = json('AUTORIZADOS', []);\n  aut = (Array.isArray(aut) ? aut : []).filter(function (a) { return a && Number(a.id) > 0 && ['admin', 'dueno', 'marketing'].indexOf(a.rol) >= 0; })\n    .map(function (a) { return { id: Number(a.id), rol: a.rol, nombre: String(a.nombre || '').replace(/[<>]/g, '').slice(0, 60) }; });\n  const repo = String(c.REPO || '').trim();\n  const rama = String(c.REPO_BRANCH || '').trim();\n  const alertas = json('ALERTAS', {});\n  const desconocidos = json('DESCONOCIDOS', []);\n  return {\n    BOT_TOKEN: /^\\d{5,12}:[A-Za-z0-9_-]{30,}$/.test(tok) ? tok : '',\n    AUTORIZADOS: aut,\n    REPO: /^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repo) ? repo : 'Abnercayao/tienda-tarapoto',\n    REPO_BRANCH: /^[A-Za-z0-9_.\\/-]+$/.test(rama) ? rama : 'main',\n    SITIO_URL: /^https:\\/\\/[^\\s<>\"']+$/.test(c.SITIO_URL || '') ? c.SITIO_URL : 'https://abnercayao.github.io/tienda-tarapoto/',\n    COMMIT_EMAIL: /^[^\\s@<>]+@[^\\s@<>]+$/.test(c.COMMIT_EMAIL || '') ? c.COMMIT_EMAIL : '297644875+Abnercayao@users.noreply.github.com',\n    PAUSA: c.PAUSA === '1' ? 1 : 0,\n    MIN_ENTRE_COMMITS_MS: num('MIN_ENTRE_COMMITS_MS', 360000),\n    ULTIMO_COMMIT_AT: num('ULTIMO_COMMIT_AT', 0),\n    ULTIMO_POLL_AT: num('ULTIMO_POLL_AT', 0),\n    FALLOS_SEGUIDOS: num('FALLOS_SEGUIDOS', 0),\n    ULTIMA_ALERTA_AT: num('ULTIMA_ALERTA_AT', 0),\n    ALERTAS: alertas && typeof alertas === 'object' && !Array.isArray(alertas) ? alertas : {},\n    DESCONOCIDOS: Array.isArray(desconocidos) ? desconocidos.slice(-10) : [],\n    OLLAMA_URL: c.OLLAMA_URL || 'http://host.docker.internal:11434',\n    OLLAMA_MODELO: c.OLLAMA_MODELO || 'qwen3.5:4b-q4_K_M',\n    SD_URL: c.SD_URL || 'http://host.docker.internal:1234',\n    claves: Object.keys(c)\n  };\n}\nfunction rolDe(cfg, id) { const a = (cfg.AUTORIZADOS || []).find(function (x) { return x.id === Number(id); }); return a ? a.rol : null; }\n// Destinatarios de avisos técnicos: admins; si no hay, el dueño.\nfunction admins(cfg) {\n  const a = (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'admin'; });\n  return a.length ? a : (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'dueno'; });\n}\nfunction isoLima(ms) { const d = new Date((ms === undefined ? Date.now() : ms) - 5 * 3600000); return d.toISOString().slice(0, 19) + '-05:00'; }\n// --- fin comun.js ---\nreturn [{ json: armarConfig($input.all().map(function (i) { return i.json; })) }];\n"
+      }
+    },
+    {
+      "id": "3c55c995-cf86-456c-a23c-18d250589ed1",
+      "name": "Validar pedido",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// --- comun.js (Palmera Brava): ayudas compartidas por los nodos Code del núcleo (WF0, WF1, WF2, WF5, WF9) ---\n// Se inserta donde un Code dice \"// @incluir comun\". Sin require ni crypto (el task runner los bloquea).\nconst PB_TABLAS = { config: 'pb_config', locks: 'pb_locks', inbox: 'pb_inbox', borradores: 'pb_borradores', imagenes: 'pb_imagenes' };\n// Escapa texto para parse_mode HTML de Telegram.\nfunction h(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Quita tokens de Telegram, PAT de GitHub y similares de cualquier texto que vaya a un mensaje o a una tabla.\nfunction censurar(s) {\n  return String(s === null || s === undefined ? '' : s)\n    .replace(/bot\\d+:[\\w-]+/g, 'bot***')\n    .replace(/\\d{8,10}:[\\w-]{30,}/g, '***')\n    .replace(/github_pat_\\w+/g, 'github_pat_***')\n    .replace(/gh[pousr]_\\w+/g, 'gh*_***')\n    .replace(/(authorization[\"':=\\s]+)(token|bearer)\\s+[^\\s\"',}]+/gi, '$1$2 ***');\n}\n// Mensaje para Telegram (HTML). El texto YA debe venir escapado y terminar en \"Siguiente paso: ...\".\nfunction enviar(chatId, texto, extra) {\n  const t = String(texto || '');\n  if (!/\\nSiguiente paso: \\S/.test(t)) throw new Error('Mensaje sin \"Siguiente paso\": ' + t.slice(0, 60));\n  return { metodo: 'sendMessage', cuerpo: Object.assign({ chat_id: Number(chatId), text: t.slice(0, 4096), parse_mode: 'HTML', link_preview_options: { is_disabled: true } }, extra || {}) };\n}\nfunction quitarTeclado(chatId, messageId) {\n  return { metodo: 'editMessageReplyMarkup', cuerpo: { chat_id: Number(chatId), message_id: Number(messageId), reply_markup: { inline_keyboard: [] } } };\n}\nfunction botones(filas) { return { reply_markup: { inline_keyboard: filas } }; }\n// pb_config (filas {clave, valor}) -> objeto con tipos ya convertidos. Valores raros se ignoran (token con formato inválido = sin token).\nfunction armarConfig(filas) {\n  const c = {};\n  (filas || []).forEach(function (f) { if (f && typeof f.clave === 'string') c[f.clave] = f.valor === null || f.valor === undefined ? '' : String(f.valor); });\n  const num = function (k, d) { const n = Number(c[k]); return c[k] !== undefined && c[k] !== '' && Number.isFinite(n) ? n : d; };\n  const json = function (k, d) { try { const v = JSON.parse(c[k]); return v === null || v === undefined ? d : v; } catch (e) { return d; } };\n  const tok = String(c.BOT_TOKEN || '').trim();\n  let aut = json('AUTORIZADOS', []);\n  aut = (Array.isArray(aut) ? aut : []).filter(function (a) { return a && Number(a.id) > 0 && ['admin', 'dueno', 'marketing'].indexOf(a.rol) >= 0; })\n    .map(function (a) { return { id: Number(a.id), rol: a.rol, nombre: String(a.nombre || '').replace(/[<>]/g, '').slice(0, 60) }; });\n  const repo = String(c.REPO || '').trim();\n  const rama = String(c.REPO_BRANCH || '').trim();\n  const alertas = json('ALERTAS', {});\n  const desconocidos = json('DESCONOCIDOS', []);\n  return {\n    BOT_TOKEN: /^\\d{5,12}:[A-Za-z0-9_-]{30,}$/.test(tok) ? tok : '',\n    AUTORIZADOS: aut,\n    REPO: /^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repo) ? repo : 'Abnercayao/tienda-tarapoto',\n    REPO_BRANCH: /^[A-Za-z0-9_.\\/-]+$/.test(rama) ? rama : 'main',\n    SITIO_URL: /^https:\\/\\/[^\\s<>\"']+$/.test(c.SITIO_URL || '') ? c.SITIO_URL : 'https://abnercayao.github.io/tienda-tarapoto/',\n    COMMIT_EMAIL: /^[^\\s@<>]+@[^\\s@<>]+$/.test(c.COMMIT_EMAIL || '') ? c.COMMIT_EMAIL : '297644875+Abnercayao@users.noreply.github.com',\n    PAUSA: c.PAUSA === '1' ? 1 : 0,\n    MIN_ENTRE_COMMITS_MS: num('MIN_ENTRE_COMMITS_MS', 360000),\n    ULTIMO_COMMIT_AT: num('ULTIMO_COMMIT_AT', 0),\n    ULTIMO_POLL_AT: num('ULTIMO_POLL_AT', 0),\n    FALLOS_SEGUIDOS: num('FALLOS_SEGUIDOS', 0),\n    ULTIMA_ALERTA_AT: num('ULTIMA_ALERTA_AT', 0),\n    ALERTAS: alertas && typeof alertas === 'object' && !Array.isArray(alertas) ? alertas : {},\n    DESCONOCIDOS: Array.isArray(desconocidos) ? desconocidos.slice(-10) : [],\n    OLLAMA_URL: c.OLLAMA_URL || 'http://host.docker.internal:11434',\n    OLLAMA_MODELO: c.OLLAMA_MODELO || 'qwen3.5:4b-q4_K_M',\n    SD_URL: c.SD_URL || 'http://host.docker.internal:1234',\n    claves: Object.keys(c)\n  };\n}\nfunction rolDe(cfg, id) { const a = (cfg.AUTORIZADOS || []).find(function (x) { return x.id === Number(id); }); return a ? a.rol : null; }\n// Destinatarios de avisos técnicos: admins; si no hay, el dueño.\nfunction admins(cfg) {\n  const a = (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'admin'; });\n  return a.length ? a : (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'dueno'; });\n}\nfunction isoLima(ms) { const d = new Date((ms === undefined ? Date.now() : ms) - 5 * 3600000); return d.toISOString().slice(0, 19) + '-05:00'; }\n// --- fin comun.js ---\n// Cuerpo de admin.html (pedirAN8n): {prompt, prompt_usuario, tipo, personas, size, tamano_final, recortar_arriba, seed, origen:\"panel\"}.\n// WF6 rehace el prompt desde prompt_usuario con las mismas frases del panel y DECIDE el recorte (con personas siempre recorta).\n// Destinatario de la foto en Telegram (dueño del borrador): primer admin con id > 0; si no hay, primer dueño.\nconst cfg = $('Config').first().json;\nconst w = $('POST crear-imagen').first().json || {};\nconst b = w.body && typeof w.body === 'object' && !Array.isArray(w.body) ? w.body : {};\nconst malo = function (msg, paso) { return [{ json: { valido: false, status: 400, cuerpo: { ok: false, error: msg, siguiente_paso: paso } } }]; };\nconst texto = String(b.prompt_usuario || b.prompt || '').replace(/[\\u0000-\\u001f\\u007f<>]/g, ' ').replace(/\\s+/g, ' ').trim();\nconst n = Array.from(texto).length;\nif (n < 3 || n > 1200) return malo('la descripción debe tener entre 3 y 1200 caracteres', 'escribe qué quieres ver en la imagen (por ejemplo, la prenda, el color y el fondo).');\nconst TAM = ['768x1024', '1344x768', '1216x832', '1024x1024'];\nconst final = TAM.indexOf(String(b.tamano_final || '')) >= 0 ? String(b.tamano_final) : TAM.indexOf(String(b.size || '')) >= 0 ? String(b.size) : '';\nconst obj = String(b.objetivo || '').trim().toLowerCase();\nconst s0 = Number(b.seed);\nconst aut = cfg.AUTORIZADOS || [];\nconst dest = aut.find(function (a) { return a.rol === 'admin' && a.id > 0; }) || aut.find(function (a) { return a.rol === 'dueno' && a.id > 0; }) || null;\nreturn [{ json: { valido: true, inicio: Date.now(), pedido: {\n  prompt: texto, objetivo: /^(art-\\d{4,6}|look-\\d{1,3})$/.test(obj) ? obj : '', size: final,\n  personas: b.personas === 'adultos' || b.personas === 'ninguna' ? b.personas : '',\n  seed: Number.isInteger(s0) && s0 >= 1 && s0 <= 2147483646 ? s0 : 0,\n  tipo: ['hero', 'lookbook', 'blog', 'producto-muestra'].indexOf(b.tipo) >= 0 ? b.tipo : '',\n  chat_id: dest ? dest.id : 0, from_id: dest ? dest.id : 0, rol: dest ? dest.rol : '', nombre: dest ? dest.nombre : '', origen: 'panel'\n} } }];\n"
+      }
+    },
+    {
+      "id": "d5d69d19-6460-4157-abaa-9702ce70784b",
+      "name": "¿Pedido válido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        960,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "e87aa306-d1e6-4a10-8046-f0cbf6d30b0b",
+              "leftValue": "={{ $json.valido === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "48b41f47-39ca-4fe8-b9f7-8e647c2a5bd5",
+      "name": "Nota 2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1160,
+        -300
+      ],
+      "parameters": {
+        "content": "### Lock compartido (GPU y GitHub)\n`UPDATE pb_locks SET holder=<ejecución> WHERE nombre=worker AND hasta < ahora` (atómico, lease 15 min). Si no lo obtiene: Wait 5 s y otra vez, hasta 10 min. WF9 lo libera si esta ejecución falla.",
+        "width": 940,
+        "height": 640,
+        "color": 6
+      }
+    },
+    {
+      "id": "5f2153aa-e577-474c-bd16-7b0a6476400a",
+      "name": "Tomar lock",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1200,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_locks"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "nombre",
+              "condition": "eq",
+              "keyValue": "worker"
+            },
+            {
+              "keyName": "hasta",
+              "condition": "lt",
+              "keyValue": "={{ Date.now() }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "holder": "={{ $execution.id }}",
+            "hasta": "={{ Date.now() + 900000 }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "holder",
+              "displayName": "holder",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "hasta",
+              "displayName": "hasta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "2ffb98c4-38d5-4810-9006-6bde5f2002e8",
+      "name": "¿Lock tomado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1440,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "edb5ca91-03f0-4eff-ad8c-73f792b40bfc",
+              "leftValue": "={{ $json.holder === $execution.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "30de667e-098f-4965-8e64-d69da9599b6c",
+      "name": "Esperar turno",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        200
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Lock \"worker\" ocupado (WF2 con Ollama/GitHub u otra imagen): se reintenta cada 5 s durante 10 min como máximo.\nconst v = $('Validar pedido').first().json;\nconst espera = Date.now() - Number(v.inicio || 0);\nreturn [{ json: { agotado: !(espera < 600000), espera_s: Math.round(espera / 1000) } }];\n"
+      }
+    },
+    {
+      "id": "6f79ab31-2265-4241-a09c-94fda9a0437d",
+      "name": "¿Seguir esperando?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1920,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "118b93aa-648e-4657-89f2-79ced7640f97",
+              "leftValue": "={{ $json.agotado === false }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "9896d523-3ff4-4e31-8fd8-2612726c357b",
+      "name": "Esperar 5 s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1920,
+        400
+      ],
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 5,
+        "unit": "seconds"
+      },
+      "webhookId": "26daf0be-2373-4c08-9304-fa7b33c62e6f"
+    },
+    {
+      "id": "f0e0b5db-cb19-4d17-9b1b-3663bb80f504",
+      "name": "Ocupado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        320
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "return [{ json: { status: 423, cuerpo: { ok: false, error: 'ocupado', mensaje: 'La GPU estuvo ocupada 10 minutos (bot de Telegram, publicación u otra imagen).',\n  siguiente_paso: 'intenta de nuevo en unos minutos; en Telegram, /estado muestra la cola.' } } }];\n"
+      }
+    },
+    {
+      "id": "e0ca36cd-55ad-422b-875d-1bccfb4c1fc9",
+      "name": "Pedido",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        -160
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Ítem de entrada de WF6 (passthrough). WF8 ya tiene el lock: WF6 no lo toca.\nreturn [{ json: $('Validar pedido').first().json.pedido }];\n"
+      }
+    },
+    {
+      "id": "133e4857-078a-494a-9c2b-c8d6c6b9ea07",
+      "name": "WF6 Imagen",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1920,
+        -160
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "pbWf06Imagen0000"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "0482cccf-25f2-40b4-b0fd-fb67a2f7fd96",
+      "name": "Liberar lock",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2160,
+        -160
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_locks"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "nombre",
+              "condition": "eq",
+              "keyValue": "worker"
+            },
+            {
+              "keyName": "holder",
+              "condition": "eq",
+              "keyValue": "={{ $execution.id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "holder": "",
+            "hasta": 0
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "holder",
+              "displayName": "holder",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "hasta",
+              "displayName": "hasta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "4999c8f5-edf5-41aa-a73c-46594d1d9759",
+      "name": "Respuesta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        -160
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// --- comun.js (Palmera Brava): ayudas compartidas por los nodos Code del núcleo (WF0, WF1, WF2, WF5, WF9) ---\n// Se inserta donde un Code dice \"// @incluir comun\". Sin require ni crypto (el task runner los bloquea).\nconst PB_TABLAS = { config: 'pb_config', locks: 'pb_locks', inbox: 'pb_inbox', borradores: 'pb_borradores', imagenes: 'pb_imagenes' };\n// Escapa texto para parse_mode HTML de Telegram.\nfunction h(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Quita tokens de Telegram, PAT de GitHub y similares de cualquier texto que vaya a un mensaje o a una tabla.\nfunction censurar(s) {\n  return String(s === null || s === undefined ? '' : s)\n    .replace(/bot\\d+:[\\w-]+/g, 'bot***')\n    .replace(/\\d{8,10}:[\\w-]{30,}/g, '***')\n    .replace(/github_pat_\\w+/g, 'github_pat_***')\n    .replace(/gh[pousr]_\\w+/g, 'gh*_***')\n    .replace(/(authorization[\"':=\\s]+)(token|bearer)\\s+[^\\s\"',}]+/gi, '$1$2 ***');\n}\n// Mensaje para Telegram (HTML). El texto YA debe venir escapado y terminar en \"Siguiente paso: ...\".\nfunction enviar(chatId, texto, extra) {\n  const t = String(texto || '');\n  if (!/\\nSiguiente paso: \\S/.test(t)) throw new Error('Mensaje sin \"Siguiente paso\": ' + t.slice(0, 60));\n  return { metodo: 'sendMessage', cuerpo: Object.assign({ chat_id: Number(chatId), text: t.slice(0, 4096), parse_mode: 'HTML', link_preview_options: { is_disabled: true } }, extra || {}) };\n}\nfunction quitarTeclado(chatId, messageId) {\n  return { metodo: 'editMessageReplyMarkup', cuerpo: { chat_id: Number(chatId), message_id: Number(messageId), reply_markup: { inline_keyboard: [] } } };\n}\nfunction botones(filas) { return { reply_markup: { inline_keyboard: filas } }; }\n// pb_config (filas {clave, valor}) -> objeto con tipos ya convertidos. Valores raros se ignoran (token con formato inválido = sin token).\nfunction armarConfig(filas) {\n  const c = {};\n  (filas || []).forEach(function (f) { if (f && typeof f.clave === 'string') c[f.clave] = f.valor === null || f.valor === undefined ? '' : String(f.valor); });\n  const num = function (k, d) { const n = Number(c[k]); return c[k] !== undefined && c[k] !== '' && Number.isFinite(n) ? n : d; };\n  const json = function (k, d) { try { const v = JSON.parse(c[k]); return v === null || v === undefined ? d : v; } catch (e) { return d; } };\n  const tok = String(c.BOT_TOKEN || '').trim();\n  let aut = json('AUTORIZADOS', []);\n  aut = (Array.isArray(aut) ? aut : []).filter(function (a) { return a && Number(a.id) > 0 && ['admin', 'dueno', 'marketing'].indexOf(a.rol) >= 0; })\n    .map(function (a) { return { id: Number(a.id), rol: a.rol, nombre: String(a.nombre || '').replace(/[<>]/g, '').slice(0, 60) }; });\n  const repo = String(c.REPO || '').trim();\n  const rama = String(c.REPO_BRANCH || '').trim();\n  const alertas = json('ALERTAS', {});\n  const desconocidos = json('DESCONOCIDOS', []);\n  return {\n    BOT_TOKEN: /^\\d{5,12}:[A-Za-z0-9_-]{30,}$/.test(tok) ? tok : '',\n    AUTORIZADOS: aut,\n    REPO: /^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repo) ? repo : 'Abnercayao/tienda-tarapoto',\n    REPO_BRANCH: /^[A-Za-z0-9_.\\/-]+$/.test(rama) ? rama : 'main',\n    SITIO_URL: /^https:\\/\\/[^\\s<>\"']+$/.test(c.SITIO_URL || '') ? c.SITIO_URL : 'https://abnercayao.github.io/tienda-tarapoto/',\n    COMMIT_EMAIL: /^[^\\s@<>]+@[^\\s@<>]+$/.test(c.COMMIT_EMAIL || '') ? c.COMMIT_EMAIL : '297644875+Abnercayao@users.noreply.github.com',\n    PAUSA: c.PAUSA === '1' ? 1 : 0,\n    MIN_ENTRE_COMMITS_MS: num('MIN_ENTRE_COMMITS_MS', 360000),\n    ULTIMO_COMMIT_AT: num('ULTIMO_COMMIT_AT', 0),\n    ULTIMO_POLL_AT: num('ULTIMO_POLL_AT', 0),\n    FALLOS_SEGUIDOS: num('FALLOS_SEGUIDOS', 0),\n    ULTIMA_ALERTA_AT: num('ULTIMA_ALERTA_AT', 0),\n    ALERTAS: alertas && typeof alertas === 'object' && !Array.isArray(alertas) ? alertas : {},\n    DESCONOCIDOS: Array.isArray(desconocidos) ? desconocidos.slice(-10) : [],\n    OLLAMA_URL: c.OLLAMA_URL || 'http://host.docker.internal:11434',\n    OLLAMA_MODELO: c.OLLAMA_MODELO || 'qwen3.5:4b-q4_K_M',\n    SD_URL: c.SD_URL || 'http://host.docker.internal:1234',\n    claves: Object.keys(c)\n  };\n}\nfunction rolDe(cfg, id) { const a = (cfg.AUTORIZADOS || []).find(function (x) { return x.id === Number(id); }); return a ? a.rol : null; }\n// Destinatarios de avisos técnicos: admins; si no hay, el dueño.\nfunction admins(cfg) {\n  const a = (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'admin'; });\n  return a.length ? a : (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'dueno'; });\n}\nfunction isoLima(ms) { const d = new Date((ms === undefined ? Date.now() : ms) - 5 * 3600000); return d.toISOString().slice(0, 19) + '-05:00'; }\n// --- fin comun.js ---\n// Lock ya liberado. Rehace el binario desde el b64 de WF6 (en esta ejecución) o arma el error JSON para el panel.\nconst r = $('WF6 Imagen').first() ? $('WF6 Imagen').first().json || {} : {};\nif (r.ok === true && typeof r.b64 === 'string' && r.b64.length > 100) {\n  const buf = Buffer.from(r.b64, 'base64');\n  const bin = await this.helpers.prepareBinaryData(buf, 'palmera-brava-ia-' + (Number(r.seed) || 0) + '.webp', 'image/webp');\n  return [{ json: { ok: true, draft_id: String(r.draft_id || ''), telegram: r.telegram === true ? 'si' : 'no', seed: String(Number(r.seed) || ''),\n    tamano: String(r.tamano || '') }, binary: { data: bin } }];\n}\nconst e = r.error;\nconst msg = censurar(typeof e === 'string' ? e : (e && (e.message || e.description)) || 'WF6 no devolvió la imagen').replace(/\\s+/g, ' ').slice(0, 200);\nconst PASOS = {\n  pedido: 'revisa el texto del pedido.',\n  sd: 'revisa sd-server arriba (tools\\\\iniciar-sd-server.bat) y vuelve a intentar.',\n  recorte: 'vuelve a generar con otra semilla.'\n};\nreturn [{ json: { ok: false, status: r.etapa === 'pedido' ? 400 : 502,\n  cuerpo: { ok: false, error: msg, siguiente_paso: PASOS[r.etapa] || 'revisa la ejecución de \"PB WF6 Imagen-IA\" en n8n (Executions) y que WF6 esté publicado.' } } }];\n"
+      }
+    },
+    {
+      "id": "799369ea-dc82-4119-b480-687d9bed04a1",
+      "name": "¿Imagen lista?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2640,
+        -160
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "803e2438-586d-4e12-b610-8a9312b6cf00",
+              "leftValue": "={{ $json.ok === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "e9c3aaea-e97b-4e4a-91f0-41a23539c072",
+      "name": "Responder imagen",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2880,
+        -260
+      ],
+      "parameters": {
+        "respondWith": "binary",
+        "responseDataSource": "set",
+        "inputFieldName": "data",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "X-Draft-Id",
+                "value": "={{ $json.draft_id }}"
+              },
+              {
+                "name": "X-Telegram",
+                "value": "={{ $json.telegram }}"
+              },
+              {
+                "name": "X-Seed",
+                "value": "={{ $json.seed }}"
+              },
+              {
+                "name": "Access-Control-Expose-Headers",
+                "value": "X-Draft-Id, X-Telegram, X-Seed"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "adcc4e63-dfa0-4454-8938-12f0c69f20f4",
+      "name": "Responder JSON",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2880,
+        120
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.cuerpo) }}",
+        "options": {
+          "responseCode": "={{ $json.status }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "01a63c73-b8f5-489f-959b-8e3fea0fa428",
+      "name": "Nota 3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        560
+      ],
+      "parameters": {
+        "content": "### GET /webhook/estado\nSolo lectura: Data Tables + `GET` a Ollama (`/api/version`, `/api/ps`) y sd-server (`/sdcpp/v1/capabilities`), 3 s cada uno.",
+        "width": 2900,
+        "height": 360,
+        "color": 5
+      }
+    },
+    {
+      "id": "605f5afe-dec5-440d-a209-930bdd293c08",
+      "name": "GET estado",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        720
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "estado",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:8080,http://127.0.0.1:8080"
+        }
+      },
+      "webhookId": "74142ca4-a44a-492f-bd0c-eb3eaa49cb5d",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Header X-Tienda-Key"
+        }
+      }
+    },
+    {
+      "id": "ba14b615-3a40-4b1c-85c8-71fe177acb94",
+      "name": "Leer config estado",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        720
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_config"
+        },
+        "matchType": "allConditions",
+        "filters": {},
+        "returnAll": true
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "fbe6a57a-b14d-40cf-86f3-cb71984d4b96",
+      "name": "Config estado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        720
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// --- comun.js (Palmera Brava): ayudas compartidas por los nodos Code del núcleo (WF0, WF1, WF2, WF5, WF9) ---\n// Se inserta donde un Code dice \"// @incluir comun\". Sin require ni crypto (el task runner los bloquea).\nconst PB_TABLAS = { config: 'pb_config', locks: 'pb_locks', inbox: 'pb_inbox', borradores: 'pb_borradores', imagenes: 'pb_imagenes' };\n// Escapa texto para parse_mode HTML de Telegram.\nfunction h(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Quita tokens de Telegram, PAT de GitHub y similares de cualquier texto que vaya a un mensaje o a una tabla.\nfunction censurar(s) {\n  return String(s === null || s === undefined ? '' : s)\n    .replace(/bot\\d+:[\\w-]+/g, 'bot***')\n    .replace(/\\d{8,10}:[\\w-]{30,}/g, '***')\n    .replace(/github_pat_\\w+/g, 'github_pat_***')\n    .replace(/gh[pousr]_\\w+/g, 'gh*_***')\n    .replace(/(authorization[\"':=\\s]+)(token|bearer)\\s+[^\\s\"',}]+/gi, '$1$2 ***');\n}\n// Mensaje para Telegram (HTML). El texto YA debe venir escapado y terminar en \"Siguiente paso: ...\".\nfunction enviar(chatId, texto, extra) {\n  const t = String(texto || '');\n  if (!/\\nSiguiente paso: \\S/.test(t)) throw new Error('Mensaje sin \"Siguiente paso\": ' + t.slice(0, 60));\n  return { metodo: 'sendMessage', cuerpo: Object.assign({ chat_id: Number(chatId), text: t.slice(0, 4096), parse_mode: 'HTML', link_preview_options: { is_disabled: true } }, extra || {}) };\n}\nfunction quitarTeclado(chatId, messageId) {\n  return { metodo: 'editMessageReplyMarkup', cuerpo: { chat_id: Number(chatId), message_id: Number(messageId), reply_markup: { inline_keyboard: [] } } };\n}\nfunction botones(filas) { return { reply_markup: { inline_keyboard: filas } }; }\n// pb_config (filas {clave, valor}) -> objeto con tipos ya convertidos. Valores raros se ignoran (token con formato inválido = sin token).\nfunction armarConfig(filas) {\n  const c = {};\n  (filas || []).forEach(function (f) { if (f && typeof f.clave === 'string') c[f.clave] = f.valor === null || f.valor === undefined ? '' : String(f.valor); });\n  const num = function (k, d) { const n = Number(c[k]); return c[k] !== undefined && c[k] !== '' && Number.isFinite(n) ? n : d; };\n  const json = function (k, d) { try { const v = JSON.parse(c[k]); return v === null || v === undefined ? d : v; } catch (e) { return d; } };\n  const tok = String(c.BOT_TOKEN || '').trim();\n  let aut = json('AUTORIZADOS', []);\n  aut = (Array.isArray(aut) ? aut : []).filter(function (a) { return a && Number(a.id) > 0 && ['admin', 'dueno', 'marketing'].indexOf(a.rol) >= 0; })\n    .map(function (a) { return { id: Number(a.id), rol: a.rol, nombre: String(a.nombre || '').replace(/[<>]/g, '').slice(0, 60) }; });\n  const repo = String(c.REPO || '').trim();\n  const rama = String(c.REPO_BRANCH || '').trim();\n  const alertas = json('ALERTAS', {});\n  const desconocidos = json('DESCONOCIDOS', []);\n  return {\n    BOT_TOKEN: /^\\d{5,12}:[A-Za-z0-9_-]{30,}$/.test(tok) ? tok : '',\n    AUTORIZADOS: aut,\n    REPO: /^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repo) ? repo : 'Abnercayao/tienda-tarapoto',\n    REPO_BRANCH: /^[A-Za-z0-9_.\\/-]+$/.test(rama) ? rama : 'main',\n    SITIO_URL: /^https:\\/\\/[^\\s<>\"']+$/.test(c.SITIO_URL || '') ? c.SITIO_URL : 'https://abnercayao.github.io/tienda-tarapoto/',\n    COMMIT_EMAIL: /^[^\\s@<>]+@[^\\s@<>]+$/.test(c.COMMIT_EMAIL || '') ? c.COMMIT_EMAIL : '297644875+Abnercayao@users.noreply.github.com',\n    PAUSA: c.PAUSA === '1' ? 1 : 0,\n    MIN_ENTRE_COMMITS_MS: num('MIN_ENTRE_COMMITS_MS', 360000),\n    ULTIMO_COMMIT_AT: num('ULTIMO_COMMIT_AT', 0),\n    ULTIMO_POLL_AT: num('ULTIMO_POLL_AT', 0),\n    FALLOS_SEGUIDOS: num('FALLOS_SEGUIDOS', 0),\n    ULTIMA_ALERTA_AT: num('ULTIMA_ALERTA_AT', 0),\n    ALERTAS: alertas && typeof alertas === 'object' && !Array.isArray(alertas) ? alertas : {},\n    DESCONOCIDOS: Array.isArray(desconocidos) ? desconocidos.slice(-10) : [],\n    OLLAMA_URL: c.OLLAMA_URL || 'http://host.docker.internal:11434',\n    OLLAMA_MODELO: c.OLLAMA_MODELO || 'qwen3.5:4b-q4_K_M',\n    SD_URL: c.SD_URL || 'http://host.docker.internal:1234',\n    claves: Object.keys(c)\n  };\n}\nfunction rolDe(cfg, id) { const a = (cfg.AUTORIZADOS || []).find(function (x) { return x.id === Number(id); }); return a ? a.rol : null; }\n// Destinatarios de avisos técnicos: admins; si no hay, el dueño.\nfunction admins(cfg) {\n  const a = (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'admin'; });\n  return a.length ? a : (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'dueno'; });\n}\nfunction isoLima(ms) { const d = new Date((ms === undefined ? Date.now() : ms) - 5 * 3600000); return d.toISOString().slice(0, 19) + '-05:00'; }\n// --- fin comun.js ---\nreturn [{ json: armarConfig($input.all().map(function (i) { return i.json; })) }];\n"
+      }
+    },
+    {
+      "id": "4f46a9a2-cc12-4f49-a541-94d887cf5616",
+      "name": "Leer lock",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        720
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_locks"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "nombre",
+              "condition": "eq",
+              "keyValue": "worker"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 1
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "a1fb45b2-bd1a-4bd1-9ad1-4988682160cf",
+      "name": "Inbox nuevo",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        960,
+        720
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_inbox"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "estado",
+              "condition": "eq",
+              "keyValue": "nuevo"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 200
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "a925d0f7-d8be-42ff-a373-8454ad9b981e",
+      "name": "Aprobados",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1200,
+        720
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_borradores"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "estado",
+              "condition": "eq",
+              "keyValue": "aprobado"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 200
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "18d5a1e6-75be-4bb2-ab19-293fa61678e5",
+      "name": "Pendientes",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1440,
+        720
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_borradores"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "estado",
+              "condition": "eq",
+              "keyValue": "pendiente"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 200
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "785bdef5-050e-46c7-a469-5c07d4e7aac9",
+      "name": "Ollama version",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1680,
+        720
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config estado').first().json.OLLAMA_URL }}/api/version",
+        "options": {
+          "timeout": 3000,
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput",
+      "executeOnce": true
+    },
+    {
+      "id": "0a2ec507-ed2e-40f8-bb82-163a04b8568b",
+      "name": "Ollama ps",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1920,
+        720
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config estado').first().json.OLLAMA_URL }}/api/ps",
+        "options": {
+          "timeout": 3000,
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput",
+      "executeOnce": true
+    },
+    {
+      "id": "67c87ccf-454d-47ff-8357-31e9136d3aba",
+      "name": "sd-server salud",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2160,
+        720
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config estado').first().json.SD_URL }}/sdcpp/v1/capabilities",
+        "options": {
+          "timeout": 3000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput",
+      "executeOnce": true
+    },
+    {
+      "id": "d2907464-92b4-475a-8bb2-1c4a7ccc064e",
+      "name": "Estado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        720
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// --- comun.js (Palmera Brava): ayudas compartidas por los nodos Code del núcleo (WF0, WF1, WF2, WF5, WF9) ---\n// Se inserta donde un Code dice \"// @incluir comun\". Sin require ni crypto (el task runner los bloquea).\nconst PB_TABLAS = { config: 'pb_config', locks: 'pb_locks', inbox: 'pb_inbox', borradores: 'pb_borradores', imagenes: 'pb_imagenes' };\n// Escapa texto para parse_mode HTML de Telegram.\nfunction h(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Quita tokens de Telegram, PAT de GitHub y similares de cualquier texto que vaya a un mensaje o a una tabla.\nfunction censurar(s) {\n  return String(s === null || s === undefined ? '' : s)\n    .replace(/bot\\d+:[\\w-]+/g, 'bot***')\n    .replace(/\\d{8,10}:[\\w-]{30,}/g, '***')\n    .replace(/github_pat_\\w+/g, 'github_pat_***')\n    .replace(/gh[pousr]_\\w+/g, 'gh*_***')\n    .replace(/(authorization[\"':=\\s]+)(token|bearer)\\s+[^\\s\"',}]+/gi, '$1$2 ***');\n}\n// Mensaje para Telegram (HTML). El texto YA debe venir escapado y terminar en \"Siguiente paso: ...\".\nfunction enviar(chatId, texto, extra) {\n  const t = String(texto || '');\n  if (!/\\nSiguiente paso: \\S/.test(t)) throw new Error('Mensaje sin \"Siguiente paso\": ' + t.slice(0, 60));\n  return { metodo: 'sendMessage', cuerpo: Object.assign({ chat_id: Number(chatId), text: t.slice(0, 4096), parse_mode: 'HTML', link_preview_options: { is_disabled: true } }, extra || {}) };\n}\nfunction quitarTeclado(chatId, messageId) {\n  return { metodo: 'editMessageReplyMarkup', cuerpo: { chat_id: Number(chatId), message_id: Number(messageId), reply_markup: { inline_keyboard: [] } } };\n}\nfunction botones(filas) { return { reply_markup: { inline_keyboard: filas } }; }\n// pb_config (filas {clave, valor}) -> objeto con tipos ya convertidos. Valores raros se ignoran (token con formato inválido = sin token).\nfunction armarConfig(filas) {\n  const c = {};\n  (filas || []).forEach(function (f) { if (f && typeof f.clave === 'string') c[f.clave] = f.valor === null || f.valor === undefined ? '' : String(f.valor); });\n  const num = function (k, d) { const n = Number(c[k]); return c[k] !== undefined && c[k] !== '' && Number.isFinite(n) ? n : d; };\n  const json = function (k, d) { try { const v = JSON.parse(c[k]); return v === null || v === undefined ? d : v; } catch (e) { return d; } };\n  const tok = String(c.BOT_TOKEN || '').trim();\n  let aut = json('AUTORIZADOS', []);\n  aut = (Array.isArray(aut) ? aut : []).filter(function (a) { return a && Number(a.id) > 0 && ['admin', 'dueno', 'marketing'].indexOf(a.rol) >= 0; })\n    .map(function (a) { return { id: Number(a.id), rol: a.rol, nombre: String(a.nombre || '').replace(/[<>]/g, '').slice(0, 60) }; });\n  const repo = String(c.REPO || '').trim();\n  const rama = String(c.REPO_BRANCH || '').trim();\n  const alertas = json('ALERTAS', {});\n  const desconocidos = json('DESCONOCIDOS', []);\n  return {\n    BOT_TOKEN: /^\\d{5,12}:[A-Za-z0-9_-]{30,}$/.test(tok) ? tok : '',\n    AUTORIZADOS: aut,\n    REPO: /^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repo) ? repo : 'Abnercayao/tienda-tarapoto',\n    REPO_BRANCH: /^[A-Za-z0-9_.\\/-]+$/.test(rama) ? rama : 'main',\n    SITIO_URL: /^https:\\/\\/[^\\s<>\"']+$/.test(c.SITIO_URL || '') ? c.SITIO_URL : 'https://abnercayao.github.io/tienda-tarapoto/',\n    COMMIT_EMAIL: /^[^\\s@<>]+@[^\\s@<>]+$/.test(c.COMMIT_EMAIL || '') ? c.COMMIT_EMAIL : '297644875+Abnercayao@users.noreply.github.com',\n    PAUSA: c.PAUSA === '1' ? 1 : 0,\n    MIN_ENTRE_COMMITS_MS: num('MIN_ENTRE_COMMITS_MS', 360000),\n    ULTIMO_COMMIT_AT: num('ULTIMO_COMMIT_AT', 0),\n    ULTIMO_POLL_AT: num('ULTIMO_POLL_AT', 0),\n    FALLOS_SEGUIDOS: num('FALLOS_SEGUIDOS', 0),\n    ULTIMA_ALERTA_AT: num('ULTIMA_ALERTA_AT', 0),\n    ALERTAS: alertas && typeof alertas === 'object' && !Array.isArray(alertas) ? alertas : {},\n    DESCONOCIDOS: Array.isArray(desconocidos) ? desconocidos.slice(-10) : [],\n    OLLAMA_URL: c.OLLAMA_URL || 'http://host.docker.internal:11434',\n    OLLAMA_MODELO: c.OLLAMA_MODELO || 'qwen3.5:4b-q4_K_M',\n    SD_URL: c.SD_URL || 'http://host.docker.internal:1234',\n    claves: Object.keys(c)\n  };\n}\nfunction rolDe(cfg, id) { const a = (cfg.AUTORIZADOS || []).find(function (x) { return x.id === Number(id); }); return a ? a.rol : null; }\n// Destinatarios de avisos técnicos: admins; si no hay, el dueño.\nfunction admins(cfg) {\n  const a = (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'admin'; });\n  return a.length ? a : (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'dueno'; });\n}\nfunction isoLima(ms) { const d = new Date((ms === undefined ? Date.now() : ms) - 5 * 3600000); return d.toISOString().slice(0, 19) + '-05:00'; }\n// --- fin comun.js ---\n// Resumen para el panel (sin token ni ids): cola, borradores, lock de GPU/GitHub, pausa, último commit, poller y salud de Ollama y sd-server.\nconst cfg = $('Config estado').first().json;\nconst filas = function (n) { return $(n).all().map(function (i) { return i.json; }).filter(function (j) { return j && j.id !== undefined; }); };\nconst ahora = Date.now();\nconst lock = filas('Leer lock')[0] || {};\nconst ocupado = Number(lock.hasta) > ahora;\nconst cola = filas('Inbox nuevo').length;\nconst aprobados = filas('Aprobados').length;\nconst pendientes = filas('Pendientes').length;\nconst ov = $('Ollama version').first().json || {};\nconst ops = $('Ollama ps').first().json || {};\nconst sd = $('sd-server salud').first().json || {};\nconst ollamaOk = typeof ov.version === 'string';\nconst cargados = (Array.isArray(ops.models) ? ops.models : []).map(function (m) { return String((m && (m.name || m.model)) || ''); }).filter(Boolean).slice(0, 5);\nconst sdOk = Number(sd.statusCode) >= 200 && Number(sd.statusCode) < 500;   // responde = en línea (fullResponse)\nconst pollHace = cfg.ULTIMO_POLL_AT ? Math.round((ahora - cfg.ULTIMO_POLL_AT) / 1000) : -1;\nconst autorizados = (cfg.AUTORIZADOS || []).filter(function (a) { return a.id > 0; }).length;\nconst fecha = function (ms) { return ms ? isoLima(ms).slice(0, 16).replace('T', ' ') : 'nunca'; };\nconst mas = function (k) { return k >= 200 ? '200 o más' : String(k); };\nlet paso = 'nada; todo en orden.';\nif (!cfg.BOT_TOKEN) paso = 'pega el token del bot en la Data Table pb_config (BOT_TOKEN) y ejecuta \"PB WF0 Setup\".';\nelse if (!autorizados) paso = 'escribe /start al bot, copia tu id desde pb_config.DESCONOCIDOS a AUTORIZADOS y ejecuta WF0.';\nelse if (pollHace < 0 || pollHace > 60) paso = 'publica \"PB WF1 Ingesta\" en n8n (no lee Telegram desde hace ' + (pollHace < 0 ? 'siempre' : pollHace + ' s') + ').';\nelse if (cfg.PAUSA === 1 && aprobados) paso = 'usa /reanudar en Telegram para publicar los aprobados.';\nelse if (!sdOk) paso = 'para crear imágenes, ejecuta tools\\\\iniciar-sd-server.bat.';\nelse if (!ollamaOk) paso = 'inicia Ollama para que el bot entienda fotos y mensajes.';\nconst lineas = [\n  'Bot de Telegram: ' + (cfg.BOT_TOKEN ? 'configurado' : 'SIN TOKEN') + '; ' + autorizados + ' persona(s) autorizada(s); última lectura de Telegram: ' + (pollHace < 0 ? 'nunca' : 'hace ' + pollHace + ' s') + (cfg.FALLOS_SEGUIDOS ? ' (' + cfg.FALLOS_SEGUIDOS + ' fallos seguidos)' : '') + '.',\n  'GPU y GitHub: ' + (ocupado ? 'ocupados hasta las ' + isoLima(Number(lock.hasta)).slice(11, 19) : 'libres') + '.',\n  'Mensajes en cola: ' + mas(cola) + '. Borradores pendientes: ' + mas(pendientes) + '. Aprobados por publicar: ' + mas(aprobados) + '.',\n  'Publicación: ' + (cfg.PAUSA === 1 ? 'EN PAUSA' : 'activa') + '. Último commit del bot: ' + fecha(cfg.ULTIMO_COMMIT_AT) + '.',\n  'Ollama: ' + (ollamaOk ? 'en línea (v' + ov.version + (cargados.length ? '; cargado: ' + cargados.join(', ') : '; sin modelos en VRAM') + ')' : 'no responde') + '.',\n  'sd-server: ' + (sdOk ? 'en línea' : 'no responde') + '.',\n  'Siguiente paso: ' + paso\n];\nreturn [{ json: {\n  ok: true, ahora: isoLima(ahora), ocupado: ocupado, lock_hasta: ocupado ? Number(lock.hasta) : 0, cola: cola, pendientes: pendientes, aprobados: aprobados,\n  pausa: cfg.PAUSA === 1, ultimo_commit_at: cfg.ULTIMO_COMMIT_AT, ultimo_poll_at: cfg.ULTIMO_POLL_AT, fallos_poller: cfg.FALLOS_SEGUIDOS,\n  bot_token: cfg.BOT_TOKEN !== '', autorizados: autorizados,\n  ollama: { ok: ollamaOk, version: ollamaOk ? ov.version : '', cargados: cargados }, sd_server: { ok: sdOk },\n  texto: lineas.join('\\n')\n} }];\n"
+      }
+    },
+    {
+      "id": "8846a8ba-9bd0-40f3-865a-ee036cedf6c8",
+      "name": "Responder estado",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2640,
+        720
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "connections": {
+    "POST crear-imagen": {
+      "main": [
+        [
+          {
+            "node": "Leer config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer config": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Validar pedido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar pedido": {
+      "main": [
+        [
+          {
+            "node": "¿Pedido válido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Pedido válido?": {
+      "main": [
+        [
+          {
+            "node": "Tomar lock",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tomar lock": {
+      "main": [
+        [
+          {
+            "node": "¿Lock tomado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Lock tomado?": {
+      "main": [
+        [
+          {
+            "node": "Pedido",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Esperar turno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Esperar turno": {
+      "main": [
+        [
+          {
+            "node": "¿Seguir esperando?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Seguir esperando?": {
+      "main": [
+        [
+          {
+            "node": "Esperar 5 s",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ocupado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Esperar 5 s": {
+      "main": [
+        [
+          {
+            "node": "Tomar lock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ocupado": {
+      "main": [
+        [
+          {
+            "node": "Responder JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pedido": {
+      "main": [
+        [
+          {
+            "node": "WF6 Imagen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WF6 Imagen": {
+      "main": [
+        [
+          {
+            "node": "Liberar lock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Liberar lock": {
+      "main": [
+        [
+          {
+            "node": "Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respuesta": {
+      "main": [
+        [
+          {
+            "node": "¿Imagen lista?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Imagen lista?": {
+      "main": [
+        [
+          {
+            "node": "Responder imagen",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET estado": {
+      "main": [
+        [
+          {
+            "node": "Leer config estado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer config estado": {
+      "main": [
+        [
+          {
+            "node": "Config estado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config estado": {
+      "main": [
+        [
+          {
+            "node": "Leer lock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer lock": {
+      "main": [
+        [
+          {
+            "node": "Inbox nuevo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inbox nuevo": {
+      "main": [
+        [
+          {
+            "node": "Aprobados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aprobados": {
+      "main": [
+        [
+          {
+            "node": "Pendientes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pendientes": {
+      "main": [
+        [
+          {
+            "node": "Ollama version",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama version": {
+      "main": [
+        [
+          {
+            "node": "Ollama ps",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama ps": {
+      "main": [
+        [
+          {
+            "node": "sd-server salud",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "sd-server salud": {
+      "main": [
+        [
+          {
+            "node": "Estado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Estado": {
+      "main": [
+        [
+          {
+            "node": "Responder estado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Lima",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "errorWorkflow": "pbWf09Errores000",
+    "executionTimeout": 1380
+  },
+  "meta": {},
+  "tags": []
+}

@@ -1,0 +1,1146 @@
+{
+  "id": "pbWf00Setup00000",
+  "name": "PB WF0 Setup",
+  "active": false,
+  "nodes": [
+    {
+      "id": "f4d1746d-ba78-4fc1-a2c5-2ee86cc51879",
+      "name": "Nota 1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -420
+      ],
+      "parameters": {
+        "content": "## WF0 · Setup (manual)\nEjecútalo **una vez al instalar** y **cada vez que cambies AUTORIZADOS**.\n\n1. Crea las 5 Data Tables (si ya existen, no las toca).\n2. Inserta en `pb_config` solo las claves que faltan (nunca pisa lo editado).\n3. Con token válido: `getMe`, quita el webhook, publica los comandos de cada rol y la descripción del bot.\n\n**Primera vez:** corre → pega el token en `pb_config.BOT_TOKEN` (Data Tables) y en la credencial \"Telegram Palmera Brava\" → corre otra vez.",
+        "width": 560,
+        "height": 300,
+        "color": 4
+      }
+    },
+    {
+      "id": "1deb819a-4194-4f18-8d84-bc22ed1fe252",
+      "name": "Ejecutar setup",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "50d193d1-4ee7-41af-b2c2-b4dbe2780378",
+      "name": "Nota 2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        200,
+        -160
+      ],
+      "parameters": {
+        "content": "### 1 · Tablas\n`createIfNotExists`: crear o reutilizar por nombre (prefijo `pb_`, ninguno contiene a otro).",
+        "width": 1220,
+        "height": 320,
+        "color": 7
+      }
+    },
+    {
+      "id": "012739ef-fd83-477e-8061-728cd7678f68",
+      "name": "Crear pb_config",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "resource": "table",
+        "operation": "create",
+        "tableName": "pb_config",
+        "columns": {
+          "column": [
+            {
+              "name": "clave",
+              "type": "string"
+            },
+            {
+              "name": "valor",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {
+          "createIfNotExists": true
+        }
+      }
+    },
+    {
+      "id": "0da16c1c-365d-4c37-a187-003e226e17dd",
+      "name": "Crear pb_locks",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "resource": "table",
+        "operation": "create",
+        "tableName": "pb_locks",
+        "columns": {
+          "column": [
+            {
+              "name": "nombre",
+              "type": "string"
+            },
+            {
+              "name": "holder",
+              "type": "string"
+            },
+            {
+              "name": "hasta",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {
+          "createIfNotExists": true
+        }
+      }
+    },
+    {
+      "id": "8fabc74f-81e1-4e32-a4e4-9a3f5968507e",
+      "name": "Crear pb_inbox",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "resource": "table",
+        "operation": "create",
+        "tableName": "pb_inbox",
+        "columns": {
+          "column": [
+            {
+              "name": "update_id",
+              "type": "number"
+            },
+            {
+              "name": "tipo",
+              "type": "string"
+            },
+            {
+              "name": "chat_id",
+              "type": "number"
+            },
+            {
+              "name": "from_id",
+              "type": "number"
+            },
+            {
+              "name": "nombre",
+              "type": "string"
+            },
+            {
+              "name": "rol",
+              "type": "string"
+            },
+            {
+              "name": "message_id",
+              "type": "number"
+            },
+            {
+              "name": "media_group_id",
+              "type": "string"
+            },
+            {
+              "name": "file_id",
+              "type": "string"
+            },
+            {
+              "name": "file_unique_id",
+              "type": "string"
+            },
+            {
+              "name": "texto",
+              "type": "string"
+            },
+            {
+              "name": "callback_id",
+              "type": "string"
+            },
+            {
+              "name": "callback_data",
+              "type": "string"
+            },
+            {
+              "name": "callback_message_id",
+              "type": "number"
+            },
+            {
+              "name": "fecha",
+              "type": "number"
+            },
+            {
+              "name": "recibido",
+              "type": "number"
+            },
+            {
+              "name": "estado",
+              "type": "string"
+            },
+            {
+              "name": "intentos",
+              "type": "number"
+            },
+            {
+              "name": "error",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {
+          "createIfNotExists": true
+        }
+      }
+    },
+    {
+      "id": "9765c7ce-1b14-4bac-ac34-b2ab5f18ee90",
+      "name": "Crear pb_borradores",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        960,
+        0
+      ],
+      "parameters": {
+        "resource": "table",
+        "operation": "create",
+        "tableName": "pb_borradores",
+        "columns": {
+          "column": [
+            {
+              "name": "draft_id",
+              "type": "string"
+            },
+            {
+              "name": "owner_id",
+              "type": "number"
+            },
+            {
+              "name": "rol",
+              "type": "string"
+            },
+            {
+              "name": "chat_id",
+              "type": "number"
+            },
+            {
+              "name": "preview_message_id",
+              "type": "number"
+            },
+            {
+              "name": "origen",
+              "type": "string"
+            },
+            {
+              "name": "op",
+              "type": "string"
+            },
+            {
+              "name": "entidad",
+              "type": "string"
+            },
+            {
+              "name": "entidad_id",
+              "type": "string"
+            },
+            {
+              "name": "campos",
+              "type": "string"
+            },
+            {
+              "name": "campos_inferidos",
+              "type": "string"
+            },
+            {
+              "name": "faltantes",
+              "type": "string"
+            },
+            {
+              "name": "avisos",
+              "type": "string"
+            },
+            {
+              "name": "update_ids",
+              "type": "string"
+            },
+            {
+              "name": "file_ids",
+              "type": "string"
+            },
+            {
+              "name": "file_unique_ids",
+              "type": "string"
+            },
+            {
+              "name": "fecha",
+              "type": "string"
+            },
+            {
+              "name": "expira",
+              "type": "string"
+            },
+            {
+              "name": "estado",
+              "type": "string"
+            },
+            {
+              "name": "confirmaciones",
+              "type": "number"
+            },
+            {
+              "name": "confirmaciones_requeridas",
+              "type": "number"
+            },
+            {
+              "name": "intentos",
+              "type": "number"
+            },
+            {
+              "name": "error",
+              "type": "string"
+            },
+            {
+              "name": "commit_sha",
+              "type": "string"
+            },
+            {
+              "name": "texto",
+              "type": "string"
+            },
+            {
+              "name": "resumen",
+              "type": "string"
+            },
+            {
+              "name": "fecha_ms",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {
+          "createIfNotExists": true
+        }
+      }
+    },
+    {
+      "id": "4c73ff4b-72a5-4921-8d02-2aa9c53d0fc5",
+      "name": "Crear pb_imagenes",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1200,
+        0
+      ],
+      "parameters": {
+        "resource": "table",
+        "operation": "create",
+        "tableName": "pb_imagenes",
+        "columns": {
+          "column": [
+            {
+              "name": "draft_id",
+              "type": "string"
+            },
+            {
+              "name": "n",
+              "type": "number"
+            },
+            {
+              "name": "b64",
+              "type": "string"
+            },
+            {
+              "name": "mime",
+              "type": "string"
+            },
+            {
+              "name": "ancho",
+              "type": "number"
+            },
+            {
+              "name": "alto",
+              "type": "number"
+            },
+            {
+              "name": "origen",
+              "type": "string"
+            },
+            {
+              "name": "alt",
+              "type": "string"
+            },
+            {
+              "name": "file_unique_id",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {
+          "createIfNotExists": true
+        }
+      }
+    },
+    {
+      "id": "9f323bf9-94c4-4289-a655-3c1b4a2e6180",
+      "name": "Nota 3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1400,
+        -260
+      ],
+      "parameters": {
+        "content": "### 2 · Valores por defecto\nSolo inserta lo que falta: `AUTORIZADOS` con ids 0 (nadie autorizado todavía), repo, rama, pausa, tiempos y URLs locales de Ollama y sd-server.",
+        "width": 1220,
+        "height": 640,
+        "color": 5
+      }
+    },
+    {
+      "id": "a5eccdc3-5036-4f42-9657-83d194a3706a",
+      "name": "Leer config inicial",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1440,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_config"
+        },
+        "matchType": "allConditions",
+        "filters": {},
+        "returnAll": true
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "f273da23-8160-49cd-a849-454dcc43ce9c",
+      "name": "Claves por defecto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Inserta en pb_config SOLO las claves que faltan (nunca pisa lo que el usuario ya editó).\nconst def = {\n  BOT_TOKEN: '',\n  AUTORIZADOS: JSON.stringify([\n    { id: 0, rol: 'admin', nombre: 'Abner (demo y soporte)' },\n    { id: 0, rol: 'dueno', nombre: 'Dueño de la tienda' },\n    { id: 0, rol: 'marketing', nombre: 'Encargado de marketing' }\n  ]),\n  REPO: 'Abnercayao/tienda-tarapoto',\n  REPO_BRANCH: 'main',\n  SITIO_URL: 'https://abnercayao.github.io/tienda-tarapoto/',\n  COMMIT_EMAIL: '297644875+Abnercayao@users.noreply.github.com',\n  PAUSA: '0',\n  MIN_ENTRE_COMMITS_MS: '360000',\n  ULTIMO_COMMIT_AT: '0',\n  ULTIMO_POLL_AT: '0',\n  FALLOS_SEGUIDOS: '0',\n  ULTIMA_ALERTA_AT: '0',\n  ALERTAS: '{}',\n  DESCONOCIDOS: '[]',\n  OLLAMA_URL: 'http://host.docker.internal:11434',\n  OLLAMA_MODELO: 'qwen3.5:4b-q4_K_M',\n  SD_URL: 'http://host.docker.internal:1234'\n};\nconst existentes = new Set($input.all().map(function (i) { return i.json.clave; }).filter(Boolean));\nconst faltan = Object.keys(def).filter(function (k) { return !existentes.has(k); });\nif (!faltan.length) return [{ json: { nada: true } }];\nreturn faltan.map(function (k) { return { json: { clave: k, valor: def[k] } }; });\n"
+      }
+    },
+    {
+      "id": "fb1745d8-8b38-4667-94b2-1f5d9a8fc9f1",
+      "name": "¿Faltan claves?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1920,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "947b71cf-3bbe-4e14-9979-bb1137d10871",
+              "leftValue": "={{ $json.nada !== true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "b0e23d0d-aa8e-43f2-9387-f8740ab106d7",
+      "name": "Insertar claves",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2160,
+        -140
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_config"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "clave",
+              "displayName": "clave",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "valor",
+              "displayName": "valor",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "36259368-57bd-433d-b403-6bf751a78f52",
+      "name": "Leer locks",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2160,
+        120
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_locks"
+        },
+        "matchType": "allConditions",
+        "filters": {},
+        "returnAll": true
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "b6f074b5-d159-4a57-acb1-8ce831d20570",
+      "name": "Lock por defecto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        120
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Una sola fila \"worker\" en pb_locks (A4: un lock para GPU y GitHub).\nconst hay = $input.all().some(function (i) { return i.json.nombre === 'worker'; });\nreturn hay ? [{ json: { nada: true } }] : [{ json: { nombre: 'worker', holder: '', hasta: 0 } }];\n"
+      }
+    },
+    {
+      "id": "4336ada1-1a07-4d0d-b70a-55f69af93d67",
+      "name": "¿Falta lock?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2640,
+        120
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "19bcf025-c1f1-40f6-8b11-215d162fc979",
+              "leftValue": "={{ $json.nada !== true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "d81cd94a-4766-4673-b9d7-a19ce662b06f",
+      "name": "Insertar lock",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2880,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_locks"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "nombre",
+              "displayName": "nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "holder",
+              "displayName": "holder",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "hasta",
+              "displayName": "hasta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "42b52cc4-a00a-43f4-aac6-7381305f6eed",
+      "name": "Nota 4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2840,
+        280
+      ],
+      "parameters": {
+        "content": "### 3 · Bot de Telegram\nSin token: termina y dice qué hacer. Con token: `deleteWebhook` (getUpdates no convive con webhook), `deleteMyCommands` en el ámbito general (los extraños no ven comandos) y `setMyCommands` **por chat** según el rol (marketing no ve /borrar, /whatsapp, /limpiar_muestras, /deshacer, /pausa).\n\n**Alta de usuarios:** la persona escribe /start → su id aparece en `desconocidos_recientes` → cópialo a `AUTORIZADOS` → vuelve a ejecutar.",
+        "width": 1700,
+        "height": 520,
+        "color": 6
+      }
+    },
+    {
+      "id": "3c3015fa-8b28-42a2-b1f9-53d3312e870c",
+      "name": "Leer config",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        3120,
+        400
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_config"
+        },
+        "matchType": "allConditions",
+        "filters": {},
+        "returnAll": true
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "39a9932c-6ed5-40d7-a708-2f9861884b87",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3360,
+        400
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// --- comun.js (Palmera Brava): ayudas compartidas por los nodos Code del núcleo (WF0, WF1, WF2, WF5, WF9) ---\n// Se inserta donde un Code dice \"// @incluir comun\". Sin require ni crypto (el task runner los bloquea).\nconst PB_TABLAS = { config: 'pb_config', locks: 'pb_locks', inbox: 'pb_inbox', borradores: 'pb_borradores', imagenes: 'pb_imagenes' };\n// Escapa texto para parse_mode HTML de Telegram.\nfunction h(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Quita tokens de Telegram, PAT de GitHub y similares de cualquier texto que vaya a un mensaje o a una tabla.\nfunction censurar(s) {\n  return String(s === null || s === undefined ? '' : s)\n    .replace(/bot\\d+:[\\w-]+/g, 'bot***')\n    .replace(/\\d{8,10}:[\\w-]{30,}/g, '***')\n    .replace(/github_pat_\\w+/g, 'github_pat_***')\n    .replace(/gh[pousr]_\\w+/g, 'gh*_***')\n    .replace(/(authorization[\"':=\\s]+)(token|bearer)\\s+[^\\s\"',}]+/gi, '$1$2 ***');\n}\n// Mensaje para Telegram (HTML). El texto YA debe venir escapado y terminar en \"Siguiente paso: ...\".\nfunction enviar(chatId, texto, extra) {\n  const t = String(texto || '');\n  if (!/\\nSiguiente paso: \\S/.test(t)) throw new Error('Mensaje sin \"Siguiente paso\": ' + t.slice(0, 60));\n  return { metodo: 'sendMessage', cuerpo: Object.assign({ chat_id: Number(chatId), text: t.slice(0, 4096), parse_mode: 'HTML', link_preview_options: { is_disabled: true } }, extra || {}) };\n}\nfunction quitarTeclado(chatId, messageId) {\n  return { metodo: 'editMessageReplyMarkup', cuerpo: { chat_id: Number(chatId), message_id: Number(messageId), reply_markup: { inline_keyboard: [] } } };\n}\nfunction botones(filas) { return { reply_markup: { inline_keyboard: filas } }; }\n// pb_config (filas {clave, valor}) -> objeto con tipos ya convertidos. Valores raros se ignoran (token con formato inválido = sin token).\nfunction armarConfig(filas) {\n  const c = {};\n  (filas || []).forEach(function (f) { if (f && typeof f.clave === 'string') c[f.clave] = f.valor === null || f.valor === undefined ? '' : String(f.valor); });\n  const num = function (k, d) { const n = Number(c[k]); return c[k] !== undefined && c[k] !== '' && Number.isFinite(n) ? n : d; };\n  const json = function (k, d) { try { const v = JSON.parse(c[k]); return v === null || v === undefined ? d : v; } catch (e) { return d; } };\n  const tok = String(c.BOT_TOKEN || '').trim();\n  let aut = json('AUTORIZADOS', []);\n  aut = (Array.isArray(aut) ? aut : []).filter(function (a) { return a && Number(a.id) > 0 && ['admin', 'dueno', 'marketing'].indexOf(a.rol) >= 0; })\n    .map(function (a) { return { id: Number(a.id), rol: a.rol, nombre: String(a.nombre || '').replace(/[<>]/g, '').slice(0, 60) }; });\n  const repo = String(c.REPO || '').trim();\n  const rama = String(c.REPO_BRANCH || '').trim();\n  const alertas = json('ALERTAS', {});\n  const desconocidos = json('DESCONOCIDOS', []);\n  return {\n    BOT_TOKEN: /^\\d{5,12}:[A-Za-z0-9_-]{30,}$/.test(tok) ? tok : '',\n    AUTORIZADOS: aut,\n    REPO: /^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repo) ? repo : 'Abnercayao/tienda-tarapoto',\n    REPO_BRANCH: /^[A-Za-z0-9_.\\/-]+$/.test(rama) ? rama : 'main',\n    SITIO_URL: /^https:\\/\\/[^\\s<>\"']+$/.test(c.SITIO_URL || '') ? c.SITIO_URL : 'https://abnercayao.github.io/tienda-tarapoto/',\n    COMMIT_EMAIL: /^[^\\s@<>]+@[^\\s@<>]+$/.test(c.COMMIT_EMAIL || '') ? c.COMMIT_EMAIL : '297644875+Abnercayao@users.noreply.github.com',\n    PAUSA: c.PAUSA === '1' ? 1 : 0,\n    MIN_ENTRE_COMMITS_MS: num('MIN_ENTRE_COMMITS_MS', 360000),\n    ULTIMO_COMMIT_AT: num('ULTIMO_COMMIT_AT', 0),\n    ULTIMO_POLL_AT: num('ULTIMO_POLL_AT', 0),\n    FALLOS_SEGUIDOS: num('FALLOS_SEGUIDOS', 0),\n    ULTIMA_ALERTA_AT: num('ULTIMA_ALERTA_AT', 0),\n    ALERTAS: alertas && typeof alertas === 'object' && !Array.isArray(alertas) ? alertas : {},\n    DESCONOCIDOS: Array.isArray(desconocidos) ? desconocidos.slice(-10) : [],\n    OLLAMA_URL: c.OLLAMA_URL || 'http://host.docker.internal:11434',\n    OLLAMA_MODELO: c.OLLAMA_MODELO || 'qwen3.5:4b-q4_K_M',\n    SD_URL: c.SD_URL || 'http://host.docker.internal:1234',\n    claves: Object.keys(c)\n  };\n}\nfunction rolDe(cfg, id) { const a = (cfg.AUTORIZADOS || []).find(function (x) { return x.id === Number(id); }); return a ? a.rol : null; }\n// Destinatarios de avisos técnicos: admins; si no hay, el dueño.\nfunction admins(cfg) {\n  const a = (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'admin'; });\n  return a.length ? a : (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'dueno'; });\n}\nfunction isoLima(ms) { const d = new Date((ms === undefined ? Date.now() : ms) - 5 * 3600000); return d.toISOString().slice(0, 19) + '-05:00'; }\n// --- fin comun.js ---\nconst cfg = armarConfig($input.all().map(function (i) { return i.json; }));\ncfg.hayToken = cfg.BOT_TOKEN !== '';\nreturn [{ json: cfg }];\n"
+      }
+    },
+    {
+      "id": "e4f7a6a0-d9bb-4a40-a268-8ecb27824c13",
+      "name": "¿Hay token?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3600,
+        400
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f78a1d4b-c78d-45d6-a85d-4dbbeb682fa3",
+              "leftValue": "={{ $json.hayToken === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "caf897a6-ce0b-4bfa-b345-e727e144586e",
+      "name": "Falta token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3840,
+        620
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "return [{ json: {\n  listo: false,\n  tablas: 'pb_config, pb_locks, pb_inbox, pb_borradores, pb_imagenes (creadas o ya existentes)',\n  falta: 'BOT_TOKEN vacío o con formato inválido',\n  siguiente_paso: 'Pega el token de BotFather en Data Tables > pb_config > BOT_TOKEN y en la credencial \"Telegram Palmera Brava\"; luego vuelve a ejecutar este workflow.'\n} }];\n"
+      }
+    },
+    {
+      "id": "5cfbee73-ae99-48ce-b488-c14266e46818",
+      "name": "getMe",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        3840,
+        400
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.telegram.org/bot{{ $('Config').first().json.BOT_TOKEN }}/getMe",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "eaffb633-954c-440c-afdd-86d30ddb918d",
+      "name": "deleteWebhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        4080,
+        400
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $('Config').first().json.BOT_TOKEN }}/deleteWebhook",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "{\"drop_pending_updates\": false}",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "4fe2abf4-b549-49b7-8616-f72e7b94c541",
+      "name": "Comandos por rol",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4320,
+        400
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// --- comun.js (Palmera Brava): ayudas compartidas por los nodos Code del núcleo (WF0, WF1, WF2, WF5, WF9) ---\n// Se inserta donde un Code dice \"// @incluir comun\". Sin require ni crypto (el task runner los bloquea).\nconst PB_TABLAS = { config: 'pb_config', locks: 'pb_locks', inbox: 'pb_inbox', borradores: 'pb_borradores', imagenes: 'pb_imagenes' };\n// Escapa texto para parse_mode HTML de Telegram.\nfunction h(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Quita tokens de Telegram, PAT de GitHub y similares de cualquier texto que vaya a un mensaje o a una tabla.\nfunction censurar(s) {\n  return String(s === null || s === undefined ? '' : s)\n    .replace(/bot\\d+:[\\w-]+/g, 'bot***')\n    .replace(/\\d{8,10}:[\\w-]{30,}/g, '***')\n    .replace(/github_pat_\\w+/g, 'github_pat_***')\n    .replace(/gh[pousr]_\\w+/g, 'gh*_***')\n    .replace(/(authorization[\"':=\\s]+)(token|bearer)\\s+[^\\s\"',}]+/gi, '$1$2 ***');\n}\n// Mensaje para Telegram (HTML). El texto YA debe venir escapado y terminar en \"Siguiente paso: ...\".\nfunction enviar(chatId, texto, extra) {\n  const t = String(texto || '');\n  if (!/\\nSiguiente paso: \\S/.test(t)) throw new Error('Mensaje sin \"Siguiente paso\": ' + t.slice(0, 60));\n  return { metodo: 'sendMessage', cuerpo: Object.assign({ chat_id: Number(chatId), text: t.slice(0, 4096), parse_mode: 'HTML', link_preview_options: { is_disabled: true } }, extra || {}) };\n}\nfunction quitarTeclado(chatId, messageId) {\n  return { metodo: 'editMessageReplyMarkup', cuerpo: { chat_id: Number(chatId), message_id: Number(messageId), reply_markup: { inline_keyboard: [] } } };\n}\nfunction botones(filas) { return { reply_markup: { inline_keyboard: filas } }; }\n// pb_config (filas {clave, valor}) -> objeto con tipos ya convertidos. Valores raros se ignoran (token con formato inválido = sin token).\nfunction armarConfig(filas) {\n  const c = {};\n  (filas || []).forEach(function (f) { if (f && typeof f.clave === 'string') c[f.clave] = f.valor === null || f.valor === undefined ? '' : String(f.valor); });\n  const num = function (k, d) { const n = Number(c[k]); return c[k] !== undefined && c[k] !== '' && Number.isFinite(n) ? n : d; };\n  const json = function (k, d) { try { const v = JSON.parse(c[k]); return v === null || v === undefined ? d : v; } catch (e) { return d; } };\n  const tok = String(c.BOT_TOKEN || '').trim();\n  let aut = json('AUTORIZADOS', []);\n  aut = (Array.isArray(aut) ? aut : []).filter(function (a) { return a && Number(a.id) > 0 && ['admin', 'dueno', 'marketing'].indexOf(a.rol) >= 0; })\n    .map(function (a) { return { id: Number(a.id), rol: a.rol, nombre: String(a.nombre || '').replace(/[<>]/g, '').slice(0, 60) }; });\n  const repo = String(c.REPO || '').trim();\n  const rama = String(c.REPO_BRANCH || '').trim();\n  const alertas = json('ALERTAS', {});\n  const desconocidos = json('DESCONOCIDOS', []);\n  return {\n    BOT_TOKEN: /^\\d{5,12}:[A-Za-z0-9_-]{30,}$/.test(tok) ? tok : '',\n    AUTORIZADOS: aut,\n    REPO: /^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repo) ? repo : 'Abnercayao/tienda-tarapoto',\n    REPO_BRANCH: /^[A-Za-z0-9_.\\/-]+$/.test(rama) ? rama : 'main',\n    SITIO_URL: /^https:\\/\\/[^\\s<>\"']+$/.test(c.SITIO_URL || '') ? c.SITIO_URL : 'https://abnercayao.github.io/tienda-tarapoto/',\n    COMMIT_EMAIL: /^[^\\s@<>]+@[^\\s@<>]+$/.test(c.COMMIT_EMAIL || '') ? c.COMMIT_EMAIL : '297644875+Abnercayao@users.noreply.github.com',\n    PAUSA: c.PAUSA === '1' ? 1 : 0,\n    MIN_ENTRE_COMMITS_MS: num('MIN_ENTRE_COMMITS_MS', 360000),\n    ULTIMO_COMMIT_AT: num('ULTIMO_COMMIT_AT', 0),\n    ULTIMO_POLL_AT: num('ULTIMO_POLL_AT', 0),\n    FALLOS_SEGUIDOS: num('FALLOS_SEGUIDOS', 0),\n    ULTIMA_ALERTA_AT: num('ULTIMA_ALERTA_AT', 0),\n    ALERTAS: alertas && typeof alertas === 'object' && !Array.isArray(alertas) ? alertas : {},\n    DESCONOCIDOS: Array.isArray(desconocidos) ? desconocidos.slice(-10) : [],\n    OLLAMA_URL: c.OLLAMA_URL || 'http://host.docker.internal:11434',\n    OLLAMA_MODELO: c.OLLAMA_MODELO || 'qwen3.5:4b-q4_K_M',\n    SD_URL: c.SD_URL || 'http://host.docker.internal:1234',\n    claves: Object.keys(c)\n  };\n}\nfunction rolDe(cfg, id) { const a = (cfg.AUTORIZADOS || []).find(function (x) { return x.id === Number(id); }); return a ? a.rol : null; }\n// Destinatarios de avisos técnicos: admins; si no hay, el dueño.\nfunction admins(cfg) {\n  const a = (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'admin'; });\n  return a.length ? a : (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'dueno'; });\n}\nfunction isoLima(ms) { const d = new Date((ms === undefined ? Date.now() : ms) - 5 * 3600000); return d.toISOString().slice(0, 19) + '-05:00'; }\n// --- fin comun.js ---\n// setMyCommands por chat (scope chat) según el rol; los desconocidos no ven ningún comando (deleteMyCommands en scope default).\nconst cfg = $('Config').first().json;\nconst C = {\n  ayuda: 'Qué puedo hacer y ejemplos', lista: 'Productos (opcional: categoría)', ver: 'Ver un producto: /ver prd-0001',\n  estado: 'Cola, pausa y último cambio publicado', historial: 'Últimos 5 cambios del bot', precio: 'Cambiar precio: /precio prd-0001 69.90',\n  stock: 'Cambiar stock: /stock prd-0001 M 5', ocultar: 'Ocultar un producto', mostrar: 'Volver a mostrar un producto',\n  foto: 'Foto con leyenda /foto prd-0001', articulo: 'Borrador de artículo: /articulo tema', articulo_ocultar: 'Ocultar un artículo',\n  imagen: 'Imagen con IA local: /imagen descripción', cancelar: 'Cancelar tus borradores pendientes',\n  borrar: 'Eliminar un producto (doble confirmación)', whatsapp: 'Cambiar el WhatsApp de la tienda', limpiar_muestras: 'Quitar los productos de muestra',\n  deshacer: 'Deshacer el último cambio del bot', pausa: 'Pausar la publicación', reanudar: 'Reanudar la publicación', ids: 'Ver quién escribió sin estar autorizado'\n};\nconst TODOS = ['ayuda', 'lista', 'ver', 'estado', 'historial', 'precio', 'stock', 'ocultar', 'mostrar', 'foto', 'articulo', 'articulo_ocultar', 'imagen', 'cancelar'];\nconst DUENO = TODOS.concat(['borrar', 'whatsapp', 'limpiar_muestras', 'deshacer', 'pausa', 'reanudar']);\nconst ADMIN = DUENO.concat(['ids']);\nconst lista = function (rol) { return (rol === 'admin' ? ADMIN : rol === 'dueno' ? DUENO : TODOS).map(function (k) { return { command: k, description: C[k] }; }); };\nconst desc = 'Bot privado de Palmera Brava. Si no respondo, la PC de la tienda está apagada.';\nconst out = [{ metodo: 'deleteMyCommands', cuerpo: { scope: { type: 'default' } } }];\ncfg.AUTORIZADOS.forEach(function (a) { out.push({ metodo: 'setMyCommands', cuerpo: { commands: lista(a.rol), scope: { type: 'chat', chat_id: a.id } } }); });\nout.push({ metodo: 'setMyDescription', cuerpo: { description: desc } });\nout.push({ metodo: 'setMyShortDescription', cuerpo: { short_description: desc } });\nreturn out.map(function (j) { return { json: j }; });\n"
+      }
+    },
+    {
+      "id": "fb860896-ab28-49d3-8003-2304ddd213bb",
+      "name": "Configurar bot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        4560,
+        400
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $('Config').first().json.BOT_TOKEN }}/{{ $json.metodo }}",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.cuerpo) }}",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "c9e989cd-f8cc-4bec-ab33-7a153dd90f52",
+      "name": "Resumen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4800,
+        400
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// --- comun.js (Palmera Brava): ayudas compartidas por los nodos Code del núcleo (WF0, WF1, WF2, WF5, WF9) ---\n// Se inserta donde un Code dice \"// @incluir comun\". Sin require ni crypto (el task runner los bloquea).\nconst PB_TABLAS = { config: 'pb_config', locks: 'pb_locks', inbox: 'pb_inbox', borradores: 'pb_borradores', imagenes: 'pb_imagenes' };\n// Escapa texto para parse_mode HTML de Telegram.\nfunction h(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Quita tokens de Telegram, PAT de GitHub y similares de cualquier texto que vaya a un mensaje o a una tabla.\nfunction censurar(s) {\n  return String(s === null || s === undefined ? '' : s)\n    .replace(/bot\\d+:[\\w-]+/g, 'bot***')\n    .replace(/\\d{8,10}:[\\w-]{30,}/g, '***')\n    .replace(/github_pat_\\w+/g, 'github_pat_***')\n    .replace(/gh[pousr]_\\w+/g, 'gh*_***')\n    .replace(/(authorization[\"':=\\s]+)(token|bearer)\\s+[^\\s\"',}]+/gi, '$1$2 ***');\n}\n// Mensaje para Telegram (HTML). El texto YA debe venir escapado y terminar en \"Siguiente paso: ...\".\nfunction enviar(chatId, texto, extra) {\n  const t = String(texto || '');\n  if (!/\\nSiguiente paso: \\S/.test(t)) throw new Error('Mensaje sin \"Siguiente paso\": ' + t.slice(0, 60));\n  return { metodo: 'sendMessage', cuerpo: Object.assign({ chat_id: Number(chatId), text: t.slice(0, 4096), parse_mode: 'HTML', link_preview_options: { is_disabled: true } }, extra || {}) };\n}\nfunction quitarTeclado(chatId, messageId) {\n  return { metodo: 'editMessageReplyMarkup', cuerpo: { chat_id: Number(chatId), message_id: Number(messageId), reply_markup: { inline_keyboard: [] } } };\n}\nfunction botones(filas) { return { reply_markup: { inline_keyboard: filas } }; }\n// pb_config (filas {clave, valor}) -> objeto con tipos ya convertidos. Valores raros se ignoran (token con formato inválido = sin token).\nfunction armarConfig(filas) {\n  const c = {};\n  (filas || []).forEach(function (f) { if (f && typeof f.clave === 'string') c[f.clave] = f.valor === null || f.valor === undefined ? '' : String(f.valor); });\n  const num = function (k, d) { const n = Number(c[k]); return c[k] !== undefined && c[k] !== '' && Number.isFinite(n) ? n : d; };\n  const json = function (k, d) { try { const v = JSON.parse(c[k]); return v === null || v === undefined ? d : v; } catch (e) { return d; } };\n  const tok = String(c.BOT_TOKEN || '').trim();\n  let aut = json('AUTORIZADOS', []);\n  aut = (Array.isArray(aut) ? aut : []).filter(function (a) { return a && Number(a.id) > 0 && ['admin', 'dueno', 'marketing'].indexOf(a.rol) >= 0; })\n    .map(function (a) { return { id: Number(a.id), rol: a.rol, nombre: String(a.nombre || '').replace(/[<>]/g, '').slice(0, 60) }; });\n  const repo = String(c.REPO || '').trim();\n  const rama = String(c.REPO_BRANCH || '').trim();\n  const alertas = json('ALERTAS', {});\n  const desconocidos = json('DESCONOCIDOS', []);\n  return {\n    BOT_TOKEN: /^\\d{5,12}:[A-Za-z0-9_-]{30,}$/.test(tok) ? tok : '',\n    AUTORIZADOS: aut,\n    REPO: /^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repo) ? repo : 'Abnercayao/tienda-tarapoto',\n    REPO_BRANCH: /^[A-Za-z0-9_.\\/-]+$/.test(rama) ? rama : 'main',\n    SITIO_URL: /^https:\\/\\/[^\\s<>\"']+$/.test(c.SITIO_URL || '') ? c.SITIO_URL : 'https://abnercayao.github.io/tienda-tarapoto/',\n    COMMIT_EMAIL: /^[^\\s@<>]+@[^\\s@<>]+$/.test(c.COMMIT_EMAIL || '') ? c.COMMIT_EMAIL : '297644875+Abnercayao@users.noreply.github.com',\n    PAUSA: c.PAUSA === '1' ? 1 : 0,\n    MIN_ENTRE_COMMITS_MS: num('MIN_ENTRE_COMMITS_MS', 360000),\n    ULTIMO_COMMIT_AT: num('ULTIMO_COMMIT_AT', 0),\n    ULTIMO_POLL_AT: num('ULTIMO_POLL_AT', 0),\n    FALLOS_SEGUIDOS: num('FALLOS_SEGUIDOS', 0),\n    ULTIMA_ALERTA_AT: num('ULTIMA_ALERTA_AT', 0),\n    ALERTAS: alertas && typeof alertas === 'object' && !Array.isArray(alertas) ? alertas : {},\n    DESCONOCIDOS: Array.isArray(desconocidos) ? desconocidos.slice(-10) : [],\n    OLLAMA_URL: c.OLLAMA_URL || 'http://host.docker.internal:11434',\n    OLLAMA_MODELO: c.OLLAMA_MODELO || 'qwen3.5:4b-q4_K_M',\n    SD_URL: c.SD_URL || 'http://host.docker.internal:1234',\n    claves: Object.keys(c)\n  };\n}\nfunction rolDe(cfg, id) { const a = (cfg.AUTORIZADOS || []).find(function (x) { return x.id === Number(id); }); return a ? a.rol : null; }\n// Destinatarios de avisos técnicos: admins; si no hay, el dueño.\nfunction admins(cfg) {\n  const a = (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'admin'; });\n  return a.length ? a : (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'dueno'; });\n}\nfunction isoLima(ms) { const d = new Date((ms === undefined ? Date.now() : ms) - 5 * 3600000); return d.toISOString().slice(0, 19) + '-05:00'; }\n// --- fin comun.js ---\nconst cfg = $('Config').first().json;\nconst me = $('getMe').first().json || {};\nconst pedidos = $('Comandos por rol').all().map(function (i) { return i.json; });\nconst resp = $input.all().map(function (i) { return i.json; });\nconst fallos = [];\nresp.forEach(function (r, i) {\n  if (!r || r.ok !== true) fallos.push((pedidos[i] ? pedidos[i].metodo : '?') + ': ' + censurar((r && (r.description || (r.error && r.error.message))) || 'sin respuesta').slice(0, 160));\n});\nconst sinId = cfg.AUTORIZADOS.length === 0;\nreturn [{ json: {\n  listo: me.ok === true && fallos.length === 0,\n  bot: me.ok === true && me.result ? '@' + me.result.username : null,\n  token_valido: me.ok === true,\n  autorizados_activos: cfg.AUTORIZADOS,\n  desconocidos_recientes: cfg.DESCONOCIDOS,\n  fallos: fallos,\n  siguiente_paso: me.ok !== true\n    ? 'El token no funciona: revisa pb_config.BOT_TOKEN (cópialo de BotFather) y vuelve a ejecutar.'\n    : sinId\n      ? 'Pide a cada persona que escriba /start al bot, copia su id desde desconocidos_recientes a AUTORIZADOS (pb_config) y vuelve a ejecutar este workflow.'\n      : 'Listo. Publica los workflows (WF9, WF3, WF4, WF5, WF6, WF8, WF2, WF1) y escribe /ayuda al bot.'\n} }];\n"
+      }
+    }
+  ],
+  "connections": {
+    "Ejecutar setup": {
+      "main": [
+        [
+          {
+            "node": "Crear pb_config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear pb_config": {
+      "main": [
+        [
+          {
+            "node": "Crear pb_locks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear pb_locks": {
+      "main": [
+        [
+          {
+            "node": "Crear pb_inbox",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear pb_inbox": {
+      "main": [
+        [
+          {
+            "node": "Crear pb_borradores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear pb_borradores": {
+      "main": [
+        [
+          {
+            "node": "Crear pb_imagenes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear pb_imagenes": {
+      "main": [
+        [
+          {
+            "node": "Leer config inicial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer config inicial": {
+      "main": [
+        [
+          {
+            "node": "Claves por defecto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claves por defecto": {
+      "main": [
+        [
+          {
+            "node": "¿Faltan claves?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Faltan claves?": {
+      "main": [
+        [
+          {
+            "node": "Insertar claves",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Leer locks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insertar claves": {
+      "main": [
+        [
+          {
+            "node": "Leer locks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer locks": {
+      "main": [
+        [
+          {
+            "node": "Lock por defecto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lock por defecto": {
+      "main": [
+        [
+          {
+            "node": "¿Falta lock?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Falta lock?": {
+      "main": [
+        [
+          {
+            "node": "Insertar lock",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Leer config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insertar lock": {
+      "main": [
+        [
+          {
+            "node": "Leer config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer config": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "¿Hay token?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hay token?": {
+      "main": [
+        [
+          {
+            "node": "getMe",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Falta token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "getMe": {
+      "main": [
+        [
+          {
+            "node": "deleteWebhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "deleteWebhook": {
+      "main": [
+        [
+          {
+            "node": "Comandos por rol",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Comandos por rol": {
+      "main": [
+        [
+          {
+            "node": "Configurar bot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configurar bot": {
+      "main": [
+        [
+          {
+            "node": "Resumen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Lima",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "errorWorkflow": "pbWf09Errores000",
+    "saveManualExecutions": false
+  },
+  "meta": {},
+  "tags": []
+}

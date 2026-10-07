@@ -1,0 +1,1102 @@
+{
+  "id": "pbWf01Ingesta000",
+  "name": "PB WF1 Ingesta",
+  "active": false,
+  "nodes": [
+    {
+      "id": "7af28ebd-733c-4afe-a33c-07daac59a0c9",
+      "name": "Nota 1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -560
+      ],
+      "parameters": {
+        "content": "## WF1 · Ingesta (cada 10 s)\nLee Telegram con **getUpdates** (sin webhook: la PC no necesita IP pública), guarda cada mensaje en `pb_inbox` y **recién después** confirma (ACK). No procesa nada: eso lo hace WF2.\n\nNo guarda ejecuciones (ni exitosas ni fallidas): los mensajes y el token no quedan en el historial.",
+        "width": 620,
+        "height": 280,
+        "color": 4
+      }
+    },
+    {
+      "id": "63230433-4628-4cfa-ba6b-5b2fd775452f",
+      "name": "Nota 2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -240
+      ],
+      "parameters": {
+        "content": "### 1 · Disparador\nSchedule 10 s; ticks perdidos no se acumulan. Sin `BOT_TOKEN` válido termina en silencio.",
+        "width": 700,
+        "height": 420,
+        "color": 7
+      }
+    },
+    {
+      "id": "b34f849e-eeb3-4bed-9bbb-6321235064fc",
+      "name": "Cada 10 s",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "seconds",
+              "secondsInterval": 10
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "1404cd0f-7d7f-46cf-8c37-2d4492e9dd47",
+      "name": "Leer config",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_config"
+        },
+        "matchType": "allConditions",
+        "filters": {},
+        "returnAll": true
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "6e32741d-dbd0-420f-aeab-5ebfa6c88bb0",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// --- comun.js (Palmera Brava): ayudas compartidas por los nodos Code del núcleo (WF0, WF1, WF2, WF5, WF9) ---\n// Se inserta donde un Code dice \"// @incluir comun\". Sin require ni crypto (el task runner los bloquea).\nconst PB_TABLAS = { config: 'pb_config', locks: 'pb_locks', inbox: 'pb_inbox', borradores: 'pb_borradores', imagenes: 'pb_imagenes' };\n// Escapa texto para parse_mode HTML de Telegram.\nfunction h(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Quita tokens de Telegram, PAT de GitHub y similares de cualquier texto que vaya a un mensaje o a una tabla.\nfunction censurar(s) {\n  return String(s === null || s === undefined ? '' : s)\n    .replace(/bot\\d+:[\\w-]+/g, 'bot***')\n    .replace(/\\d{8,10}:[\\w-]{30,}/g, '***')\n    .replace(/github_pat_\\w+/g, 'github_pat_***')\n    .replace(/gh[pousr]_\\w+/g, 'gh*_***')\n    .replace(/(authorization[\"':=\\s]+)(token|bearer)\\s+[^\\s\"',}]+/gi, '$1$2 ***');\n}\n// Mensaje para Telegram (HTML). El texto YA debe venir escapado y terminar en \"Siguiente paso: ...\".\nfunction enviar(chatId, texto, extra) {\n  const t = String(texto || '');\n  if (!/\\nSiguiente paso: \\S/.test(t)) throw new Error('Mensaje sin \"Siguiente paso\": ' + t.slice(0, 60));\n  return { metodo: 'sendMessage', cuerpo: Object.assign({ chat_id: Number(chatId), text: t.slice(0, 4096), parse_mode: 'HTML', link_preview_options: { is_disabled: true } }, extra || {}) };\n}\nfunction quitarTeclado(chatId, messageId) {\n  return { metodo: 'editMessageReplyMarkup', cuerpo: { chat_id: Number(chatId), message_id: Number(messageId), reply_markup: { inline_keyboard: [] } } };\n}\nfunction botones(filas) { return { reply_markup: { inline_keyboard: filas } }; }\n// pb_config (filas {clave, valor}) -> objeto con tipos ya convertidos. Valores raros se ignoran (token con formato inválido = sin token).\nfunction armarConfig(filas) {\n  const c = {};\n  (filas || []).forEach(function (f) { if (f && typeof f.clave === 'string') c[f.clave] = f.valor === null || f.valor === undefined ? '' : String(f.valor); });\n  const num = function (k, d) { const n = Number(c[k]); return c[k] !== undefined && c[k] !== '' && Number.isFinite(n) ? n : d; };\n  const json = function (k, d) { try { const v = JSON.parse(c[k]); return v === null || v === undefined ? d : v; } catch (e) { return d; } };\n  const tok = String(c.BOT_TOKEN || '').trim();\n  let aut = json('AUTORIZADOS', []);\n  aut = (Array.isArray(aut) ? aut : []).filter(function (a) { return a && Number(a.id) > 0 && ['admin', 'dueno', 'marketing'].indexOf(a.rol) >= 0; })\n    .map(function (a) { return { id: Number(a.id), rol: a.rol, nombre: String(a.nombre || '').replace(/[<>]/g, '').slice(0, 60) }; });\n  const repo = String(c.REPO || '').trim();\n  const rama = String(c.REPO_BRANCH || '').trim();\n  const alertas = json('ALERTAS', {});\n  const desconocidos = json('DESCONOCIDOS', []);\n  return {\n    BOT_TOKEN: /^\\d{5,12}:[A-Za-z0-9_-]{30,}$/.test(tok) ? tok : '',\n    AUTORIZADOS: aut,\n    REPO: /^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repo) ? repo : 'Abnercayao/tienda-tarapoto',\n    REPO_BRANCH: /^[A-Za-z0-9_.\\/-]+$/.test(rama) ? rama : 'main',\n    SITIO_URL: /^https:\\/\\/[^\\s<>\"']+$/.test(c.SITIO_URL || '') ? c.SITIO_URL : 'https://abnercayao.github.io/tienda-tarapoto/',\n    COMMIT_EMAIL: /^[^\\s@<>]+@[^\\s@<>]+$/.test(c.COMMIT_EMAIL || '') ? c.COMMIT_EMAIL : '297644875+Abnercayao@users.noreply.github.com',\n    PAUSA: c.PAUSA === '1' ? 1 : 0,\n    MIN_ENTRE_COMMITS_MS: num('MIN_ENTRE_COMMITS_MS', 360000),\n    ULTIMO_COMMIT_AT: num('ULTIMO_COMMIT_AT', 0),\n    ULTIMO_POLL_AT: num('ULTIMO_POLL_AT', 0),\n    FALLOS_SEGUIDOS: num('FALLOS_SEGUIDOS', 0),\n    ULTIMA_ALERTA_AT: num('ULTIMA_ALERTA_AT', 0),\n    ALERTAS: alertas && typeof alertas === 'object' && !Array.isArray(alertas) ? alertas : {},\n    DESCONOCIDOS: Array.isArray(desconocidos) ? desconocidos.slice(-10) : [],\n    OLLAMA_URL: c.OLLAMA_URL || 'http://host.docker.internal:11434',\n    OLLAMA_MODELO: c.OLLAMA_MODELO || 'qwen3.5:4b-q4_K_M',\n    SD_URL: c.SD_URL || 'http://host.docker.internal:1234',\n    claves: Object.keys(c)\n  };\n}\nfunction rolDe(cfg, id) { const a = (cfg.AUTORIZADOS || []).find(function (x) { return x.id === Number(id); }); return a ? a.rol : null; }\n// Destinatarios de avisos técnicos: admins; si no hay, el dueño.\nfunction admins(cfg) {\n  const a = (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'admin'; });\n  return a.length ? a : (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'dueno'; });\n}\nfunction isoLima(ms) { const d = new Date((ms === undefined ? Date.now() : ms) - 5 * 3600000); return d.toISOString().slice(0, 19) + '-05:00'; }\n// --- fin comun.js ---\n// Sin token válido el workflow termina en silencio (no es un error: falta configurar, ver WF0).\nconst cfg = armarConfig($input.all().map(function (i) { return i.json; }));\nif (!cfg.BOT_TOKEN) return [];\nreturn [{ json: cfg }];\n"
+      }
+    },
+    {
+      "id": "3e0e3abe-7a18-4720-bcd3-f00a83b72f57",
+      "name": "Nota 3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        680,
+        -240
+      ],
+      "parameters": {
+        "content": "### 2 · Capturar\n`getUpdates?timeout=0&limit=20` solo `message` y `callback_query`. **Filtro D2:** chat privado y `from.id` en AUTORIZADOS. Extraños: silencio (se anotan en `DESCONOCIDOS`). Foto = la más grande; álbum = `media_group_id`.",
+        "width": 700,
+        "height": 420,
+        "color": 5
+      }
+    },
+    {
+      "id": "96db0425-3a82-444e-a9c6-8416e4669df0",
+      "name": "Leer Telegram",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.telegram.org/bot{{ $json.BOT_TOKEN }}/getUpdates",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "timeout",
+              "value": "0"
+            },
+            {
+              "name": "limit",
+              "value": "20"
+            },
+            {
+              "name": "allowed_updates",
+              "value": "[\"message\",\"callback_query\"]"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "52236563-e727-4c81-b789-7092863c67d2",
+      "name": "Normalizar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// --- comun.js (Palmera Brava): ayudas compartidas por los nodos Code del núcleo (WF0, WF1, WF2, WF5, WF9) ---\n// Se inserta donde un Code dice \"// @incluir comun\". Sin require ni crypto (el task runner los bloquea).\nconst PB_TABLAS = { config: 'pb_config', locks: 'pb_locks', inbox: 'pb_inbox', borradores: 'pb_borradores', imagenes: 'pb_imagenes' };\n// Escapa texto para parse_mode HTML de Telegram.\nfunction h(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Quita tokens de Telegram, PAT de GitHub y similares de cualquier texto que vaya a un mensaje o a una tabla.\nfunction censurar(s) {\n  return String(s === null || s === undefined ? '' : s)\n    .replace(/bot\\d+:[\\w-]+/g, 'bot***')\n    .replace(/\\d{8,10}:[\\w-]{30,}/g, '***')\n    .replace(/github_pat_\\w+/g, 'github_pat_***')\n    .replace(/gh[pousr]_\\w+/g, 'gh*_***')\n    .replace(/(authorization[\"':=\\s]+)(token|bearer)\\s+[^\\s\"',}]+/gi, '$1$2 ***');\n}\n// Mensaje para Telegram (HTML). El texto YA debe venir escapado y terminar en \"Siguiente paso: ...\".\nfunction enviar(chatId, texto, extra) {\n  const t = String(texto || '');\n  if (!/\\nSiguiente paso: \\S/.test(t)) throw new Error('Mensaje sin \"Siguiente paso\": ' + t.slice(0, 60));\n  return { metodo: 'sendMessage', cuerpo: Object.assign({ chat_id: Number(chatId), text: t.slice(0, 4096), parse_mode: 'HTML', link_preview_options: { is_disabled: true } }, extra || {}) };\n}\nfunction quitarTeclado(chatId, messageId) {\n  return { metodo: 'editMessageReplyMarkup', cuerpo: { chat_id: Number(chatId), message_id: Number(messageId), reply_markup: { inline_keyboard: [] } } };\n}\nfunction botones(filas) { return { reply_markup: { inline_keyboard: filas } }; }\n// pb_config (filas {clave, valor}) -> objeto con tipos ya convertidos. Valores raros se ignoran (token con formato inválido = sin token).\nfunction armarConfig(filas) {\n  const c = {};\n  (filas || []).forEach(function (f) { if (f && typeof f.clave === 'string') c[f.clave] = f.valor === null || f.valor === undefined ? '' : String(f.valor); });\n  const num = function (k, d) { const n = Number(c[k]); return c[k] !== undefined && c[k] !== '' && Number.isFinite(n) ? n : d; };\n  const json = function (k, d) { try { const v = JSON.parse(c[k]); return v === null || v === undefined ? d : v; } catch (e) { return d; } };\n  const tok = String(c.BOT_TOKEN || '').trim();\n  let aut = json('AUTORIZADOS', []);\n  aut = (Array.isArray(aut) ? aut : []).filter(function (a) { return a && Number(a.id) > 0 && ['admin', 'dueno', 'marketing'].indexOf(a.rol) >= 0; })\n    .map(function (a) { return { id: Number(a.id), rol: a.rol, nombre: String(a.nombre || '').replace(/[<>]/g, '').slice(0, 60) }; });\n  const repo = String(c.REPO || '').trim();\n  const rama = String(c.REPO_BRANCH || '').trim();\n  const alertas = json('ALERTAS', {});\n  const desconocidos = json('DESCONOCIDOS', []);\n  return {\n    BOT_TOKEN: /^\\d{5,12}:[A-Za-z0-9_-]{30,}$/.test(tok) ? tok : '',\n    AUTORIZADOS: aut,\n    REPO: /^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repo) ? repo : 'Abnercayao/tienda-tarapoto',\n    REPO_BRANCH: /^[A-Za-z0-9_.\\/-]+$/.test(rama) ? rama : 'main',\n    SITIO_URL: /^https:\\/\\/[^\\s<>\"']+$/.test(c.SITIO_URL || '') ? c.SITIO_URL : 'https://abnercayao.github.io/tienda-tarapoto/',\n    COMMIT_EMAIL: /^[^\\s@<>]+@[^\\s@<>]+$/.test(c.COMMIT_EMAIL || '') ? c.COMMIT_EMAIL : '297644875+Abnercayao@users.noreply.github.com',\n    PAUSA: c.PAUSA === '1' ? 1 : 0,\n    MIN_ENTRE_COMMITS_MS: num('MIN_ENTRE_COMMITS_MS', 360000),\n    ULTIMO_COMMIT_AT: num('ULTIMO_COMMIT_AT', 0),\n    ULTIMO_POLL_AT: num('ULTIMO_POLL_AT', 0),\n    FALLOS_SEGUIDOS: num('FALLOS_SEGUIDOS', 0),\n    ULTIMA_ALERTA_AT: num('ULTIMA_ALERTA_AT', 0),\n    ALERTAS: alertas && typeof alertas === 'object' && !Array.isArray(alertas) ? alertas : {},\n    DESCONOCIDOS: Array.isArray(desconocidos) ? desconocidos.slice(-10) : [],\n    OLLAMA_URL: c.OLLAMA_URL || 'http://host.docker.internal:11434',\n    OLLAMA_MODELO: c.OLLAMA_MODELO || 'qwen3.5:4b-q4_K_M',\n    SD_URL: c.SD_URL || 'http://host.docker.internal:1234',\n    claves: Object.keys(c)\n  };\n}\nfunction rolDe(cfg, id) { const a = (cfg.AUTORIZADOS || []).find(function (x) { return x.id === Number(id); }); return a ? a.rol : null; }\n// Destinatarios de avisos técnicos: admins; si no hay, el dueño.\nfunction admins(cfg) {\n  const a = (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'admin'; });\n  return a.length ? a : (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'dueno'; });\n}\nfunction isoLima(ms) { const d = new Date((ms === undefined ? Date.now() : ms) - 5 * 3600000); return d.toISOString().slice(0, 19) + '-05:00'; }\n// --- fin comun.js ---\n// Un update de Telegram -> una fila de pb_inbox. Filtro D2: solo chats PRIVADOS de ids en AUTORIZADOS (id > 0).\nconst cfg = $('Config').first().json;\nconst r = $input.first().json || {};\nconst updates = r.ok === true && Array.isArray(r.result) ? r.result : [];\nconst ahora = Date.now();\nconst limpio = function (s, n) { return String(s === null || s === undefined ? '' : s).replace(/[\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f]/g, '').slice(0, n); };\nconst filas = [];\nlet maxUpdateId = 0;\nlet desconocidos = cfg.DESCONOCIDOS.slice();\nlet cambioDesconocidos = false;\nfor (const u of updates) {\n  const uid = Number(u && u.update_id);\n  if (!Number.isInteger(uid) || uid <= 0) continue;\n  if (uid > maxUpdateId) maxUpdateId = uid;\n  const cb = u.callback_query || null;\n  const m = cb ? null : (u.message || null);\n  if (!cb && !m) continue;\n  const from = (cb ? cb.from : m.from) || {};\n  const chat = cb ? (cb.message && cb.message.chat) : m.chat;\n  if (!chat || chat.type !== 'private' || from.is_bot) continue;          // grupos y canales: se ignoran en silencio\n  const fromId = Number(from.id);\n  const nombre = limpio([from.first_name, from.last_name].filter(Boolean).join(' '), 60).replace(/[<>]/g, '');\n  const aut = cfg.AUTORIZADOS.find(function (a) { return a.id === fromId; });\n  if (!aut || Number(chat.id) !== fromId) {\n    // Extraño en chat privado: no se responde; solo se anota (máx. 10) para que el admin copie su id a AUTORIZADOS.\n    if (fromId > 0) {\n      desconocidos = desconocidos.filter(function (d) { return d && d.id !== fromId; });\n      desconocidos.push({ id: fromId, nombre: nombre, fecha: isoLima(ahora) });\n      desconocidos = desconocidos.slice(-10);\n      cambioDesconocidos = true;\n    }\n    continue;\n  }\n  const f = {\n    update_id: uid, tipo: 'otro', chat_id: Number(chat.id), from_id: fromId, nombre: nombre, rol: aut.rol,\n    message_id: 0, media_group_id: '', file_id: '', file_unique_id: '', texto: '',\n    callback_id: '', callback_data: '', callback_message_id: 0,\n    fecha: ahora, recibido: ahora, estado: 'nuevo', intentos: 0, error: ''\n  };\n  if (cb) {\n    f.tipo = 'callback';\n    f.callback_id = limpio(cb.id, 100);\n    f.callback_data = limpio(cb.data, 64);\n    f.callback_message_id = Number(cb.message && cb.message.message_id) || 0;\n    f.message_id = f.callback_message_id;\n  } else {\n    f.message_id = Number(m.message_id) || 0;\n    f.fecha = Number(m.date) > 0 ? Number(m.date) * 1000 : ahora;\n    f.media_group_id = limpio(m.media_group_id, 64);\n    f.texto = limpio(typeof m.text === 'string' ? m.text : (typeof m.caption === 'string' ? m.caption : ''), 4096);\n    if (Array.isArray(m.photo) && m.photo.length) {\n      const foto = m.photo[m.photo.length - 1];                         // la más grande\n      f.tipo = 'foto'; f.file_id = limpio(foto.file_id, 200); f.file_unique_id = limpio(foto.file_unique_id, 100);\n    } else if (typeof m.text === 'string') f.tipo = m.text.trim().charAt(0) === '/' ? 'comando' : 'texto';\n    else if (m.voice || m.audio || m.video_note) f.tipo = 'voz';\n    else if (m.document) f.tipo = 'documento';\n  }\n  filas.push(f);\n}\nconst ids = filas.map(function (f) { return f.update_id; });\nconst volvi = filas.length > 0 && cfg.ULTIMO_POLL_AT > 0 && ahora - cfg.ULTIMO_POLL_AT > 300000;\nreturn [{ json: {\n  filas: filas, maxUpdateId: maxUpdateId,\n  minUpdateId: ids.length ? Math.min.apply(null, ids) : 0, maxFilaId: ids.length ? Math.max.apply(null, ids) : 0,\n  volvi: volvi, desconocidos: cambioDesconocidos ? desconocidos : null\n} }];\n"
+      }
+    },
+    {
+      "id": "fcb90f96-227e-445a-8d3b-7cfdd4c806df",
+      "name": "Nota 4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1160,
+        -340
+      ],
+      "parameters": {
+        "content": "### 3 · Guardar (idempotente)\nSe insertan solo los `update_id` que no están ya en `pb_inbox`. **Sin continueOnFail:** si la inserción falla no hay ACK y Telegram los vuelve a entregar.",
+        "width": 940,
+        "height": 520,
+        "color": 6
+      }
+    },
+    {
+      "id": "ec9ed8e8-863d-4f95-9417-859632a77ec6",
+      "name": "¿Hay filas?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1200,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "032f3acc-6707-4df0-835b-02f00d8a7b78",
+              "leftValue": "={{ $json.filas.length > 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "33560831-3174-49b1-a803-2edc8f9038d1",
+      "name": "Ya en inbox",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1440,
+        -120
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_inbox"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "update_id",
+              "condition": "gte",
+              "keyValue": "={{ $json.minUpdateId }}"
+            },
+            {
+              "keyName": "update_id",
+              "condition": "lte",
+              "keyValue": "={{ $json.maxFilaId }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "a86d4e76-3769-4edb-b08e-c4431c292749",
+      "name": "Solo nuevos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        -120
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Idempotencia (A6): no se vuelve a insertar un update_id que ya está en pb_inbox (p. ej. si falló el ACK anterior).\nconst n = $('Normalizar').first().json;\nconst existentes = new Set($input.all().map(function (i) { return i.json.update_id; }).filter(function (v) { return v !== undefined && v !== null; }).map(Number));\nconst vistos = new Set();\nconst nuevas = [];\nfor (const f of n.filas) {\n  if (existentes.has(f.update_id) || vistos.has(f.update_id)) continue;\n  vistos.add(f.update_id);\n  nuevas.push(f);\n}\nreturn nuevas.length ? nuevas.map(function (f) { return { json: f }; }) : [{ json: { noop: true } }];\n"
+      }
+    },
+    {
+      "id": "5980afe1-0136-4a1f-9d15-a89516e42508",
+      "name": "¿Insertar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1920,
+        -120
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "4bceb89b-d36c-4384-842f-858bb81c0e97",
+              "leftValue": "={{ $json.noop !== true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "97420131-c486-4977-8116-34d3f36613d2",
+      "name": "Insertar inbox",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2160,
+        -220
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_inbox"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "update_id",
+              "displayName": "update_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tipo",
+              "displayName": "tipo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "chat_id",
+              "displayName": "chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "from_id",
+              "displayName": "from_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "nombre",
+              "displayName": "nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "rol",
+              "displayName": "rol",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "media_group_id",
+              "displayName": "media_group_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "file_id",
+              "displayName": "file_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "file_unique_id",
+              "displayName": "file_unique_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "texto",
+              "displayName": "texto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "callback_id",
+              "displayName": "callback_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "callback_data",
+              "displayName": "callback_data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "callback_message_id",
+              "displayName": "callback_message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "recibido",
+              "displayName": "recibido",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado",
+              "displayName": "estado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "intentos",
+              "displayName": "intentos",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "error",
+              "displayName": "error",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "366b7ad1-ade3-4513-ab7a-fd740a264dcf",
+      "name": "Nota 5",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2360,
+        -240
+      ],
+      "parameters": {
+        "content": "### 4 · Confirmar y avisar\nACK con `offset = max+1`. Luego: `ULTIMO_POLL_AT`, respuesta inmediata a los botones (\"Recibido…\"), \"Recibido, preparo el borrador\" y \"Volví\" si la PC estuvo apagada > 5 min.",
+        "width": 1660,
+        "height": 420,
+        "color": 7
+      }
+    },
+    {
+      "id": "0660e06e-6c56-4763-aa56-1c4ded0f797c",
+      "name": "Preparar ACK",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// El ACK (offset = max+1) va DESPUÉS de guardar en pb_inbox: si la inserción falla, Telegram vuelve a entregar.\nconst n = $('Normalizar').first().json;\nreturn [{ json: { ack: n.maxUpdateId > 0, offset: n.maxUpdateId + 1 } }];\n"
+      }
+    },
+    {
+      "id": "9032a021-0dc0-4569-a9f7-d42c9a7ff9be",
+      "name": "¿ACK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2640,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c9f1152c-01f4-4b6a-aaae-a8d1fdc55b74",
+              "leftValue": "={{ $json.ack === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "bc0da97c-e7e4-4189-8732-c9772f2acc2f",
+      "name": "ACK getUpdates",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2880,
+        -100
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.telegram.org/bot{{ $('Config').first().json.BOT_TOKEN }}/getUpdates",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "offset",
+              "value": "={{ $json.offset }}"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            },
+            {
+              "name": "timeout",
+              "value": "0"
+            },
+            {
+              "name": "allowed_updates",
+              "value": "[\"message\",\"callback_query\"]"
+            }
+          ]
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "d39e3ad0-ce85-46f2-91c4-cd2d00002e38",
+      "name": "Estado poll",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3120,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const cfg = $('Config').first().json;\nconst n = $('Normalizar').first().json;\nconst out = [{ clave: 'ULTIMO_POLL_AT', valor: String(Date.now()) }];\nif (cfg.FALLOS_SEGUIDOS !== 0) out.push({ clave: 'FALLOS_SEGUIDOS', valor: '0' });\nif (n.desconocidos) out.push({ clave: 'DESCONOCIDOS', valor: JSON.stringify(n.desconocidos) });\nreturn out.map(function (j) { return { json: j }; });\n"
+      }
+    },
+    {
+      "id": "29176df4-a185-42b1-b93c-da8b7a725ac4",
+      "name": "Guardar config",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        3360,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_config"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "clave",
+              "condition": "eq",
+              "keyValue": "={{ $json.clave }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "valor": "={{ $json.valor }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "valor",
+              "displayName": "valor",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "046901e7-dfe0-45c0-b845-1c745a0379a3",
+      "name": "Avisos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3600,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// --- comun.js (Palmera Brava): ayudas compartidas por los nodos Code del núcleo (WF0, WF1, WF2, WF5, WF9) ---\n// Se inserta donde un Code dice \"// @incluir comun\". Sin require ni crypto (el task runner los bloquea).\nconst PB_TABLAS = { config: 'pb_config', locks: 'pb_locks', inbox: 'pb_inbox', borradores: 'pb_borradores', imagenes: 'pb_imagenes' };\n// Escapa texto para parse_mode HTML de Telegram.\nfunction h(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Quita tokens de Telegram, PAT de GitHub y similares de cualquier texto que vaya a un mensaje o a una tabla.\nfunction censurar(s) {\n  return String(s === null || s === undefined ? '' : s)\n    .replace(/bot\\d+:[\\w-]+/g, 'bot***')\n    .replace(/\\d{8,10}:[\\w-]{30,}/g, '***')\n    .replace(/github_pat_\\w+/g, 'github_pat_***')\n    .replace(/gh[pousr]_\\w+/g, 'gh*_***')\n    .replace(/(authorization[\"':=\\s]+)(token|bearer)\\s+[^\\s\"',}]+/gi, '$1$2 ***');\n}\n// Mensaje para Telegram (HTML). El texto YA debe venir escapado y terminar en \"Siguiente paso: ...\".\nfunction enviar(chatId, texto, extra) {\n  const t = String(texto || '');\n  if (!/\\nSiguiente paso: \\S/.test(t)) throw new Error('Mensaje sin \"Siguiente paso\": ' + t.slice(0, 60));\n  return { metodo: 'sendMessage', cuerpo: Object.assign({ chat_id: Number(chatId), text: t.slice(0, 4096), parse_mode: 'HTML', link_preview_options: { is_disabled: true } }, extra || {}) };\n}\nfunction quitarTeclado(chatId, messageId) {\n  return { metodo: 'editMessageReplyMarkup', cuerpo: { chat_id: Number(chatId), message_id: Number(messageId), reply_markup: { inline_keyboard: [] } } };\n}\nfunction botones(filas) { return { reply_markup: { inline_keyboard: filas } }; }\n// pb_config (filas {clave, valor}) -> objeto con tipos ya convertidos. Valores raros se ignoran (token con formato inválido = sin token).\nfunction armarConfig(filas) {\n  const c = {};\n  (filas || []).forEach(function (f) { if (f && typeof f.clave === 'string') c[f.clave] = f.valor === null || f.valor === undefined ? '' : String(f.valor); });\n  const num = function (k, d) { const n = Number(c[k]); return c[k] !== undefined && c[k] !== '' && Number.isFinite(n) ? n : d; };\n  const json = function (k, d) { try { const v = JSON.parse(c[k]); return v === null || v === undefined ? d : v; } catch (e) { return d; } };\n  const tok = String(c.BOT_TOKEN || '').trim();\n  let aut = json('AUTORIZADOS', []);\n  aut = (Array.isArray(aut) ? aut : []).filter(function (a) { return a && Number(a.id) > 0 && ['admin', 'dueno', 'marketing'].indexOf(a.rol) >= 0; })\n    .map(function (a) { return { id: Number(a.id), rol: a.rol, nombre: String(a.nombre || '').replace(/[<>]/g, '').slice(0, 60) }; });\n  const repo = String(c.REPO || '').trim();\n  const rama = String(c.REPO_BRANCH || '').trim();\n  const alertas = json('ALERTAS', {});\n  const desconocidos = json('DESCONOCIDOS', []);\n  return {\n    BOT_TOKEN: /^\\d{5,12}:[A-Za-z0-9_-]{30,}$/.test(tok) ? tok : '',\n    AUTORIZADOS: aut,\n    REPO: /^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repo) ? repo : 'Abnercayao/tienda-tarapoto',\n    REPO_BRANCH: /^[A-Za-z0-9_.\\/-]+$/.test(rama) ? rama : 'main',\n    SITIO_URL: /^https:\\/\\/[^\\s<>\"']+$/.test(c.SITIO_URL || '') ? c.SITIO_URL : 'https://abnercayao.github.io/tienda-tarapoto/',\n    COMMIT_EMAIL: /^[^\\s@<>]+@[^\\s@<>]+$/.test(c.COMMIT_EMAIL || '') ? c.COMMIT_EMAIL : '297644875+Abnercayao@users.noreply.github.com',\n    PAUSA: c.PAUSA === '1' ? 1 : 0,\n    MIN_ENTRE_COMMITS_MS: num('MIN_ENTRE_COMMITS_MS', 360000),\n    ULTIMO_COMMIT_AT: num('ULTIMO_COMMIT_AT', 0),\n    ULTIMO_POLL_AT: num('ULTIMO_POLL_AT', 0),\n    FALLOS_SEGUIDOS: num('FALLOS_SEGUIDOS', 0),\n    ULTIMA_ALERTA_AT: num('ULTIMA_ALERTA_AT', 0),\n    ALERTAS: alertas && typeof alertas === 'object' && !Array.isArray(alertas) ? alertas : {},\n    DESCONOCIDOS: Array.isArray(desconocidos) ? desconocidos.slice(-10) : [],\n    OLLAMA_URL: c.OLLAMA_URL || 'http://host.docker.internal:11434',\n    OLLAMA_MODELO: c.OLLAMA_MODELO || 'qwen3.5:4b-q4_K_M',\n    SD_URL: c.SD_URL || 'http://host.docker.internal:1234',\n    claves: Object.keys(c)\n  };\n}\nfunction rolDe(cfg, id) { const a = (cfg.AUTORIZADOS || []).find(function (x) { return x.id === Number(id); }); return a ? a.rol : null; }\n// Destinatarios de avisos técnicos: admins; si no hay, el dueño.\nfunction admins(cfg) {\n  const a = (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'admin'; });\n  return a.length ? a : (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'dueno'; });\n}\nfunction isoLima(ms) { const d = new Date((ms === undefined ? Date.now() : ms) - 5 * 3600000); return d.toISOString().slice(0, 19) + '-05:00'; }\n// --- fin comun.js ---\n// Respuesta inmediata (A5): callbacks -> answerCallbackQuery; fotos/texto -> \"Recibido\"; tras un apagón -> \"Volví\".\nconst n = $('Normalizar').first().json;\nlet nuevas = [];\ntry { if ($('Solo nuevos').isExecuted) nuevas = $('Solo nuevos').all().map(function (i) { return i.json; }).filter(function (j) { return j.update_id; }); } catch (e) { nuevas = []; }\nconst out = [];\nconst chatsAvisados = new Set();\nif (n.volvi) {\n  const porChat = {};\n  nuevas.forEach(function (f) { porChat[f.chat_id] = (porChat[f.chat_id] || 0) + 1; });\n  Object.keys(porChat).forEach(function (chat) {\n    chatsAvisados.add(Number(chat));\n    out.push(enviar(chat, 'Volví (la PC estuvo apagada o sin internet). Tengo ' + porChat[chat] + ' mensajes pendientes y los proceso en orden.\\nSiguiente paso: espera mis respuestas.'));\n  });\n}\nnuevas.forEach(function (f) {\n  if (f.tipo === 'callback' && f.callback_id) {\n    out.push({ metodo: 'answerCallbackQuery', cuerpo: { callback_query_id: f.callback_id, text: 'Recibido. Siguiente paso: espera la respuesta.' } });\n  } else if (f.tipo === 'comando') {\n    out.push({ metodo: 'sendChatAction', cuerpo: { chat_id: f.chat_id, action: 'typing' } });\n  } else if ((f.tipo === 'foto' || f.tipo === 'texto') && !chatsAvisados.has(f.chat_id)) {\n    chatsAvisados.add(f.chat_id);                                       // un solo \"Recibido\" por chat (álbumes incluidos)\n    out.push({ metodo: 'sendChatAction', cuerpo: { chat_id: f.chat_id, action: 'typing' } });\n    out.push(enviar(f.chat_id, 'Recibido, preparo el borrador (puede tardar hasta 1 min).\\nSiguiente paso: espera la vista previa.'));\n  }\n});\nreturn out.map(function (j) { return { json: j }; });\n"
+      }
+    },
+    {
+      "id": "b8e85da7-a144-407f-b282-e8f2eb1d02db",
+      "name": "Enviar Telegram",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        3840,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $('Config').first().json.BOT_TOKEN }}/{{ $json.metodo }}",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.cuerpo) }}",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "db3df051-aba8-43fb-9034-731200bcb565",
+      "name": "Nota 6",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        920,
+        260
+      ],
+      "parameters": {
+        "content": "### Fallo de lectura\nSin internet, token revocado o webhook activo. Cuenta `FALLOS_SEGUIDOS`; a los 30 seguidos (≈5 min) avisa al admin, máximo 1 vez por hora.",
+        "width": 940,
+        "height": 300,
+        "color": 3
+      }
+    },
+    {
+      "id": "b27285b5-f8ce-48e8-a146-9122090baa13",
+      "name": "Fallo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        380
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// --- comun.js (Palmera Brava): ayudas compartidas por los nodos Code del núcleo (WF0, WF1, WF2, WF5, WF9) ---\n// Se inserta donde un Code dice \"// @incluir comun\". Sin require ni crypto (el task runner los bloquea).\nconst PB_TABLAS = { config: 'pb_config', locks: 'pb_locks', inbox: 'pb_inbox', borradores: 'pb_borradores', imagenes: 'pb_imagenes' };\n// Escapa texto para parse_mode HTML de Telegram.\nfunction h(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Quita tokens de Telegram, PAT de GitHub y similares de cualquier texto que vaya a un mensaje o a una tabla.\nfunction censurar(s) {\n  return String(s === null || s === undefined ? '' : s)\n    .replace(/bot\\d+:[\\w-]+/g, 'bot***')\n    .replace(/\\d{8,10}:[\\w-]{30,}/g, '***')\n    .replace(/github_pat_\\w+/g, 'github_pat_***')\n    .replace(/gh[pousr]_\\w+/g, 'gh*_***')\n    .replace(/(authorization[\"':=\\s]+)(token|bearer)\\s+[^\\s\"',}]+/gi, '$1$2 ***');\n}\n// Mensaje para Telegram (HTML). El texto YA debe venir escapado y terminar en \"Siguiente paso: ...\".\nfunction enviar(chatId, texto, extra) {\n  const t = String(texto || '');\n  if (!/\\nSiguiente paso: \\S/.test(t)) throw new Error('Mensaje sin \"Siguiente paso\": ' + t.slice(0, 60));\n  return { metodo: 'sendMessage', cuerpo: Object.assign({ chat_id: Number(chatId), text: t.slice(0, 4096), parse_mode: 'HTML', link_preview_options: { is_disabled: true } }, extra || {}) };\n}\nfunction quitarTeclado(chatId, messageId) {\n  return { metodo: 'editMessageReplyMarkup', cuerpo: { chat_id: Number(chatId), message_id: Number(messageId), reply_markup: { inline_keyboard: [] } } };\n}\nfunction botones(filas) { return { reply_markup: { inline_keyboard: filas } }; }\n// pb_config (filas {clave, valor}) -> objeto con tipos ya convertidos. Valores raros se ignoran (token con formato inválido = sin token).\nfunction armarConfig(filas) {\n  const c = {};\n  (filas || []).forEach(function (f) { if (f && typeof f.clave === 'string') c[f.clave] = f.valor === null || f.valor === undefined ? '' : String(f.valor); });\n  const num = function (k, d) { const n = Number(c[k]); return c[k] !== undefined && c[k] !== '' && Number.isFinite(n) ? n : d; };\n  const json = function (k, d) { try { const v = JSON.parse(c[k]); return v === null || v === undefined ? d : v; } catch (e) { return d; } };\n  const tok = String(c.BOT_TOKEN || '').trim();\n  let aut = json('AUTORIZADOS', []);\n  aut = (Array.isArray(aut) ? aut : []).filter(function (a) { return a && Number(a.id) > 0 && ['admin', 'dueno', 'marketing'].indexOf(a.rol) >= 0; })\n    .map(function (a) { return { id: Number(a.id), rol: a.rol, nombre: String(a.nombre || '').replace(/[<>]/g, '').slice(0, 60) }; });\n  const repo = String(c.REPO || '').trim();\n  const rama = String(c.REPO_BRANCH || '').trim();\n  const alertas = json('ALERTAS', {});\n  const desconocidos = json('DESCONOCIDOS', []);\n  return {\n    BOT_TOKEN: /^\\d{5,12}:[A-Za-z0-9_-]{30,}$/.test(tok) ? tok : '',\n    AUTORIZADOS: aut,\n    REPO: /^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repo) ? repo : 'Abnercayao/tienda-tarapoto',\n    REPO_BRANCH: /^[A-Za-z0-9_.\\/-]+$/.test(rama) ? rama : 'main',\n    SITIO_URL: /^https:\\/\\/[^\\s<>\"']+$/.test(c.SITIO_URL || '') ? c.SITIO_URL : 'https://abnercayao.github.io/tienda-tarapoto/',\n    COMMIT_EMAIL: /^[^\\s@<>]+@[^\\s@<>]+$/.test(c.COMMIT_EMAIL || '') ? c.COMMIT_EMAIL : '297644875+Abnercayao@users.noreply.github.com',\n    PAUSA: c.PAUSA === '1' ? 1 : 0,\n    MIN_ENTRE_COMMITS_MS: num('MIN_ENTRE_COMMITS_MS', 360000),\n    ULTIMO_COMMIT_AT: num('ULTIMO_COMMIT_AT', 0),\n    ULTIMO_POLL_AT: num('ULTIMO_POLL_AT', 0),\n    FALLOS_SEGUIDOS: num('FALLOS_SEGUIDOS', 0),\n    ULTIMA_ALERTA_AT: num('ULTIMA_ALERTA_AT', 0),\n    ALERTAS: alertas && typeof alertas === 'object' && !Array.isArray(alertas) ? alertas : {},\n    DESCONOCIDOS: Array.isArray(desconocidos) ? desconocidos.slice(-10) : [],\n    OLLAMA_URL: c.OLLAMA_URL || 'http://host.docker.internal:11434',\n    OLLAMA_MODELO: c.OLLAMA_MODELO || 'qwen3.5:4b-q4_K_M',\n    SD_URL: c.SD_URL || 'http://host.docker.internal:1234',\n    claves: Object.keys(c)\n  };\n}\nfunction rolDe(cfg, id) { const a = (cfg.AUTORIZADOS || []).find(function (x) { return x.id === Number(id); }); return a ? a.rol : null; }\n// Destinatarios de avisos técnicos: admins; si no hay, el dueño.\nfunction admins(cfg) {\n  const a = (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'admin'; });\n  return a.length ? a : (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'dueno'; });\n}\nfunction isoLima(ms) { const d = new Date((ms === undefined ? Date.now() : ms) - 5 * 3600000); return d.toISOString().slice(0, 19) + '-05:00'; }\n// --- fin comun.js ---\n// getUpdates falló (sin internet, token revocado, webhook activo...). Cuenta fallos seguidos; alerta como máximo 1 vez por hora.\nconst cfg = $('Config').first().json;\nconst e = $input.first().json || {};\nconst detalle = censurar((e.error && (e.error.message || e.error.description)) || e.message || JSON.stringify(e).slice(0, 200)).slice(0, 200);\nconst ahora = Date.now();\nconst fallos = cfg.FALLOS_SEGUIDOS + 1;\nconst alerta = fallos >= 30 && ahora - cfg.ULTIMA_ALERTA_AT > 3600000;\nconst out = [{ clave: 'FALLOS_SEGUIDOS', valor: String(fallos), alerta: alerta, fallos: fallos, detalle: detalle }];\nif (alerta) out.push({ clave: 'ULTIMA_ALERTA_AT', valor: String(ahora), alerta: alerta, fallos: fallos, detalle: detalle });\nreturn out.map(function (j) { return { json: j }; });\n"
+      }
+    },
+    {
+      "id": "becb59c4-a40a-4326-8bb9-8850a06d5ecc",
+      "name": "Guardar fallo",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1200,
+        380
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_config"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "clave",
+              "condition": "eq",
+              "keyValue": "={{ $json.clave }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "valor": "={{ $json.valor }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "valor",
+              "displayName": "valor",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "a3c72717-d200-4ec7-8317-57a9792893a6",
+      "name": "Alerta fallo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        380
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// --- comun.js (Palmera Brava): ayudas compartidas por los nodos Code del núcleo (WF0, WF1, WF2, WF5, WF9) ---\n// Se inserta donde un Code dice \"// @incluir comun\". Sin require ni crypto (el task runner los bloquea).\nconst PB_TABLAS = { config: 'pb_config', locks: 'pb_locks', inbox: 'pb_inbox', borradores: 'pb_borradores', imagenes: 'pb_imagenes' };\n// Escapa texto para parse_mode HTML de Telegram.\nfunction h(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Quita tokens de Telegram, PAT de GitHub y similares de cualquier texto que vaya a un mensaje o a una tabla.\nfunction censurar(s) {\n  return String(s === null || s === undefined ? '' : s)\n    .replace(/bot\\d+:[\\w-]+/g, 'bot***')\n    .replace(/\\d{8,10}:[\\w-]{30,}/g, '***')\n    .replace(/github_pat_\\w+/g, 'github_pat_***')\n    .replace(/gh[pousr]_\\w+/g, 'gh*_***')\n    .replace(/(authorization[\"':=\\s]+)(token|bearer)\\s+[^\\s\"',}]+/gi, '$1$2 ***');\n}\n// Mensaje para Telegram (HTML). El texto YA debe venir escapado y terminar en \"Siguiente paso: ...\".\nfunction enviar(chatId, texto, extra) {\n  const t = String(texto || '');\n  if (!/\\nSiguiente paso: \\S/.test(t)) throw new Error('Mensaje sin \"Siguiente paso\": ' + t.slice(0, 60));\n  return { metodo: 'sendMessage', cuerpo: Object.assign({ chat_id: Number(chatId), text: t.slice(0, 4096), parse_mode: 'HTML', link_preview_options: { is_disabled: true } }, extra || {}) };\n}\nfunction quitarTeclado(chatId, messageId) {\n  return { metodo: 'editMessageReplyMarkup', cuerpo: { chat_id: Number(chatId), message_id: Number(messageId), reply_markup: { inline_keyboard: [] } } };\n}\nfunction botones(filas) { return { reply_markup: { inline_keyboard: filas } }; }\n// pb_config (filas {clave, valor}) -> objeto con tipos ya convertidos. Valores raros se ignoran (token con formato inválido = sin token).\nfunction armarConfig(filas) {\n  const c = {};\n  (filas || []).forEach(function (f) { if (f && typeof f.clave === 'string') c[f.clave] = f.valor === null || f.valor === undefined ? '' : String(f.valor); });\n  const num = function (k, d) { const n = Number(c[k]); return c[k] !== undefined && c[k] !== '' && Number.isFinite(n) ? n : d; };\n  const json = function (k, d) { try { const v = JSON.parse(c[k]); return v === null || v === undefined ? d : v; } catch (e) { return d; } };\n  const tok = String(c.BOT_TOKEN || '').trim();\n  let aut = json('AUTORIZADOS', []);\n  aut = (Array.isArray(aut) ? aut : []).filter(function (a) { return a && Number(a.id) > 0 && ['admin', 'dueno', 'marketing'].indexOf(a.rol) >= 0; })\n    .map(function (a) { return { id: Number(a.id), rol: a.rol, nombre: String(a.nombre || '').replace(/[<>]/g, '').slice(0, 60) }; });\n  const repo = String(c.REPO || '').trim();\n  const rama = String(c.REPO_BRANCH || '').trim();\n  const alertas = json('ALERTAS', {});\n  const desconocidos = json('DESCONOCIDOS', []);\n  return {\n    BOT_TOKEN: /^\\d{5,12}:[A-Za-z0-9_-]{30,}$/.test(tok) ? tok : '',\n    AUTORIZADOS: aut,\n    REPO: /^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repo) ? repo : 'Abnercayao/tienda-tarapoto',\n    REPO_BRANCH: /^[A-Za-z0-9_.\\/-]+$/.test(rama) ? rama : 'main',\n    SITIO_URL: /^https:\\/\\/[^\\s<>\"']+$/.test(c.SITIO_URL || '') ? c.SITIO_URL : 'https://abnercayao.github.io/tienda-tarapoto/',\n    COMMIT_EMAIL: /^[^\\s@<>]+@[^\\s@<>]+$/.test(c.COMMIT_EMAIL || '') ? c.COMMIT_EMAIL : '297644875+Abnercayao@users.noreply.github.com',\n    PAUSA: c.PAUSA === '1' ? 1 : 0,\n    MIN_ENTRE_COMMITS_MS: num('MIN_ENTRE_COMMITS_MS', 360000),\n    ULTIMO_COMMIT_AT: num('ULTIMO_COMMIT_AT', 0),\n    ULTIMO_POLL_AT: num('ULTIMO_POLL_AT', 0),\n    FALLOS_SEGUIDOS: num('FALLOS_SEGUIDOS', 0),\n    ULTIMA_ALERTA_AT: num('ULTIMA_ALERTA_AT', 0),\n    ALERTAS: alertas && typeof alertas === 'object' && !Array.isArray(alertas) ? alertas : {},\n    DESCONOCIDOS: Array.isArray(desconocidos) ? desconocidos.slice(-10) : [],\n    OLLAMA_URL: c.OLLAMA_URL || 'http://host.docker.internal:11434',\n    OLLAMA_MODELO: c.OLLAMA_MODELO || 'qwen3.5:4b-q4_K_M',\n    SD_URL: c.SD_URL || 'http://host.docker.internal:1234',\n    claves: Object.keys(c)\n  };\n}\nfunction rolDe(cfg, id) { const a = (cfg.AUTORIZADOS || []).find(function (x) { return x.id === Number(id); }); return a ? a.rol : null; }\n// Destinatarios de avisos técnicos: admins; si no hay, el dueño.\nfunction admins(cfg) {\n  const a = (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'admin'; });\n  return a.length ? a : (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'dueno'; });\n}\nfunction isoLima(ms) { const d = new Date((ms === undefined ? Date.now() : ms) - 5 * 3600000); return d.toISOString().slice(0, 19) + '-05:00'; }\n// --- fin comun.js ---\nconst cfg = $('Config').first().json;\nconst f = $('Fallo').first().json;\nif (!f.alerta) return [];\nreturn admins(cfg).map(function (a) {\n  return { json: enviar(a.id, 'No puedo leer Telegram desde hace ' + f.fallos + ' intentos seguidos (' + h(f.detalle) + ').\\nSiguiente paso: revisa el internet de la PC y que pb_config.BOT_TOKEN sea el token vigente.') };\n});\n"
+      }
+    },
+    {
+      "id": "c0c11283-be04-4366-87cd-dede3b75ba45",
+      "name": "Enviar alerta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1680,
+        380
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $('Config').first().json.BOT_TOKEN }}/{{ $json.metodo }}",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.cuerpo) }}",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Cada 10 s": {
+      "main": [
+        [
+          {
+            "node": "Leer config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer config": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Leer Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer Telegram": {
+      "main": [
+        [
+          {
+            "node": "Normalizar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fallo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar": {
+      "main": [
+        [
+          {
+            "node": "¿Hay filas?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hay filas?": {
+      "main": [
+        [
+          {
+            "node": "Ya en inbox",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar ACK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ya en inbox": {
+      "main": [
+        [
+          {
+            "node": "Solo nuevos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Solo nuevos": {
+      "main": [
+        [
+          {
+            "node": "¿Insertar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Insertar?": {
+      "main": [
+        [
+          {
+            "node": "Insertar inbox",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar ACK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insertar inbox": {
+      "main": [
+        [
+          {
+            "node": "Preparar ACK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar ACK": {
+      "main": [
+        [
+          {
+            "node": "¿ACK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿ACK?": {
+      "main": [
+        [
+          {
+            "node": "ACK getUpdates",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Estado poll",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ACK getUpdates": {
+      "main": [
+        [
+          {
+            "node": "Estado poll",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Estado poll": {
+      "main": [
+        [
+          {
+            "node": "Guardar config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar config": {
+      "main": [
+        [
+          {
+            "node": "Avisos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Avisos": {
+      "main": [
+        [
+          {
+            "node": "Enviar Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fallo": {
+      "main": [
+        [
+          {
+            "node": "Guardar fallo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar fallo": {
+      "main": [
+        [
+          {
+            "node": "Alerta fallo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alerta fallo": {
+      "main": [
+        [
+          {
+            "node": "Enviar alerta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Lima",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "none",
+    "errorWorkflow": "pbWf09Errores000",
+    "saveManualExecutions": false,
+    "executionTimeout": 60
+  },
+  "meta": {},
+  "tags": []
+}

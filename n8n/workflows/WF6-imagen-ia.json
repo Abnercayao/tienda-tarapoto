@@ -1,0 +1,1569 @@
+{
+  "id": "pbWf06Imagen0000",
+  "name": "PB WF6 Imagen-IA",
+  "active": false,
+  "nodes": [
+    {
+      "id": "bf42f661-c9f2-446f-aafd-fcaae3cb9336",
+      "name": "Nota 1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -900
+      ],
+      "parameters": {
+        "content": "## WF6 · Imagen-IA (sub-workflow)\nLo llaman WF4 (`/imagen [art-0001|look-1] descripción`, ya con el lock de WF2) y WF8 (panel, con su lock). **No toma el lock.**\n1. Prompt en inglés con las frases de `tools/image-prompts.json`; **niños = sin personas**; persona adulta = se genera más alta y se **recorta arriba** (sin rostro).\n2. Ollama `keep_alive:0` (libera la VRAM) → sd-server (8 pasos, euler/simple, cfg 1.0; timeout 10 min).\n3. Foto a Telegram con Hero / Portada / Lookbook / Descartar → borrador `pendiente` (falta `destino`) + WebP en `pb_imagenes`.\n**Nunca publica:** WF5 publica tras elegir destino y tocar Publicar.\n\nSalida: `{ok, draft_id, ...}` + binario `data` (y `b64` para el panel).",
+        "width": 760,
+        "height": 420,
+        "color": 4
+      }
+    },
+    {
+      "id": "23be0eed-71de-4833-b955-292ef19ae961",
+      "name": "Entrada",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "24b71ee9-f8bd-49cb-af14-fbec8eceb849",
+      "name": "Leer config",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_config"
+        },
+        "matchType": "allConditions",
+        "filters": {},
+        "returnAll": true
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "c3d9cc0a-56f8-45fe-9e33-29545dda9069",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// --- comun.js (Palmera Brava): ayudas compartidas por los nodos Code del núcleo (WF0, WF1, WF2, WF5, WF9) ---\n// Se inserta donde un Code dice \"// @incluir comun\". Sin require ni crypto (el task runner los bloquea).\nconst PB_TABLAS = { config: 'pb_config', locks: 'pb_locks', inbox: 'pb_inbox', borradores: 'pb_borradores', imagenes: 'pb_imagenes' };\n// Escapa texto para parse_mode HTML de Telegram.\nfunction h(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Quita tokens de Telegram, PAT de GitHub y similares de cualquier texto que vaya a un mensaje o a una tabla.\nfunction censurar(s) {\n  return String(s === null || s === undefined ? '' : s)\n    .replace(/bot\\d+:[\\w-]+/g, 'bot***')\n    .replace(/\\d{8,10}:[\\w-]{30,}/g, '***')\n    .replace(/github_pat_\\w+/g, 'github_pat_***')\n    .replace(/gh[pousr]_\\w+/g, 'gh*_***')\n    .replace(/(authorization[\"':=\\s]+)(token|bearer)\\s+[^\\s\"',}]+/gi, '$1$2 ***');\n}\n// Mensaje para Telegram (HTML). El texto YA debe venir escapado y terminar en \"Siguiente paso: ...\".\nfunction enviar(chatId, texto, extra) {\n  const t = String(texto || '');\n  if (!/\\nSiguiente paso: \\S/.test(t)) throw new Error('Mensaje sin \"Siguiente paso\": ' + t.slice(0, 60));\n  return { metodo: 'sendMessage', cuerpo: Object.assign({ chat_id: Number(chatId), text: t.slice(0, 4096), parse_mode: 'HTML', link_preview_options: { is_disabled: true } }, extra || {}) };\n}\nfunction quitarTeclado(chatId, messageId) {\n  return { metodo: 'editMessageReplyMarkup', cuerpo: { chat_id: Number(chatId), message_id: Number(messageId), reply_markup: { inline_keyboard: [] } } };\n}\nfunction botones(filas) { return { reply_markup: { inline_keyboard: filas } }; }\n// pb_config (filas {clave, valor}) -> objeto con tipos ya convertidos. Valores raros se ignoran (token con formato inválido = sin token).\nfunction armarConfig(filas) {\n  const c = {};\n  (filas || []).forEach(function (f) { if (f && typeof f.clave === 'string') c[f.clave] = f.valor === null || f.valor === undefined ? '' : String(f.valor); });\n  const num = function (k, d) { const n = Number(c[k]); return c[k] !== undefined && c[k] !== '' && Number.isFinite(n) ? n : d; };\n  const json = function (k, d) { try { const v = JSON.parse(c[k]); return v === null || v === undefined ? d : v; } catch (e) { return d; } };\n  const tok = String(c.BOT_TOKEN || '').trim();\n  let aut = json('AUTORIZADOS', []);\n  aut = (Array.isArray(aut) ? aut : []).filter(function (a) { return a && Number(a.id) > 0 && ['admin', 'dueno', 'marketing'].indexOf(a.rol) >= 0; })\n    .map(function (a) { return { id: Number(a.id), rol: a.rol, nombre: String(a.nombre || '').replace(/[<>]/g, '').slice(0, 60) }; });\n  const repo = String(c.REPO || '').trim();\n  const rama = String(c.REPO_BRANCH || '').trim();\n  const alertas = json('ALERTAS', {});\n  const desconocidos = json('DESCONOCIDOS', []);\n  return {\n    BOT_TOKEN: /^\\d{5,12}:[A-Za-z0-9_-]{30,}$/.test(tok) ? tok : '',\n    AUTORIZADOS: aut,\n    REPO: /^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repo) ? repo : 'Abnercayao/tienda-tarapoto',\n    REPO_BRANCH: /^[A-Za-z0-9_.\\/-]+$/.test(rama) ? rama : 'main',\n    SITIO_URL: /^https:\\/\\/[^\\s<>\"']+$/.test(c.SITIO_URL || '') ? c.SITIO_URL : 'https://abnercayao.github.io/tienda-tarapoto/',\n    COMMIT_EMAIL: /^[^\\s@<>]+@[^\\s@<>]+$/.test(c.COMMIT_EMAIL || '') ? c.COMMIT_EMAIL : '297644875+Abnercayao@users.noreply.github.com',\n    PAUSA: c.PAUSA === '1' ? 1 : 0,\n    MIN_ENTRE_COMMITS_MS: num('MIN_ENTRE_COMMITS_MS', 360000),\n    ULTIMO_COMMIT_AT: num('ULTIMO_COMMIT_AT', 0),\n    ULTIMO_POLL_AT: num('ULTIMO_POLL_AT', 0),\n    FALLOS_SEGUIDOS: num('FALLOS_SEGUIDOS', 0),\n    ULTIMA_ALERTA_AT: num('ULTIMA_ALERTA_AT', 0),\n    ALERTAS: alertas && typeof alertas === 'object' && !Array.isArray(alertas) ? alertas : {},\n    DESCONOCIDOS: Array.isArray(desconocidos) ? desconocidos.slice(-10) : [],\n    OLLAMA_URL: c.OLLAMA_URL || 'http://host.docker.internal:11434',\n    OLLAMA_MODELO: c.OLLAMA_MODELO || 'qwen3.5:4b-q4_K_M',\n    SD_URL: c.SD_URL || 'http://host.docker.internal:1234',\n    claves: Object.keys(c)\n  };\n}\nfunction rolDe(cfg, id) { const a = (cfg.AUTORIZADOS || []).find(function (x) { return x.id === Number(id); }); return a ? a.rol : null; }\n// Destinatarios de avisos técnicos: admins; si no hay, el dueño.\nfunction admins(cfg) {\n  const a = (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'admin'; });\n  return a.length ? a : (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'dueno'; });\n}\nfunction isoLima(ms) { const d = new Date((ms === undefined ? Date.now() : ms) - 5 * 3600000); return d.toISOString().slice(0, 19) + '-05:00'; }\n// --- fin comun.js ---\n// WF6 sigue aunque falte BOT_TOKEN: la foto va por el nodo Telegram (credencial); el token de pb_config solo se usa para avisos de texto.\nreturn [{ json: armarConfig($input.all().map(function (i) { return i.json; })) }];\n"
+      }
+    },
+    {
+      "id": "23215e5d-eeaa-460d-b950-e51c52fe42b6",
+      "name": "Preparar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// === COPIAR A N8N ===\nconst CONTRATO_VERSION = '1.0.0';\nconst LIMITE_BYTES = 1000000; // cada JSON debe pesar MENOS de 1 MB (límite de la API de contenidos)\nconst MAX_BORRADORES_APLICADOS = 100;\n\nconst CATEGORIAS = ['hombres', 'mujeres', 'ninos', 'accesorios'];\nconst SUBCATEGORIAS = ['polos', 'camisas', 'blusas', 'vestidos', 'faldas', 'shorts', 'bermudas', 'pantalones',\n  'conjuntos', 'ropa-de-bano', 'pijamas', 'sombreros', 'gorros', 'gorras', 'sandalias', 'lentes', 'bolsos', 'otros'];\nconst T_ADULTO = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];\nconst T_NINOS = ['2', '4', '6', '8', '10', '12', '14', '16'];\nconst T_CALZADO = ['35', '36', '37', '38', '39', '40', '41', '42', '43', '44'];\nconst T_UNICA = ['UNICA'];\nconst TALLAS = [].concat(T_ADULTO, T_NINOS, T_CALZADO, T_UNICA);\nconst TALLAS_POR_CATEGORIA = {\n  hombres: [].concat(T_ADULTO, T_CALZADO, T_UNICA),\n  mujeres: [].concat(T_ADULTO, T_CALZADO, T_UNICA),\n  ninos: [].concat(T_NINOS, T_UNICA),\n  accesorios: [].concat(T_UNICA, T_CALZADO, ['S', 'M', 'L'])\n};\nconst ORIGENES_IMAGEN = ['foto', 'ia_local', 'placeholder'];\nconst DIAS = ['lu', 'ma', 'mi', 'ju', 'vi', 'sa', 'do'];\nconst REDES = ['instagram', 'facebook', 'tiktok', 'youtube', 'x'];\nconst DOMINIOS_REDES = {\n  instagram: ['instagram.com', 'www.instagram.com'],\n  facebook: ['facebook.com', 'www.facebook.com', 'm.facebook.com', 'fb.me'],\n  tiktok: ['tiktok.com', 'www.tiktok.com', 'vm.tiktok.com'],\n  youtube: ['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be'],\n  x: ['x.com', 'twitter.com']\n};\n// host -> prefijo de ruta obligatorio para el iframe del mapa (coincide con frame-src de la CSP)\nconst DOMINIOS_MAPA_EMBED = { 'www.openstreetmap.org': '/export/embed.html', 'www.google.com': '/maps/embed' };\nconst DOMINIOS_MAPA_ENLACE = ['www.openstreetmap.org', 'openstreetmap.org', 'osm.org', 'www.google.com', 'maps.google.com', 'maps.app.goo.gl'];\n// D13: nunca se publica un número de ejemplo\nconst WHATSAPP_EJEMPLO = ['51900000000', '51999999999', '51987654321', '51912345678', '51911111111', '51999888777', '51123456789'];\nconst PATRONES_SECRETO = [\n  { nombre: 'token de bot de Telegram (botNNN:)', re: /\\bbot\\d+:/i },\n  { nombre: 'token de Telegram', re: /\\d{8,10}:[A-Za-z0-9_-]{35}/ },\n  { nombre: 'token de GitHub (github_pat_)', re: /github_pat_/i },\n  { nombre: 'token de GitHub (ghp_)', re: /ghp_/ },\n  { nombre: 'token de GitHub (gho_/ghu_/ghs_/ghr_)', re: /\\bgh[ousr]_[A-Za-z0-9]{16,}/ },\n  { nombre: 'clave privada', re: /-----BEGIN [A-Z ]*PRIVATE KEY-----/ },\n  { nombre: 'clave de AWS', re: /\\bAKIA[0-9A-Z]{16}\\b/ },\n  { nombre: 'clave de API (sk-)', re: /\\bsk-[A-Za-z0-9_-]{20,}/ }\n];\n// Roles (decisión del usuario): admin y dueno todo; marketing NO puede estas acciones.\nconst ROLES = ['admin', 'dueno', 'marketing'];\nconst PROHIBIDO_MARKETING = ['whatsapp', 'limpiar_muestras', 'borrar', 'deshacer', 'pausa', 'reanudar', 'sitio_datos'];\n\n// ---------- Esquemas (JSON Schema 2020-12). data/schema/*.json se genera desde aquí. ----------\nconst RE = {\n  texto: '^[^<>]*$',\n  fecha: '^\\\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\\\d|3[01])T([01]\\\\d|2[0-3]):[0-5]\\\\d:[0-5]\\\\d(\\\\.\\\\d{1,3})?(Z|[+-]([01]\\\\d|2[0-3]):[0-5]\\\\d)$',\n  slug: '^[a-z0-9]+(-[a-z0-9]+)*$',\n  prd: '^prd-\\\\d{4,6}$',\n  art: '^art-\\\\d{4,6}$',\n  look: '^look-\\\\d{1,3}$',\n  draft: '^drf-[a-z0-9]{6,20}$',\n  hex: '^#[0-9A-Fa-f]{6}$',\n  hora: '^([01]\\\\d|2[0-3]):[0-5]\\\\d$',\n  https: \"^https://[^\\\\s<>\\\"'`]+$\",\n  whatsapp: '^(51\\\\d{9})?$',\n  img_producto: '^assets/img/(products|placeholders)/[a-z0-9]+(-[a-z0-9]+)*\\\\.(webp|avif|jpg|jpeg|png|svg)$',\n  img_sitio: '^assets/img/(blog|lookbook|brand|placeholders)/[a-z0-9]+(-[a-z0-9]+)*\\\\.(webp|avif|jpg|jpeg|png|svg)$',\n  ref_esquema: '^\\\\./schema/[a-z-]+\\\\.schema\\\\.json$'\n};\nfunction txt(min, max, desc) {\n  const s = { type: 'string' };\n  if (min) s.minLength = min;\n  s.maxLength = max;\n  s.pattern = RE.texto;\n  if (desc) s.description = desc;\n  return s;\n}\nfunction fechaEsq(desc) { const s = { type: 'string', pattern: RE.fecha }; if (desc) s.description = desc; return s; }\nfunction imagenEsq(patron, desc) {\n  return {\n    type: 'object', additionalProperties: false, required: ['src', 'alt', 'origen'], description: desc,\n    properties: {\n      src: { type: 'string', maxLength: 160, pattern: patron, description: 'Ruta RELATIVA dentro del repo; nunca URL externa.' },\n      alt: txt(5, 160, 'Texto alternativo en español que describe la imagen.'),\n      origen: { enum: ORIGENES_IMAGEN, description: 'foto = foto real de la tienda; ia_local = generada con IA local (sd-server); placeholder = ilustración provisional.' },\n      ancho: { type: 'integer', minimum: 1, maximum: 6000 },\n      alto: { type: 'integer', minimum: 1, maximum: 6000 }\n    }\n  };\n}\nfunction envolturaProps(nombreEsquema) {\n  return {\n    $schema: { type: 'string', pattern: RE.ref_esquema },\n    schema_version: { const: 1, description: 'Versión del contrato (cambia solo si cambia el esquema).' },\n    version: { type: 'integer', minimum: 1, description: 'Revisión de los datos: WF5 la incrementa en cada commit. La web repinta si cambia.' },\n    actualizado: fechaEsq('Fecha ISO 8601 con zona (-05:00) del último cambio publicado.'),\n    borradores_aplicados: {\n      type: 'array', maxItems: MAX_BORRADORES_APLICADOS, uniqueItems: true, items: { type: 'string', pattern: RE.draft },\n      description: 'Últimos ' + MAX_BORRADORES_APLICADOS + ' draft_id aplicados a ' + nombreEsquema + ' (idempotencia de WF5, D5).'\n    }\n  };\n}\nconst ENVOLTURA_REQ = ['schema_version', 'version', 'actualizado', 'borradores_aplicados'];\n\nconst ESQUEMAS = {\n  products: {\n    $schema: 'https://json-schema.org/draft/2020-12/schema',\n    title: 'Palmera Brava — data/products.json',\n    description: 'Catálogo. Generado desde tools/validar.js (no editar a mano). Reglas entre campos: ver docs/CONTRATO.md.',\n    type: 'object', additionalProperties: false,\n    required: ENVOLTURA_REQ.concat(['moneda', 'productos']),\n    properties: Object.assign(envolturaProps('products.json'), {\n      moneda: { const: 'PEN' },\n      productos: { type: 'array', maxItems: 1000, items: { $ref: '#/$defs/producto' } }\n    }),\n    $defs: {\n      producto: {\n        type: 'object', additionalProperties: false,\n        required: ['id', 'slug', 'nombre', 'categoria', 'subcategoria', 'precio', 'tallas', 'stock_por_talla', 'stock', 'colores',\n          'descripcion', 'etiquetas', 'imagenes', 'destacado', 'activo', 'muestra', 'fecha_creacion', 'fecha_actualizacion'],\n        properties: {\n          id: { type: 'string', pattern: RE.prd, description: 'prd-0001; inmutable; lo asigna el código (máximo + 1), nunca el LLM.' },\n          slug: { type: 'string', minLength: 3, maxLength: 80, pattern: RE.slug },\n          nombre: txt(3, 70),\n          categoria: { enum: CATEGORIAS },\n          subcategoria: { enum: SUBCATEGORIAS },\n          precio: { type: 'number', exclusiveMinimum: 0, maximum: 9999, description: 'Soles (PEN), máximo 2 decimales.' },\n          precio_oferta: { type: ['number', 'null'], exclusiveMinimum: 0, maximum: 9999, description: 'Opcional. Ausente o null = sin oferta. Debe ser menor que precio.' },\n          tallas: { type: 'array', minItems: 1, maxItems: 12, uniqueItems: true, items: { enum: TALLAS } },\n          stock_por_talla: {\n            type: 'object', propertyNames: { enum: TALLAS }, additionalProperties: { type: 'integer', minimum: 0, maximum: 9999 },\n            description: 'Una clave por cada talla de \"tallas\" (ni más ni menos).'\n          },\n          stock: { type: 'integer', minimum: 0, maximum: 99999, description: 'Suma de stock_por_talla (lo recalcula el código).' },\n          colores: { type: 'array', minItems: 1, maxItems: 8, items: { $ref: '#/$defs/color' } },\n          material: txt(2, 60),\n          frescura: { type: 'integer', minimum: 1, maximum: 5, description: 'Opcional: índice de frescura (1–5 hojitas).' },\n          descripcion: txt(0, 600),\n          etiquetas: { type: 'array', maxItems: 10, uniqueItems: true, items: { type: 'string', minLength: 2, maxLength: 24, pattern: RE.slug } },\n          imagenes: { type: 'array', maxItems: 6, items: { $ref: '#/$defs/imagen' } },\n          destacado: { type: 'boolean' },\n          activo: { type: 'boolean', description: 'false = oculto (borrado suave). Ojo: sigue siendo público en el JSON.' },\n          muestra: { type: 'boolean', description: 'true = producto de demostración (imagen IA permitida, botón \"Consultar\").' },\n          fecha_creacion: fechaEsq(),\n          fecha_actualizacion: fechaEsq()\n        }\n      },\n      color: {\n        type: 'object', additionalProperties: false, required: ['nombre', 'hex'],\n        properties: { nombre: txt(2, 24), hex: { type: 'string', pattern: RE.hex } }\n      },\n      imagen: imagenEsq(RE.img_producto, 'Imagen de producto: assets/img/products/ o assets/img/placeholders/. origen \"ia_local\" solo si muestra:true.')\n    }\n  },\n\n  articles: {\n    $schema: 'https://json-schema.org/draft/2020-12/schema',\n    title: 'Palmera Brava — data/articles.json',\n    description: 'Blog por bloques (sin HTML ni Markdown). Generado desde tools/validar.js.',\n    type: 'object', additionalProperties: false,\n    required: ENVOLTURA_REQ.concat(['articulos']),\n    properties: Object.assign(envolturaProps('articles.json'), {\n      articulos: { type: 'array', maxItems: 300, items: { $ref: '#/$defs/articulo' } }\n    }),\n    $defs: {\n      articulo: {\n        type: 'object', additionalProperties: false,\n        required: ['id', 'slug', 'titulo', 'resumen', 'portada', 'bloques', 'productos_relacionados', 'autor', 'fecha', 'activo', 'muestra'],\n        properties: {\n          id: { type: 'string', pattern: RE.art },\n          slug: { type: 'string', minLength: 3, maxLength: 90, pattern: RE.slug },\n          titulo: txt(5, 110),\n          resumen: txt(20, 240),\n          portada: { $ref: '#/$defs/imagen' },\n          bloques: { type: 'array', minItems: 1, maxItems: 60, items: { $ref: '#/$defs/bloque' } },\n          productos_relacionados: { type: 'array', maxItems: 8, uniqueItems: true, items: { type: 'string', pattern: RE.prd } },\n          autor: txt(2, 60),\n          fecha: fechaEsq('Fecha de publicación.'),\n          fecha_actualizacion: fechaEsq(),\n          activo: { type: 'boolean' },\n          muestra: { type: 'boolean' }\n        }\n      },\n      bloque: {\n        type: 'object',\n        oneOf: [\n          { $ref: '#/$defs/bloque_parrafo' }, { $ref: '#/$defs/bloque_subtitulo' }, { $ref: '#/$defs/bloque_lista' },\n          { $ref: '#/$defs/bloque_cita' }, { $ref: '#/$defs/bloque_producto' }\n        ]\n      },\n      bloque_parrafo: { type: 'object', additionalProperties: false, required: ['tipo', 'texto'], properties: { tipo: { const: 'parrafo' }, texto: txt(1, 1500) } },\n      bloque_subtitulo: { type: 'object', additionalProperties: false, required: ['tipo', 'texto'], properties: { tipo: { const: 'subtitulo' }, texto: txt(1, 120) } },\n      bloque_lista: {\n        type: 'object', additionalProperties: false, required: ['tipo', 'items'],\n        properties: { tipo: { const: 'lista' }, ordenada: { type: 'boolean' }, items: { type: 'array', minItems: 1, maxItems: 20, items: txt(1, 300) } }\n      },\n      bloque_cita: { type: 'object', additionalProperties: false, required: ['tipo', 'texto'], properties: { tipo: { const: 'cita' }, texto: txt(1, 400), autor: txt(1, 80) } },\n      bloque_producto: {\n        type: 'object', additionalProperties: false, required: ['tipo', 'ids'],\n        properties: { tipo: { const: 'producto' }, ids: { type: 'array', minItems: 1, maxItems: 4, uniqueItems: true, items: { type: 'string', pattern: RE.prd } } }\n      },\n      imagen: imagenEsq(RE.img_sitio, 'Portada: assets/img/blog/ (o placeholders). ia_local permitido; la web muestra la etiqueta de IA.')\n    }\n  },\n\n  site: {\n    $schema: 'https://json-schema.org/draft/2020-12/schema',\n    title: 'Palmera Brava — data/site.json',\n    description: 'Datos de la tienda, hero, categorías, lookbook y textos de aviso. Generado desde tools/validar.js.',\n    type: 'object', additionalProperties: false,\n    required: ENVOLTURA_REQ.concat(['nombre', 'lema', 'whatsapp', 'telefono_visible', 'ciudad', 'region', 'pais', 'direccion', 'horario',\n      'envio', 'zonas_reparto', 'metodos_pago', 'redes', 'mapa', 'hero', 'categorias', 'lookbook', 'testimonios',\n      'aviso_muestra', 'aviso_ia', 'mensajes']),\n    properties: Object.assign(envolturaProps('site.json'), {\n      nombre: txt(2, 40),\n      lema: txt(2, 90),\n      whatsapp: { type: 'string', pattern: RE.whatsapp, description: 'Formato wa.me: 51 + 9 dígitos, sin +, espacios ni guiones. Vacío = la web oculta los botones de pedido.' },\n      telefono_visible: txt(0, 24, 'Mismo número para mostrar, p. ej. \"+51 995 542 938\".'),\n      ciudad: txt(2, 40),\n      region: txt(2, 40),\n      pais: { const: 'PE' },\n      direccion: txt(2, 120, 'Sin dirección exacta mientras el dueño no la confirme.'),\n      horario: {\n        type: 'object', additionalProperties: false, required: ['texto', 'tramos'],\n        properties: {\n          texto: txt(3, 120),\n          tramos: {\n            type: 'array', minItems: 1, maxItems: 7,\n            items: {\n              type: 'object', additionalProperties: false, required: ['dias', 'abre', 'cierra'],\n              properties: {\n                dias: { type: 'array', minItems: 1, maxItems: 7, uniqueItems: true, items: { enum: DIAS } },\n                abre: { type: 'string', pattern: RE.hora },\n                cierra: { type: 'string', pattern: RE.hora }\n              }\n            }\n          }\n        }\n      },\n      envio: txt(5, 400),\n      zonas_reparto: { type: 'array', maxItems: 12, uniqueItems: true, items: txt(2, 60) },\n      metodos_pago: { type: 'array', maxItems: 10, uniqueItems: true, items: txt(2, 40) },\n      anuncio: txt(0, 140, 'Opcional: barra de anuncio.'),\n      redes: {\n        type: 'array', maxItems: 8,\n        items: {\n          type: 'object', additionalProperties: false, required: ['red', 'url'],\n          properties: { red: { enum: REDES }, url: { type: 'string', maxLength: 200, pattern: RE.https } }\n        }\n      },\n      mapa: {\n        type: 'object', additionalProperties: false, required: ['embed', 'enlace', 'lat', 'lng'],\n        properties: {\n          embed: { type: 'string', maxLength: 400, pattern: RE.https },\n          enlace: { type: 'string', maxLength: 300, pattern: RE.https },\n          lat: { type: 'number', minimum: -90, maximum: 90 },\n          lng: { type: 'number', minimum: -180, maximum: 180 },\n          nota: txt(0, 160)\n        }\n      },\n      hero: {\n        type: 'object', additionalProperties: false, required: ['imagenes'],\n        properties: { imagenes: { type: 'array', minItems: 1, maxItems: 4, items: { $ref: '#/$defs/imagen' } } }\n      },\n      categorias: {\n        type: 'array', minItems: 4, maxItems: 4,\n        items: {\n          type: 'object', additionalProperties: false, required: ['id', 'nombre', 'descripcion', 'imagen'],\n          properties: { id: { enum: CATEGORIAS }, nombre: txt(2, 30), descripcion: txt(0, 140), imagen: { $ref: '#/$defs/imagen' } }\n        }\n      },\n      lookbook: {\n        type: 'array', maxItems: 12,\n        items: {\n          type: 'object', additionalProperties: false, required: ['id', 'titulo', 'imagen', 'productos'],\n          properties: {\n            id: { type: 'string', pattern: RE.look },\n            titulo: txt(2, 60),\n            descripcion: txt(0, 200),\n            imagen: { $ref: '#/$defs/imagen' },\n            productos: { type: 'array', maxItems: 6, uniqueItems: true, items: { type: 'string', pattern: RE.prd } }\n          }\n        }\n      },\n      testimonios: {\n        type: 'array', maxItems: 20,\n        items: {\n          type: 'object', additionalProperties: false, required: ['nombre', 'texto', 'fuente', 'fecha', 'verificado'],\n          properties: { nombre: txt(2, 40), texto: txt(5, 400), fuente: txt(2, 60), fecha: fechaEsq(), verificado: { const: true } }\n        },\n        description: 'Solo testimonios REALES y verificados; nunca inventados.'\n      },\n      aviso_muestra: txt(5, 120),\n      aviso_ia: txt(5, 80),\n      mensajes: {\n        type: 'object', additionalProperties: false, required: ['pedido', 'consulta_muestra', 'consulta'],\n        description: 'Plantillas de WhatsApp. Marcadores: {nombre} {id} {url}.',\n        properties: { pedido: txt(5, 300), consulta_muestra: txt(5, 400), consulta: txt(5, 300) }\n      }\n    }),\n    $defs: {\n      imagen: imagenEsq(RE.img_sitio, 'Imagen de sitio: assets/img/brand|lookbook|blog|placeholders/. ia_local permitido.')\n    }\n  }\n};\n\n// ---------- Formato de salida del LLM (D4) para Ollama /api/chat \"format\" ----------\nconst OPS_LLM = ['crear', 'actualizar', 'desactivar', 'reactivar', 'stock', 'agregar_imagen'];\nconst CAMPOS_LLM_PRODUCTO = ['nombre', 'categoria', 'subcategoria', 'precio', 'precio_oferta', 'tallas', 'stock_tallas', 'stock_modo', 'colores',\n  'material', 'descripcion', 'etiquetas', 'alt_imagen', 'destacado'];\nconst CAMPOS_LLM_ARTICULO = ['titulo', 'resumen', 'bloques', 'productos_relacionados', 'alt_portada'];\nconst ESQUEMA_LLM_PRODUCTO = {\n  type: 'object',\n  properties: {\n    op: { type: 'string', enum: OPS_LLM },\n    entidad: { type: 'string', enum: ['producto'] },\n    id: { type: ['string', 'null'], description: 'prd-0000 del catálogo; null si op=crear' },\n    campos: {\n      type: 'object',\n      properties: {\n        nombre: { type: ['string', 'null'] },\n        categoria: { type: ['string', 'null'], enum: CATEGORIAS.concat([null]) },\n        subcategoria: { type: ['string', 'null'], enum: SUBCATEGORIAS.concat([null]) },\n        precio: { type: ['number', 'null'] },\n        precio_oferta: { type: ['number', 'null'] },\n        tallas: { type: 'array', items: { type: 'string', enum: TALLAS } },\n        stock_tallas: {\n          type: 'array',\n          items: { type: 'object', properties: { talla: { type: 'string', enum: TALLAS }, cantidad: { type: 'integer' } }, required: ['talla', 'cantidad'] }\n        },\n        stock_modo: { type: ['string', 'null'], enum: ['fijar', 'sumar', 'restar', null], description: 'fijar = cantidad total nueva; sumar = llegaron N más; restar = se vendieron N' },\n        colores: { type: 'array', items: { type: 'string' } },\n        material: { type: ['string', 'null'] },\n        descripcion: { type: ['string', 'null'] },\n        etiquetas: { type: 'array', items: { type: 'string' } },\n        alt_imagen: { type: ['string', 'null'] },\n        destacado: { type: ['boolean', 'null'] }\n      },\n      required: CAMPOS_LLM_PRODUCTO.slice()\n    },\n    campos_inferidos: { type: 'array', items: { type: 'string', enum: CAMPOS_LLM_PRODUCTO } },\n    faltantes: { type: 'array', items: { type: 'string', enum: CAMPOS_LLM_PRODUCTO.concat(['id', 'foto']) } }\n  },\n  required: ['op', 'entidad', 'id', 'campos', 'campos_inferidos', 'faltantes']\n};\nconst ESQUEMA_LLM_ARTICULO = {\n  type: 'object',\n  properties: {\n    op: { type: 'string', enum: ['crear', 'actualizar', 'desactivar', 'reactivar'] },\n    entidad: { type: 'string', enum: ['articulo'] },\n    id: { type: ['string', 'null'], description: 'art-0000; null si op=crear' },\n    campos: {\n      type: 'object',\n      properties: {\n        titulo: { type: ['string', 'null'] },\n        resumen: { type: ['string', 'null'] },\n        bloques: {\n          type: 'array',\n          items: {\n            type: 'object',\n            properties: {\n              tipo: { type: 'string', enum: ['parrafo', 'subtitulo', 'lista', 'cita'] },\n              texto: { type: 'string' },\n              items: { type: 'array', items: { type: 'string' } }\n            },\n            required: ['tipo', 'texto', 'items']\n          }\n        },\n        productos_relacionados: { type: 'array', items: { type: 'string' } },\n        alt_portada: { type: ['string', 'null'] }\n      },\n      required: CAMPOS_LLM_ARTICULO.slice()\n    },\n    campos_inferidos: { type: 'array', items: { type: 'string', enum: CAMPOS_LLM_ARTICULO } },\n    faltantes: { type: 'array', items: { type: 'string', enum: CAMPOS_LLM_ARTICULO.concat(['id', 'tema']) } }\n  },\n  required: ['op', 'entidad', 'id', 'campos', 'campos_inferidos', 'faltantes']\n};\n\n// ---------- Utilidades puras ----------\nfunction tipoDe(v) {\n  if (v === null) return 'null';\n  if (Array.isArray(v)) return 'array';\n  if (typeof v === 'number') return Number.isInteger(v) ? 'integer' : 'number';\n  return typeof v;\n}\nfunction esObjeto(v) { return tipoDe(v) === 'object'; }\nfunction cumpleTipo(v, t) {\n  const r = tipoDe(v);\n  if (t === 'number') return r === 'number' || r === 'integer';\n  return r === t;\n}\nfunction igual(a, b) {\n  if (a === b) return true;\n  const ta = tipoDe(a), tb = tipoDe(b);\n  if (ta !== tb && !(cumpleTipo(a, 'number') && cumpleTipo(b, 'number'))) return false;\n  if (ta === 'array') { if (a.length !== b.length) return false; for (let i = 0; i < a.length; i++) if (!igual(a[i], b[i])) return false; return true; }\n  if (ta === 'object') {\n    const ka = Object.keys(a), kb = Object.keys(b);\n    if (ka.length !== kb.length) return false;\n    for (const k of ka) { if (!Object.prototype.hasOwnProperty.call(b, k) || !igual(a[k], b[k])) return false; }\n    return true;\n  }\n  return false;\n}\nfunction bytesUtf8(s) {\n  let n = 0;\n  for (let i = 0; i < s.length; i++) {\n    const c = s.charCodeAt(i);\n    if (c < 0x80) n += 1; else if (c < 0x800) n += 2;\n    else if (c >= 0xd800 && c <= 0xdbff && i + 1 < s.length) { n += 4; i++; } else n += 3;\n  }\n  return n;\n}\nfunction serializar(doc) { return JSON.stringify(doc, null, 2) + '\\n'; }\nfunction largo(s) { return Array.from(s).length; }\nconst CACHE_RE = {};\nfunction regex(p) { return CACHE_RE[p] || (CACHE_RE[p] = new RegExp(p, 'u')); }\nfunction idSeguro(v) { return typeof v === 'string' && /^[a-z]{3,4}-\\d{1,6}$/.test(v) ? v : null; }\nfunction corto(v) {\n  let s;\n  try { s = JSON.stringify(v); } catch (e) { s = String(v); }\n  if (s === undefined) s = String(v);\n  s = s.replace(/[<>]/g, '?');\n  return s.length > 60 ? s.slice(0, 57) + '...' : s;\n}\nfunction quitarTildes(s) { return String(s).normalize('NFD').replace(/[\\u0300-\\u036f]/g, ''); }\nfunction hostHttps(url) {\n  if (typeof url !== 'string') return null;\n  const m = /^https:\\/\\/([a-z0-9.-]+)(?::\\d{1,5})?([/?#][^\\s<>\"'`]*)?$/i.exec(url);\n  if (!m) return null;\n  return { host: m[1].toLowerCase(), ruta: (m[2] || '/') };\n}\nfunction soles(n) { return 'S/ ' + Number(n).toFixed(2); }\n\n// ---------- Mini validador de JSON Schema (subconjunto usado por estos esquemas) ----------\nfunction resolverRef(raiz, ref) {\n  if (typeof ref !== 'string' || ref.indexOf('#/') !== 0) throw new Error('$ref no soportado: ' + ref);\n  return ref.slice(2).split('/').reduce(function (o, k) { return o ? o[k] : undefined; }, raiz);\n}\nfunction segmento(ruta, i, item) {\n  const id = esObjeto(item) ? idSeguro(item.id) : null;\n  return ruta + '[' + i + ']' + (id ? '(' + id + ')' : '');\n}\nfunction validarEsquema(valor, esq, raiz, ruta, salida) {\n  if (esq && esq.$ref) esq = resolverRef(raiz, esq.$ref);\n  if (!esq) return;\n  const push = function (m) { salida.push(ruta + ': ' + m); };\n  if (esq.type !== undefined) {\n    const tipos = Array.isArray(esq.type) ? esq.type : [esq.type];\n    if (!tipos.some(function (t) { return cumpleTipo(valor, t); })) { push('debe ser ' + tipos.join(' o ') + ' (es ' + tipoDe(valor) + ')'); return; }\n  }\n  if (Object.prototype.hasOwnProperty.call(esq, 'const') && !igual(valor, esq.const)) { push('debe ser ' + corto(esq.const) + ' (es ' + corto(valor) + ')'); return; }\n  if (esq.enum && !esq.enum.some(function (e) { return igual(e, valor); })) {\n    const lista = esq.enum.length > 12 ? esq.enum.slice(0, 12).map(corto).join(', ') + '...' : esq.enum.map(corto).join(', ');\n    push('valor no permitido ' + corto(valor) + ' (permitidos: ' + lista + ')'); return;\n  }\n  if (typeof valor === 'number') {\n    if (!Number.isFinite(valor)) { push('número no válido'); return; }\n    if (esq.minimum !== undefined && valor < esq.minimum) push('debe ser mayor o igual que ' + esq.minimum + ' (es ' + valor + ')');\n    if (esq.maximum !== undefined && valor > esq.maximum) push('debe ser menor o igual que ' + esq.maximum + ' (es ' + valor + ')');\n    if (esq.exclusiveMinimum !== undefined && valor <= esq.exclusiveMinimum) push('debe ser mayor que ' + esq.exclusiveMinimum + ' (es ' + valor + ')');\n    if (esq.exclusiveMaximum !== undefined && valor >= esq.exclusiveMaximum) push('debe ser menor que ' + esq.exclusiveMaximum + ' (es ' + valor + ')');\n  }\n  if (typeof valor === 'string') {\n    const n = largo(valor);\n    if (esq.minLength !== undefined && n < esq.minLength) push('texto demasiado corto (mínimo ' + esq.minLength + ', tiene ' + n + ')');\n    if (esq.maxLength !== undefined && n > esq.maxLength) push('texto demasiado largo (máximo ' + esq.maxLength + ', tiene ' + n + ')');\n    if (esq.pattern !== undefined && !regex(esq.pattern).test(valor)) {\n      push(esq.pattern === RE.texto ? 'no puede contener los signos menor que ni mayor que (texto plano)' : 'formato no válido ' + corto(valor));\n    }\n  }\n  if (Array.isArray(valor)) {\n    if (esq.minItems !== undefined && valor.length < esq.minItems) push('debe tener al menos ' + esq.minItems + ' elemento(s)');\n    if (esq.maxItems !== undefined && valor.length > esq.maxItems) push('debe tener como máximo ' + esq.maxItems + ' elementos (tiene ' + valor.length + ')');\n    if (esq.uniqueItems) {\n      for (let i = 0; i < valor.length; i++) for (let j = 0; j < i; j++) {\n        if (igual(valor[i], valor[j])) { push('elementos repetidos: [' + j + '] y [' + i + '] ' + corto(valor[i])); i = valor.length; break; }\n      }\n    }\n    if (esq.items) for (let i = 0; i < valor.length; i++) validarEsquema(valor[i], esq.items, raiz, segmento(ruta, i, valor[i]), salida);\n  }\n  if (esObjeto(valor)) {\n    const props = esq.properties || {};\n    if (esq.required) for (const k of esq.required) if (!Object.prototype.hasOwnProperty.call(valor, k)) push('falta el campo obligatorio \"' + k + '\"');\n    for (const k of Object.keys(valor)) {\n      if (esq.propertyNames) {\n        const e2 = [];\n        validarEsquema(k, esq.propertyNames, raiz, ruta, e2);\n        if (e2.length) { push('nombre de campo no permitido ' + corto(k)); continue; }\n      }\n      if (Object.prototype.hasOwnProperty.call(props, k)) validarEsquema(valor[k], props[k], raiz, ruta + '.' + k, salida);\n      else if (esq.additionalProperties === false) push('campo no permitido ' + corto(k));\n      else if (esObjeto(esq.additionalProperties)) validarEsquema(valor[k], esq.additionalProperties, raiz, ruta + '.' + k, salida);\n    }\n  }\n  if (esq.oneOf) {\n    const res = esq.oneOf.map(function (s) { const e = []; validarEsquema(valor, s, raiz, ruta, e); return e; });\n    const validos = res.filter(function (r) { return r.length === 0; }).length;\n    if (validos === 0) {\n      let idx = -1;\n      if (esObjeto(valor)) {\n        idx = esq.oneOf.findIndex(function (s0) {\n          const s = s0.$ref ? resolverRef(raiz, s0.$ref) : s0;\n          const p = (s && s.properties) || {};\n          return Object.keys(p).some(function (k) { return Object.prototype.hasOwnProperty.call(p[k], 'const') && igual(valor[k], p[k].const); });\n        });\n      }\n      if (idx >= 0) res[idx].forEach(function (m) { salida.push(m); });\n      else push('no coincide con ningún tipo permitido ' + corto(valor && valor.tipo !== undefined ? valor.tipo : valor));\n    } else if (validos > 1) push('coincide con más de un tipo');\n  }\n}\n\n// ---------- Validador principal ----------\nfunction validar(docs, opciones) {\n  docs = docs || {};\n  opciones = opciones || {};\n  const errores = [], avisos = [];\n  const err = function (cod, ruta, msg) { errores.push('[' + cod + '] ' + ruta + ': ' + msg); };\n  const avi = function (cod, ruta, msg) { avisos.push('[' + cod + '] ' + ruta + ': ' + msg); };\n  const datos = {};\n  const bytes = {};\n  const NOMBRES = ['products', 'articles', 'site'];\n  let recibidos = 0;\n\n  for (const nombre of NOMBRES) {\n    let doc = docs[nombre];\n    if (doc === undefined || doc === null) continue;\n    recibidos++;\n    let texto = null;\n    if (typeof doc === 'string') {\n      texto = doc;\n      try { doc = JSON.parse(texto.charCodeAt(0) === 0xfeff ? texto.slice(1) : texto); } catch (e) { err('json', nombre, 'no es JSON válido (' + String(e.message || e).replace(/[<>]/g, '?').slice(0, 120) + ')'); continue; }\n    }\n    if (!esObjeto(doc)) { err('json', nombre, 'debe ser un objeto JSON (es ' + tipoDe(doc) + ')'); continue; }\n    const serial = serializar(doc);\n    bytes[nombre] = Math.max(bytesUtf8(serial), texto !== null ? bytesUtf8(texto) : 0);\n    if (bytes[nombre] >= LIMITE_BYTES) err('tamano', nombre, 'pesa ' + bytes[nombre] + ' bytes; debe pesar menos de ' + LIMITE_BYTES + ' (1 MB)');\n    revisarSecretos(texto !== null ? texto + '\\n' + serial : serial, nombre, err);\n    revisarCadenas(doc, nombre, err);\n    const eEsq = [];\n    validarEsquema(doc, ESQUEMAS[nombre], ESQUEMAS[nombre], nombre, eEsq);\n    for (const m of eEsq) errores.push('[esquema] ' + m);\n    datos[nombre] = doc;\n  }\n  if (!recibidos) err('entrada', 'docs', 'no se recibió ningún documento (products, articles o site)');\n\n  const P = datos.products && Array.isArray(datos.products.productos) ? datos.products.productos : null;\n  const AR = datos.articles && Array.isArray(datos.articles.articulos) ? datos.articles.articulos : null;\n  const S = datos.site || null;\n  if (P) reglasProductos(P, err, avi);\n  if (AR) reglasArticulos(AR, err, avi);\n  if (S) reglasSitio(S, err, avi);\n  reglasReferencias(P, AR, S, err, avi);\n  if (opciones.anterior) limitesDeDano(datos, opciones, err, avi);\n\n  const resumen = {\n    contrato: CONTRATO_VERSION,\n    productos: P ? P.length : null,\n    productos_activos: P ? P.filter(function (p) { return esObjeto(p) && p.activo === true; }).length : null,\n    productos_muestra: P ? P.filter(function (p) { return esObjeto(p) && p.muestra === true; }).length : null,\n    articulos: AR ? AR.length : null,\n    bytes: bytes\n  };\n  return { ok: errores.length === 0, errores: errores, avisos: avisos, resumen: resumen };\n}\n\nfunction revisarSecretos(texto, nombre, err) {\n  for (const p of PATRONES_SECRETO) if (p.re.test(texto)) err('secreto', nombre, 'contiene algo con forma de ' + p.nombre + '; nunca se publica un secreto');\n}\nfunction revisarCadenas(v, ruta, err) {\n  if (typeof v === 'string') {\n    if (/[<>]/.test(v)) err('html', ruta, 'contiene signos menor/mayor que; los textos son texto plano');\n    if (/^\\s*(javascript|vbscript|data|file):/i.test(v)) err('enlace', ruta, 'esquema de URL no permitido ' + corto(v.slice(0, 20)));\n    return;\n  }\n  if (Array.isArray(v)) { v.forEach(function (x, i) { revisarCadenas(x, segmento(ruta, i, x), err); }); return; }\n  if (esObjeto(v)) for (const k of Object.keys(v)) {\n    if (/[<>]/.test(k)) err('html', ruta, 'un nombre de campo contiene signos menor/mayor que');\n    revisarCadenas(v[k], ruta + '.' + k.replace(/[<>]/g, '?').slice(0, 40), err);\n  }\n}\nfunction dosDecimales(n) { return Math.abs(Math.round(n * 100) - n * 100) < 1e-6; }\nfunction revisarImagen(img, ruta, esProducto, muestra, err, avi) {\n  if (!esObjeto(img) || typeof img.src !== 'string') return;\n  const enPlaceholders = img.src.indexOf('assets/img/placeholders/') === 0;\n  if (img.origen === 'placeholder' && !enPlaceholders) err('imagen_ruta', ruta, 'origen \"placeholder\" debe estar en assets/img/placeholders/');\n  if (img.origen !== 'placeholder' && enPlaceholders) err('imagen_ruta', ruta, 'una imagen en assets/img/placeholders/ debe tener origen \"placeholder\"');\n  if (esProducto && img.origen === 'ia_local' && muestra !== true) {\n    err('imagen_origen', ruta, 'origen \"ia_local\" solo se permite en productos de muestra (muestra:true); un producto real necesita una foto real');\n  }\n}\nfunction revisarUnicos(lista, campo, codigo, rutaBase, err) {\n  const visto = {};\n  lista.forEach(function (x, i) {\n    if (!esObjeto(x) || typeof x[campo] !== 'string') return;\n    const v = x[campo];\n    if (Object.prototype.hasOwnProperty.call(visto, v)) err(codigo, segmento(rutaBase, i, x), campo + ' ' + corto(v) + ' repetido (ya está en [' + visto[v] + '])');\n    else visto[v] = i;\n  });\n}\nfunction reglasProductos(P, err, avi) {\n  revisarUnicos(P, 'id', 'id_duplicado', 'products.productos', err);\n  revisarUnicos(P, 'slug', 'slug_duplicado', 'products.productos', err);\n  const ahora = Date.now();\n  P.forEach(function (p, i) {\n    if (!esObjeto(p)) return;\n    const r = segmento('products.productos', i, p);\n    const num = function (v) { return typeof v === 'number' && Number.isFinite(v); };\n    if (num(p.precio) && !dosDecimales(p.precio)) err('precio', r + '.precio', 'máximo 2 decimales');\n    if (num(p.precio_oferta)) {\n      if (!dosDecimales(p.precio_oferta)) err('precio', r + '.precio_oferta', 'máximo 2 decimales');\n      if (num(p.precio) && p.precio_oferta >= p.precio) err('precio_oferta', r, 'precio_oferta (' + soles(p.precio_oferta) + ') debe ser menor que precio (' + soles(p.precio) + ')');\n      else if (num(p.precio) && p.precio_oferta < p.precio * 0.3) avi('descuento', r, 'descuento mayor al 70 %: confirma que no es un error');\n    }\n    const permitidas = TALLAS_POR_CATEGORIA[p.categoria];\n    const tallas = Array.isArray(p.tallas) ? p.tallas.filter(function (t) { return typeof t === 'string'; }) : null;\n    if (permitidas && tallas) for (const t of tallas) {\n      if (TALLAS.indexOf(t) >= 0 && permitidas.indexOf(t) < 0) err('talla_categoria', r + '.tallas', 'la talla ' + corto(t) + ' no corresponde a la categoría \"' + p.categoria + '\" (permitidas: ' + permitidas.join(' ') + ')');\n    }\n    if (tallas && esObjeto(p.stock_por_talla)) {\n      const claves = Object.keys(p.stock_por_talla);\n      for (const t of tallas) if (claves.indexOf(t) < 0) err('stock', r + '.stock_por_talla', 'falta la talla ' + corto(t));\n      for (const k of claves) if (tallas.indexOf(k) < 0) err('stock', r + '.stock_por_talla', 'tiene la talla ' + corto(k) + ', que no está en tallas');\n      let suma = 0, valido = true;\n      for (const k of claves) { const v = p.stock_por_talla[k]; if (Number.isInteger(v) && v >= 0) suma += v; else valido = false; }\n      if (valido && Number.isInteger(p.stock) && suma !== p.stock) err('stock', r + '.stock', 'stock (' + p.stock + ') no coincide con la suma de stock_por_talla (' + suma + ')');\n      if (valido && p.activo === true && suma === 0) avi('agotado', r, 'producto activo sin stock: la web lo mostrará \"Agotado\"');\n    }\n    const fc = Date.parse(p.fecha_creacion), fa = Date.parse(p.fecha_actualizacion);\n    if (typeof p.fecha_creacion === 'string' && isNaN(fc)) err('fecha', r + '.fecha_creacion', 'fecha no válida');\n    if (typeof p.fecha_actualizacion === 'string' && isNaN(fa)) err('fecha', r + '.fecha_actualizacion', 'fecha no válida');\n    if (!isNaN(fc) && !isNaN(fa) && fa < fc) err('fecha', r, 'fecha_actualizacion es anterior a fecha_creacion');\n    if (!isNaN(fc) && fc > ahora + 86400000) avi('fecha', r + '.fecha_creacion', 'está en el futuro');\n    if (Array.isArray(p.imagenes)) {\n      p.imagenes.forEach(function (img, j) { revisarImagen(img, r + '.imagenes[' + j + ']', true, p.muestra, err, avi); });\n      if (p.activo === true && p.imagenes.length === 0) avi('sin_imagen', r, 'producto activo sin imagen: la web usará un marcador');\n    }\n    if (Array.isArray(p.colores)) {\n      const nombres = p.colores.map(function (c) { return esObjeto(c) && typeof c.nombre === 'string' ? quitarTildes(c.nombre).toLowerCase() : null; }).filter(Boolean);\n      if (new Set(nombres).size !== nombres.length) avi('colores', r + '.colores', 'hay nombres de color repetidos');\n    }\n  });\n}\nfunction reglasArticulos(AR, err, avi) {\n  revisarUnicos(AR, 'id', 'id_duplicado', 'articles.articulos', err);\n  revisarUnicos(AR, 'slug', 'slug_duplicado', 'articles.articulos', err);\n  AR.forEach(function (a, i) {\n    if (!esObjeto(a)) return;\n    const r = segmento('articles.articulos', i, a);\n    if (esObjeto(a.portada)) revisarImagen(a.portada, r + '.portada', false, a.muestra, err, avi);\n    const f = Date.parse(a.fecha), fa = Date.parse(a.fecha_actualizacion);\n    if (typeof a.fecha === 'string' && isNaN(f)) err('fecha', r + '.fecha', 'fecha no válida');\n    if (typeof a.fecha_actualizacion === 'string' && !isNaN(f) && !isNaN(fa) && fa < f) err('fecha', r, 'fecha_actualizacion es anterior a fecha');\n    if (Array.isArray(a.bloques) && !a.bloques.some(function (b) { return esObjeto(b) && b.tipo === 'parrafo'; })) avi('bloques', r, 'el artículo no tiene ningún párrafo');\n  });\n}\nfunction reglasSitio(S, err, avi) {\n  const w = S.whatsapp;\n  if (typeof w === 'string') {\n    if (w === '') avi('whatsapp', 'site.whatsapp', 'vacío: la web oculta los botones de pedido');\n    else if (!/^51\\d{9}$/.test(w)) err('whatsapp', 'site.whatsapp', 'debe cumplir ^51\\\\d{9}$ (51 + 9 dígitos, sin +, espacios ni guiones) y es ' + corto(w));\n    else {\n      if (WHATSAPP_EJEMPLO.indexOf(w) >= 0) err('whatsapp', 'site.whatsapp', 'es un número de ejemplo; nunca se publica (D13)');\n      if (w.charAt(2) !== '9') avi('whatsapp', 'site.whatsapp', 'los celulares de Perú empiezan con 9 después del 51');\n    }\n    if (typeof S.telefono_visible === 'string') {\n      const dig = S.telefono_visible.replace(/\\D/g, '');\n      const esperado = w === '' ? '' : w;\n      if (dig !== esperado && !(w !== '' && dig === w.slice(2))) err('whatsapp', 'site.telefono_visible', 'no coincide con site.whatsapp (' + corto(S.telefono_visible) + ' vs ' + corto(w) + ')');\n    }\n  }\n  if (Array.isArray(S.redes)) S.redes.forEach(function (red, i) {\n    if (!esObjeto(red) || typeof red.url !== 'string') return;\n    const h = hostHttps(red.url);\n    const ruta = 'site.redes[' + i + ']';\n    if (!h) { err('enlace', ruta, 'solo se permiten enlaces https:// válidos ' + corto(red.url.slice(0, 40))); return; }\n    const permitidos = DOMINIOS_REDES[red.red];\n    if (permitidos && permitidos.indexOf(h.host) < 0) err('enlace', ruta, 'el dominio ' + corto(h.host) + ' no corresponde a ' + red.red + ' (permitidos: ' + permitidos.join(', ') + ')');\n  });\n  if (esObjeto(S.mapa)) {\n    const e = hostHttps(S.mapa.embed);\n    if (typeof S.mapa.embed === 'string') {\n      if (!e) err('enlace', 'site.mapa.embed', 'solo https:// válido');\n      else if (!DOMINIOS_MAPA_EMBED[e.host] || e.ruta.indexOf(DOMINIOS_MAPA_EMBED[e.host]) !== 0) err('enlace', 'site.mapa.embed', 'solo se permite el embed de OpenStreetMap (www.openstreetmap.org/export/embed.html) o Google Maps (www.google.com/maps/embed)');\n    }\n    const l = hostHttps(S.mapa.enlace);\n    if (typeof S.mapa.enlace === 'string') {\n      if (!l) err('enlace', 'site.mapa.enlace', 'solo https:// válido');\n      else if (DOMINIOS_MAPA_ENLACE.indexOf(l.host) < 0) err('enlace', 'site.mapa.enlace', 'dominio no permitido ' + corto(l.host));\n    }\n  }\n  if (esObjeto(S.horario) && Array.isArray(S.horario.tramos)) S.horario.tramos.forEach(function (t, i) {\n    if (esObjeto(t) && /^\\d\\d:\\d\\d$/.test(t.abre) && /^\\d\\d:\\d\\d$/.test(t.cierra) && t.abre >= t.cierra) err('horario', 'site.horario.tramos[' + i + ']', 'abre (' + t.abre + ') debe ser antes de cierra (' + t.cierra + ')');\n  });\n  if (Array.isArray(S.categorias)) {\n    const ids = S.categorias.map(function (c) { return esObjeto(c) ? c.id : null; });\n    for (const c of CATEGORIAS) if (ids.indexOf(c) < 0) err('categorias', 'site.categorias', 'falta la categoría \"' + c + '\"');\n    S.categorias.forEach(function (c, i) { if (esObjeto(c) && esObjeto(c.imagen)) revisarImagen(c.imagen, 'site.categorias[' + i + '].imagen', false, null, err, avi); });\n  }\n  if (esObjeto(S.hero) && Array.isArray(S.hero.imagenes)) S.hero.imagenes.forEach(function (img, i) { revisarImagen(img, 'site.hero.imagenes[' + i + ']', false, null, err, avi); });\n  if (Array.isArray(S.lookbook)) {\n    revisarUnicos(S.lookbook, 'id', 'id_duplicado', 'site.lookbook', err);\n    S.lookbook.forEach(function (l, i) { if (esObjeto(l) && esObjeto(l.imagen)) revisarImagen(l.imagen, segmento('site.lookbook', i, l) + '.imagen', false, null, err, avi); });\n  }\n}\nfunction reglasReferencias(P, AR, S, err, avi) {\n  const citan = (AR && AR.length) || (S && Array.isArray(S.lookbook) && S.lookbook.length);\n  if (!P) { if (citan) avi('referencia', 'products', 'no se recibió products.json: no se comprobaron las referencias a productos'); return; }\n  const existe = {}, activo = {};\n  P.forEach(function (p) { if (esObjeto(p) && typeof p.id === 'string') { existe[p.id] = true; if (p.activo === true) activo[p.id] = true; } });\n  const revisar = function (id, ruta, quien) {\n    if (typeof id !== 'string') return;\n    if (!existe[id]) err('referencia', ruta, quien + ' cita el producto ' + corto(id) + ', que no existe');\n    else if (!activo[id]) avi('referencia_inactiva', ruta, quien + ' cita el producto ' + corto(id) + ', que está oculto (activo:false)');\n  };\n  if (AR) AR.forEach(function (a, i) {\n    if (!esObjeto(a)) return;\n    const r = segmento('articles.articulos', i, a);\n    const quien = idSeguro(a.id) || 'el artículo';\n    if (Array.isArray(a.productos_relacionados)) a.productos_relacionados.forEach(function (id) { revisar(id, r + '.productos_relacionados', quien); });\n    if (Array.isArray(a.bloques)) a.bloques.forEach(function (b, j) {\n      if (esObjeto(b) && b.tipo === 'producto' && Array.isArray(b.ids)) b.ids.forEach(function (id) { revisar(id, r + '.bloques[' + j + ']', quien); });\n    });\n  });\n  if (S && Array.isArray(S.lookbook)) S.lookbook.forEach(function (l, i) {\n    if (esObjeto(l) && Array.isArray(l.productos)) l.productos.forEach(function (id) { revisar(id, segmento('site.lookbook', i, l) + '.productos', idSeguro(l.id) || 'el lookbook'); });\n  });\n}\nfunction sinEnvoltura(doc) {\n  const o = {};\n  for (const k of Object.keys(doc || {})) if (['$schema', 'version', 'actualizado', 'borradores_aplicados'].indexOf(k) < 0) o[k] = doc[k];\n  return o;\n}\nfunction porId(lista) {\n  const m = {};\n  (Array.isArray(lista) ? lista : []).forEach(function (x) { if (esObjeto(x) && typeof x.id === 'string' && !m[x.id]) m[x.id] = x; });\n  return m;\n}\nfunction limitesDeDano(datos, opciones, err, avi) {\n  const ant = {};\n  for (const n of ['products', 'articles', 'site']) {\n    let d = opciones.anterior[n];\n    if (typeof d === 'string') { try { d = JSON.parse(d.charCodeAt(0) === 0xfeff ? d.slice(1) : d); } catch (e) { err('anterior', n, 'la versión anterior no es JSON válido'); d = null; } }\n    if (esObjeto(d)) ant[n] = d;\n  }\n  const lote = Array.isArray(opciones.idsLote) ? opciones.idsLote.map(String) : null;\n  const limpieza = opciones.permitirLimpieza === true;\n  const rol = opciones.rol;\n  if (rol !== undefined && rol !== null && ROLES.indexOf(rol) < 0) err('permiso', 'opciones.rol', 'rol desconocido ' + corto(rol));\n  if (limpieza && rol === 'marketing') err('permiso', 'opciones', 'el rol marketing no puede ejecutar /limpiar_muestras');\n\n  const diffLista = function (nombre, campoLista, etiqueta) {\n    if (!ant[nombre] || !datos[nombre]) return null;\n    const a = porId(ant[nombre][campoLista]), b = porId(datos[nombre][campoLista]);\n    const quitados = Object.keys(a).filter(function (id) { return !b[id]; });\n    const nuevos = Object.keys(b).filter(function (id) { return !a[id]; });\n    const cambiados = Object.keys(b).filter(function (id) { return a[id] && !igual(a[id], b[id]); });\n    if (lote) for (const id of quitados.concat(nuevos, cambiados)) if (lote.indexOf(id) < 0) {\n      err('fuera_de_lote', nombre, 'el cambio toca ' + corto(id) + ', que no está en el lote (' + (lote.join(', ') || 'vacío') + ')');\n    }\n    const activos = function (m) { return Object.keys(m).filter(function (id) { return m[id].activo === true; }); };\n    const totA = Object.keys(a).length, totB = Object.keys(b).length;\n    const actA = activos(a), actB = activos(b);\n    if (!limpieza) {\n      if (totA - totB > 1) err('borrado_masivo', nombre, 'pasa de ' + totA + ' a ' + totB + ' ' + etiqueta + '; máximo 1 menos por operación (salvo /limpiar_muestras)');\n      if (actA.length - actB.length > 1) err('borrado_masivo', nombre, etiqueta + ' activos pasan de ' + actA.length + ' a ' + actB.length + '; máximo 1 menos por operación (salvo /limpiar_muestras)');\n    } else {\n      const afectados = quitados.concat(actA.filter(function (id) { return b[id] && b[id].activo !== true; }));\n      for (const id of afectados) if (a[id].muestra !== true) err('limpieza', nombre, '/limpiar_muestras solo puede quitar contenido de muestra; ' + corto(id) + ' es real');\n    }\n    if (quitados.length && rol === 'marketing') err('permiso', nombre, 'el rol marketing no puede borrar (' + quitados.join(', ') + ')');\n    for (const id of cambiados) {\n      if (a[id].muestra === false && b[id].muestra === true) err('muestra', nombre + ' ' + id, 'un registro real no puede volver a ser muestra');\n      if (campoLista === 'productos' && a[id].fecha_creacion !== b[id].fecha_creacion) err('fecha', nombre + ' ' + id, 'fecha_creacion no se puede cambiar');\n      if (a[id].slug !== b[id].slug) avi('slug', nombre + ' ' + id, 'cambiar el slug rompe los enlaces ya compartidos');\n    }\n    if (Number.isInteger(ant[nombre].version) && Number.isInteger(datos[nombre].version) && datos[nombre].version < ant[nombre].version) {\n      avi('version', nombre, 'la versión retrocede (' + ant[nombre].version + ' a ' + datos[nombre].version + ')');\n    }\n    return { quitados: quitados, nuevos: nuevos, cambiados: cambiados };\n  };\n  diffLista('products', 'productos', 'productos');\n  diffLista('articles', 'articulos', 'artículos');\n  if (ant.site && datos.site) {\n    const a = sinEnvoltura(ant.site), b = sinEnvoltura(datos.site);\n    if (!igual(a, b)) {\n      if (lote && lote.indexOf('site') < 0) err('fuera_de_lote', 'site', 'el cambio toca site.json, que no está en el lote (añade \"site\")');\n      const cambia = function (k) { return !igual(a[k], b[k]); };\n      if ((cambia('whatsapp') || cambia('telefono_visible')) && rol === 'marketing') err('permiso', 'site.whatsapp', 'el rol marketing no puede cambiar el WhatsApp');\n      if (cambia('whatsapp')) avi('whatsapp_cambio', 'site.whatsapp', 'cambia de ' + corto(a.whatsapp) + ' a ' + corto(b.whatsapp) + ': requiere confirmación especial');\n      const deDatos = ['nombre', 'lema', 'ciudad', 'region', 'pais', 'direccion', 'horario', 'envio', 'zonas_reparto', 'metodos_pago', 'redes', 'mapa', 'testimonios', 'mensajes'];\n      if (rol === 'marketing' && deDatos.some(cambia)) err('permiso', 'site', 'el rol marketing solo puede cambiar imágenes del sitio (hero, categorías, lookbook)');\n    }\n  }\n}\n\n// ---------- Ayudas para WF3/WF4 (operación del LLM, permisos, ids) ----------\n// Reglas de categoría (también van en el prompt). Devuelve la categoría que el TEXTO del dueño\n// impone sin ambigüedad, o null si no hay palabra clave clara.\nfunction inferirCategoria(texto) {\n  const t = ' ' + quitarTildes(String(texto || '')).toLowerCase() + ' ';\n  const hay = function (re) { return re.test(t); };\n  if (hay(/\\b(nin[oa]s?|infantil(es)?|bebes?|nen[ae]s?|kids?|escolar(es)?|junior)\\b/)) return 'ninos';\n  if (hay(/\\b(gorras?|gorros?|sombreros?|bolsos?|carteras?|lentes|gafas|mochilas?|correas?|cinturon(es)?|billeteras?|canguros?)\\b/)) return 'accesorios';\n  const mujer = hay(/\\b(damas?|mujer(es)?|senoras?|senoritas?|femenin[oa]s?)\\b/);\n  const hombre = hay(/\\b(caballeros?|hombres?|varon(es)?|masculin[oa]s?)\\b/);\n  if (mujer && !hombre) return 'mujeres';\n  if (hombre && !mujer) return 'hombres';\n  if (!mujer && !hombre && hay(/\\b(sandalias?|chancletas?|ojotas?)\\b/)) return 'accesorios';\n  return null;\n}\n// Valida la salida del LLM (después de Ollama, antes de crear el borrador). No escribe nada.\n// contexto: { texto, hayFoto, productos (lista actual), articulos (lista actual) }\nfunction validarOperacion(salida, contexto) {\n  contexto = contexto || {};\n  const errores = [], avisos = [];\n  let op = salida;\n  if (typeof op === 'string') { try { op = JSON.parse(op); } catch (e) { return { ok: false, errores: ['[llm] la salida no es JSON válido'], avisos: avisos, faltantes: [], operacion: null }; } }\n  if (!esObjeto(op)) return { ok: false, errores: ['[llm] la salida debe ser un objeto'], avisos: avisos, faltantes: [], operacion: null };\n  op = JSON.parse(JSON.stringify(op));\n  const esArticulo = op.entidad === 'articulo';\n  const esquema = esArticulo ? ESQUEMA_LLM_ARTICULO : ESQUEMA_LLM_PRODUCTO;\n  // Tolerancia: campos ausentes = sin dato (útil si la salida viene de otro extractor sin \"format\").\n  if (esObjeto(op.campos)) {\n    const props = esquema.properties.campos.properties;\n    for (const k of Object.keys(props)) if (!Object.prototype.hasOwnProperty.call(op.campos, k)) op.campos[k] = props[k].type === 'array' ? [] : null;\n  }\n  if (op.campos_inferidos === undefined) op.campos_inferidos = [];\n  if (op.faltantes === undefined) op.faltantes = [];\n  const e1 = [];\n  validarEsquema(op, esquema, esquema, 'llm', e1);\n  e1.forEach(function (m) { errores.push('[llm] ' + m); });\n  if (errores.length) return { ok: false, errores: errores, avisos: avisos, faltantes: [], operacion: op };\n  const c = op.campos;\n  const faltantes = new Set(Array.isArray(op.faltantes) ? op.faltantes : []);\n  const inferidos = new Set(Array.isArray(op.campos_inferidos) ? op.campos_inferidos : []);\n  const lista = esArticulo ? contexto.articulos : contexto.productos;\n  const reId = esArticulo ? /^art-\\d{4,6}$/ : /^prd-\\d{4,6}$/;\n  let reintentar = null;\n  // Un 4B tiende a \"actualizar\" un producto parecido del catálogo cuando el dueño describe uno NUEVO.\n  // Si el texto no trae ningún id ni un verbo de cambio, se fuerza \"crear\" y se pide repetir la llamada.\n  if (!esArticulo && op.op !== 'crear' && typeof contexto.texto === 'string' && !pideCambio(contexto.texto)) {\n    avisos.push('[op_corregida] el mensaje no menciona un id ni pide un cambio: se trata como producto nuevo (el LLM propuso ' + op.op + ' ' + corto(op.id) + ')');\n    op.op = 'crear'; op.id = null; reintentar = 'crear';\n  }\n  if (op.op === 'crear') {\n    if (op.id !== null) { avisos.push('[llm] op=crear no lleva id: se ignora ' + corto(op.id)); op.id = null; }\n    faltantes.delete('id'); faltantes.delete('foto');\n  } else {\n    if (typeof op.id !== 'string' || !reId.test(op.id)) { faltantes.add('id'); }\n    else if (Array.isArray(lista) && !lista.some(function (x) { return esObjeto(x) && x.id === op.id; })) errores.push('[llm] el id ' + corto(op.id) + ' no existe en el catálogo');\n  }\n  const vacio = function (v) { return v === null || v === undefined || (Array.isArray(v) && v.length === 0); };\n  const vaciar = function (k) { c[k] = Array.isArray(c[k]) ? [] : null; inferidos.delete(k); };\n  if (!esArticulo) {\n    // Normalización determinista: cada op solo conserva los campos que le corresponden.\n    const conservar = { desactivar: [], reactivar: [], stock: ['stock_tallas', 'stock_modo'], agregar_imagen: ['alt_imagen'] }[op.op];\n    if (conservar) for (const k of CAMPOS_LLM_PRODUCTO) if (conservar.indexOf(k) < 0 && !vacio(c[k])) vaciar(k);\n    const actual = typeof op.id === 'string' && Array.isArray(lista) ? lista.find(function (x) { return esObjeto(x) && x.id === op.id; }) : null;\n    if (op.op === 'actualizar' && actual) {\n      for (const k of ['nombre', 'categoria', 'subcategoria', 'precio', 'precio_oferta', 'tallas', 'material', 'descripcion', 'etiquetas', 'destacado']) {\n        if (!vacio(c[k]) && igual(c[k], actual[k])) vaciar(k);\n      }\n      const nombresColor = function (l) { return (l || []).map(function (x) { return quitarTildes(esObjeto(x) ? x.nombre : x).toLowerCase(); }).sort().join('|'); };\n      if (!vacio(c.colores) && nombresColor(c.colores) === nombresColor(actual.colores)) vaciar('colores');\n      if (!vacio(c.stock_tallas)) vaciar('stock_tallas');\n      if (c.stock_modo !== null) vaciar('stock_modo');\n    }\n    if (op.op === 'crear' && c.stock_modo !== null) vaciar('stock_modo');\n    if (op.op === 'stock' && !vacio(c.stock_tallas) && c.stock_modo === null) {\n      c.stock_modo = 'fijar'; avisos.push('[stock] no queda claro si es la cantidad total o lo que llegó: se asume cantidad total');\n    }\n    if (op.op !== 'crear' && typeof op.id === 'string' && typeof contexto.texto === 'string' && contexto.texto.indexOf(op.id) < 0) {\n      avisos.push('[id_inferido] el mensaje no menciona ' + corto(op.id) + ': confirma que no es un producto nuevo');\n    }\n    const cat = inferirCategoria(contexto.texto);\n    if (cat && c.categoria !== cat && (op.op === 'crear' || c.categoria !== null)) {\n      avisos.push('[categoria] el texto indica \"' + cat + '\" y el LLM propuso ' + corto(c.categoria) + ': se corrige a \"' + cat + '\"');\n      c.categoria = cat; inferidos.delete('categoria');\n    }\n    const num = function (v) { return typeof v === 'number' && Number.isFinite(v); };\n    if (c.precio !== null && (!num(c.precio) || c.precio <= 0 || c.precio > 9999)) errores.push('[llm] precio fuera de rango ' + corto(c.precio));\n    // precio_oferta 0 en \"actualizar\" = quitar la oferta (convención de CONTRATO.md)\n    if (c.precio_oferta !== null && (!num(c.precio_oferta) || c.precio_oferta < 0 || (c.precio_oferta === 0 && op.op !== 'actualizar'))) errores.push('[llm] precio_oferta fuera de rango ' + corto(c.precio_oferta));\n    if (num(c.precio) && num(c.precio_oferta) && c.precio_oferta > 0 && c.precio_oferta >= c.precio) errores.push('[precio_oferta] la oferta (' + soles(c.precio_oferta) + ') debe ser menor que el precio (' + soles(c.precio) + ')');\n    if (c.categoria && Array.isArray(c.tallas)) {\n      const malas = c.tallas.filter(function (t) { return TALLAS_POR_CATEGORIA[c.categoria].indexOf(t) < 0; });\n      if (malas.length) errores.push('[talla_categoria] tallas ' + malas.join(' ') + ' no corresponden a \"' + c.categoria + '\"');\n    }\n    if (Array.isArray(c.stock_tallas)) c.stock_tallas.forEach(function (s) {\n      if (!Number.isInteger(s.cantidad) || s.cantidad < 0 || s.cantidad > 9999) errores.push('[stock] cantidad no válida para la talla ' + corto(s.talla));\n    });\n    if (op.op === 'crear') {\n      if (!c.nombre) faltantes.add('nombre');\n      if (!c.categoria) faltantes.add('categoria');\n      if (!num(c.precio)) faltantes.add('precio');\n      if ((!c.tallas || !c.tallas.length) && c.categoria === 'accesorios' && ['bolsos', 'lentes', 'gorras', 'sombreros', 'otros'].indexOf(c.subcategoria) >= 0) {\n        c.tallas = ['UNICA']; inferidos.add('tallas'); avisos.push('[tallas] accesorio sin tallas: se asume talla única');\n      }\n      if (!c.tallas || !c.tallas.length) faltantes.add('tallas');\n      if (!c.colores || !c.colores.length) faltantes.add('colores');\n      if (!contexto.hayFoto) avisos.push('[foto] producto sin foto: la web mostrará un marcador hasta que envíes /foto');\n    }\n    if (op.op === 'stock' && vacio(c.stock_tallas)) faltantes.add('stock_tallas');\n    if (op.op === 'agregar_imagen' && !contexto.hayFoto) faltantes.add('foto');\n    if (op.op === 'actualizar' && CAMPOS_LLM_PRODUCTO.every(function (k) { return vacio(c[k]); })) {\n      faltantes.add('campos'); avisos.push('[llm] op=actualizar sin ningún campo que cambiar');\n    }\n  } else if (op.op === 'crear') {\n    if (!c.titulo) faltantes.add('titulo');\n    if (!c.bloques || !c.bloques.length) faltantes.add('bloques');\n    if (Array.isArray(c.productos_relacionados) && Array.isArray(contexto.productos)) {\n      c.productos_relacionados = c.productos_relacionados.filter(function (id) {\n        const ok = contexto.productos.some(function (p) { return esObjeto(p) && p.id === id; });\n        if (!ok) avisos.push('[referencia] se quita ' + corto(id) + ' de productos_relacionados: no existe');\n        return ok;\n      });\n    }\n  }\n  for (const k of Object.keys(c)) if (/[<>]/.test(JSON.stringify(c[k]) || '')) errores.push('[html] el campo ' + k + ' contiene signos menor/mayor que');\n  revisarSecretos(JSON.stringify(op), 'llm', function (cod, ruta, msg) { errores.push('[' + cod + '] ' + ruta + ': ' + msg); });\n  op.faltantes = Array.from(faltantes);\n  op.campos_inferidos = Array.from(inferidos);\n  return { ok: errores.length === 0, errores: errores, avisos: avisos, faltantes: op.faltantes, operacion: op, reintentar: reintentar };\n}\n// ¿El texto del dueño menciona un id o pide cambiar algo que ya existe? (si no, es un producto nuevo)\nfunction pideCambio(texto) {\n  const t = ' ' + quitarTildes(String(texto || '')).toLowerCase() + ' ';\n  if (/\\b(prd|art)-\\d{4,6}\\b/.test(t)) return true;\n  return /\\b(cambi\\w*|actualiz\\w*|modific\\w*|corrig\\w*|edit\\w*|sub[ei]\\w*|baj[ae]\\w*|rebaj\\w*|ahora|ocult\\w*|quit\\w*|retir\\w*|reactiv\\w*|desactiv\\w*|vuelve|volver|llegaron|llego|quedan?|vend\\w*|agotad\\w*|no hay|agreg\\w*|anad\\w*|ponle|ponga|pon)\\b/.test(t);\n}\n// Permisos por rol. accion: crear|actualizar|desactivar|reactivar|stock|agregar_imagen|publicar|imagen|articulo|consulta\n//   |whatsapp|limpiar_muestras|borrar|deshacer|pausa|reanudar|sitio_datos\nfunction puede(rol, accion) {\n  if (rol === 'admin' || rol === 'dueno') return true;\n  if (rol === 'marketing') return PROHIBIDO_MARKETING.indexOf(accion) < 0;\n  return false;\n}\nfunction slugificar(texto) {\n  return quitarTildes(String(texto || '')).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80).replace(/-+$/, '');\n}\nfunction siguienteId(lista, prefijo) {\n  const re = new RegExp('^' + prefijo + '-(\\\\d{4,6})$');\n  let max = 0;\n  (Array.isArray(lista) ? lista : []).forEach(function (x) { const m = esObjeto(x) && typeof x.id === 'string' ? re.exec(x.id) : null; if (m) max = Math.max(max, parseInt(m[1], 10)); });\n  return prefijo + '-' + String(max + 1).padStart(4, '0');\n}\n// Nombre de color (lo que dice el dueño o el LLM) -> {nombre, hex}. Desconocido: hex neutro y aviso en la vista previa.\nconst COLORES = {\n  'arena': '#E8DCC4', 'beige': '#D9C7A7', 'crema': '#F3E9D2', 'blanco': '#FFFFFF', 'blanco hueso': '#F4F1E8', 'hueso': '#F4F1E8',\n  'negro': '#1F1F1F', 'gris': '#8C8C8C', 'plomo': '#6E6E6E', 'verde': '#2E7D4F', 'verde palma': '#0F5C46', 'verde oliva': '#6B7B3A',\n  'oliva': '#6B7B3A', 'verde agua': '#7FD1C1', 'turquesa': '#14A3A0', 'azul laguna': '#14A3A0', 'celeste': '#A9D8E8', 'azul': '#1F4E9C',\n  'azul marino': '#1B2A4A', 'marino': '#1B2A4A', 'naranja': '#F57C20', 'mango': '#FF8A1F', 'amarillo': '#F7D038', 'amarillo sol': '#FFD23F',\n  'mostaza': '#C9A227', 'rojo': '#C62828', 'hibisco': '#C41E50', 'fucsia': '#D81B7A', 'rosado': '#F4A6B8', 'rosa': '#F4A6B8',\n  'rosa guayaba': '#F2A7B5', 'lila': '#B8A2D6', 'morado': '#6A3D9A', 'terracota': '#C0603A', 'ladrillo': '#A9442B', 'marron': '#6B4226',\n  'cafe': '#6B4226', 'cacao': '#5A3825', 'camel': '#C19A6B', 'natural': '#D8C3A0', 'coral': '#F07C6C', 'vino': '#7B1E3A', 'guinda': '#7B1E3A'\n};\nfunction colorHex(nombre) {\n  const limpio = quitarTildes(String(nombre || '')).toLowerCase().replace(/[^a-z ]/g, ' ').replace(/\\s+/g, ' ').trim();\n  const base = limpio.replace(/s$/, '').replace(/ (claro|oscuro)$/, '');\n  const fem = base.replace(/a$/, 'o');\n  const hex = COLORES[limpio] || COLORES[base] || COLORES[fem] || null;\n  const visible = String(nombre || '').trim().slice(0, 24).replace(/[<>]/g, '');\n  return { nombre: visible ? visible.charAt(0).toUpperCase() + visible.slice(1) : 'Sin color', hex: hex || '#CCCCCC', conocido: !!hex };\n}\n// Texto plano recortado al máximo del esquema (cuenta caracteres reales, no unidades UTF-16).\nfunction textoSeguro(s, max) {\n  const limpio = String(s === null || s === undefined ? '' : s).replace(/[<>]/g, '').replace(/\\s+/g, ' ').trim();\n  const cp = Array.from(limpio);\n  return cp.length <= max ? limpio : cp.slice(0, max - 3).join('').replace(/\\s+\\S*$/, '') + '...';\n}\n// Bloques del LLM ({tipo, texto, items}) -> bloques de articles.json (sin campos vacíos, con límites).\nfunction bloquesDesdeLLM(bloques) {\n  const out = [];\n  (Array.isArray(bloques) ? bloques : []).forEach(function (b) {\n    if (!esObjeto(b)) return;\n    const t = textoSeguro(b.texto, 1500);\n    if (b.tipo === 'lista') {\n      const items = (Array.isArray(b.items) ? b.items : []).map(function (x) { return textoSeguro(x, 300); }).filter(Boolean).slice(0, 20);\n      if (items.length) out.push({ tipo: 'lista', items: items });\n    } else if (b.tipo === 'subtitulo' && t) out.push({ tipo: 'subtitulo', texto: textoSeguro(t, 120) });\n    else if (b.tipo === 'cita' && t) out.push({ tipo: 'cita', texto: textoSeguro(t, 400) });\n    else if (t) out.push({ tipo: 'parrafo', texto: t });\n  });\n  return out.slice(0, 60);\n}\n// ---------- Prompts del LLM (D4) y cuerpo de la petición a Ollama /api/chat ----------\n// {{CATALOGO}} se reemplaza por líneas \"id | nombre | categoria | precio\" (máx. 200 productos activos).\nconst PROMPT_PRODUCTO = `Eres el asistente de catálogo de la tienda de ropa \"Palmera Brava\" (Tarapoto, Perú). Conviertes UN mensaje del dueño (texto y, a veces, una foto) en UNA operación JSON. No publicas nada: un programa revisa tu respuesta y el dueño la aprueba.\n\nREGLAS GENERALES\n- No inventes datos. Si algo no está en el mensaje ni se ve en la foto, usa null o [] y escribe el nombre del campo en \"faltantes\".\n- Si deduces un dato que el dueño no dijo (por ejemplo, el color o la tela a partir de la foto), ponlo y añade el nombre del campo a \"campos_inferidos\".\n- Textos en español de Perú, sin los signos menor que ni mayor que, sin emojis.\n- Precios en soles como número: \"89,90\" o \"S/ 89.90\" -> 89.9. \"a 45 soles\" -> 45.\n- \"de 120 a 99\", \"a 120 con oferta a 99\" o \"rebajado a 99\" -> precio 120 y precio_oferta 99. Sin oferta -> precio_oferta null. \"Quita la oferta\" (op actualizar) -> precio_oferta 0.\n\nOPERACIONES (op)\n- REGLA CLAVE: si el mensaje NO menciona un id (prd-0000), la operación es \"crear\", aunque en el catálogo haya una prenda parecida. Solo usa otra operación si el mensaje trae un id o pide expresamente cambiar algo que ya existe (\"cambia\", \"sube\", \"baja\", \"ahora cuesta\", \"oculta\", \"llegaron más de...\").\n- crear: producto nuevo. id = null.\n- actualizar: cambiar datos de un producto que ya existe (precio, nombre, descripción...). id obligatorio, tomado del CATÁLOGO. Pon SOLO los campos que cambian; todos los demás van en null o [].\n- desactivar: ocultar un producto (\"ocultar\", \"ya no hay\", \"retirar\", \"agotado para siempre\"). reactivar: volver a mostrarlo.\n- desactivar / reactivar / stock / agregar_imagen: todos los campos en null o [], salvo stock_tallas (en stock) y alt_imagen (en agregar_imagen).\n- stock: cambiar cantidades por talla. stock_tallas lleva las cantidades que dice el mensaje y stock_modo dice cómo aplicarlas: \"fijar\" si dice cuántas hay en total (\"quedan 2 de la L\", \"hay 10\"), \"sumar\" si llegaron más (\"llegaron 5 más de la M\"), \"restar\" si se vendieron (\"vendí 1 de la S\"). En las demás operaciones stock_modo es null.\n- agregar_imagen: añadir la foto adjunta a un producto existente.\n- No existe borrar definitivamente.\n\nCATEGORÍA (categoria). Aplica la PRIMERA regla que coincida:\n1. niño, niña, niños, infantil, bebé, nene, nena, escolar -> \"ninos\" (aunque sea gorro o sandalia).\n2. gorra, gorro, sombrero, bolso, cartera, lentes, gafas, mochila, correa -> \"accesorios\".\n3. dama, damas, mujer, señora, señorita, femenino -> \"mujeres\".\n4. caballero, hombre, varón, masculino -> \"hombres\".\n5. sandalias sin género o \"unisex\" -> \"accesorios\".\n6. Si no hay ninguna de esas palabras, deduce por la prenda (vestido, blusa, falda -> \"mujeres\"; guayabera -> \"hombres\") y añade \"categoria\" a campos_inferidos. Si no se puede saber, null y \"categoria\" en faltantes.\nEjemplos: \"polo para dama\" -> mujeres. \"polo de caballero\" -> hombres. \"vestido para niña\" -> ninos. \"gorro UV para niños\" -> ninos. \"gorra de dama\" -> accesorios. \"sandalias de cuero unisex\" -> accesorios. \"camisa de lino para hombre\" -> hombres.\n\nSUBCATEGORÍA: una de polos, camisas, blusas, vestidos, faldas, shorts, bermudas, pantalones, conjuntos, ropa-de-bano, pijamas, sombreros, gorros, gorras, sandalias, lentes, bolsos, otros. La guayabera es \"camisas\".\n\nTALLAS (tallas): adultos XS S M L XL XXL; niños 2 4 6 8 10 12 14 16; calzado 35 a 44; talla única = \"UNICA\". \"de la 38 a la 42\" -> 38 39 40 41 42.\n- stock_tallas: una entrada {talla, cantidad} por talla. \"3 de cada una\" -> cantidad 3 en todas. Si no dice cantidades, [] (no lo pongas en faltantes).\n\nOTROS CAMPOS\n- colores: nombres en español tal como los dice el dueño o como se ven en la foto (\"blanco\", \"verde palma\").\n- material: solo si lo dice o se reconoce con seguridad; si lo deduces, márcalo en campos_inferidos.\n- descripcion: 1 o 2 frases breves y honestas sobre la prenda para el calor; márcala en campos_inferidos.\n- etiquetas: 2 a 5 palabras en minúsculas sin tildes (\"lino\", \"fresca\").\n- alt_imagen: si hay foto, una frase que la describa para personas ciegas; si no, null.\n- destacado: true solo si el dueño lo pide; si no, null.\n- faltantes solo puede incluir: nombre, categoria, subcategoria, precio, precio_oferta, tallas, stock_tallas, stock_modo, colores, material, descripcion, etiquetas, alt_imagen, destacado, id, foto.\n\nCATÁLOGO ACTUAL (id | nombre | categoria | precio):\n{{CATALOGO}}`;\nconst PROMPT_ARTICULO = `Eres el redactor del blog de la tienda de ropa \"Palmera Brava\" (Tarapoto, San Martín, Perú). Con el TEMA que te da el dueño escribes UN artículo útil, honesto y breve (350 a 600 palabras) y lo devuelves como UNA operación JSON. Un programa lo revisa y el dueño lo aprueba antes de publicarlo.\n\nFORMATO\n- op = \"crear\", entidad = \"articulo\", id = null. (Si el dueño pide editar un artículo y da su id art-0000, op = \"actualizar\" con ese id y solo los campos que cambian.)\n- titulo: claro, máximo 100 caracteres.\n- resumen: 1 o 2 frases, entre 20 y 220 caracteres.\n- bloques: de 6 a 14 bloques en orden. Cada bloque tiene tipo, texto e items:\n  - \"parrafo\": texto de 2 a 4 frases; items [].\n  - \"subtitulo\": texto corto; items [].\n  - \"lista\": texto \"\"; items con 3 a 6 frases cortas.\n  - \"cita\": una frase breve en texto; items [].\n- productos_relacionados: hasta 4 ids del CATÁLOGO que encajen con el tema. Solo ids que aparezcan en el catálogo.\n- alt_portada: una frase que describa una foto de portada adecuada, SIN personas.\n- campos_inferidos: los campos que escribiste tú. faltantes: [] (o [\"tema\"] si el tema no se entiende).\n\nREGLAS\n- Español de Perú, tono cercano. Sin Markdown, sin emojis, sin los signos menor que ni mayor que.\n- No inventes cifras, estudios, precios ni datos médicos. Si hablas de salud o del sol, recomienda consultar a un profesional.\n- No prometas envíos, descuentos ni stock: eso lo decide la tienda.\n\nCATÁLOGO ACTUAL (id | nombre | categoria | precio):\n{{CATALOGO}}`;\nconst NOTA_REINTENTO_CREAR = ' (Nota del sistema: es un producto NUEVO; usa op \"crear\" e id null.)';\n// opciones: { tipo: 'producto'|'articulo', texto, imagenesBase64: [], productos, reintento: bool, modelo, keepAlive }\nfunction cuerpoOllama(opciones) {\n  const o = opciones || {};\n  const articulo = o.tipo === 'articulo';\n  const catalogo = (Array.isArray(o.productos) ? o.productos : []).filter(function (p) { return esObjeto(p) && p.activo !== false; }).slice(0, 200)\n    .map(function (p) { return p.id + ' | ' + textoSeguro(p.nombre, 70) + ' | ' + p.categoria + ' | ' + p.precio; }).join('\\n') || '(vacío)';\n  const usuario = { role: 'user', content: String(o.texto || '') + (o.reintento ? NOTA_REINTENTO_CREAR : '') };\n  if (Array.isArray(o.imagenesBase64) && o.imagenesBase64.length) usuario.images = o.imagenesBase64.slice(0, 3);\n  return {\n    model: o.modelo || 'qwen3.5:4b-q4_K_M', stream: false, think: false,\n    keep_alive: o.keepAlive !== undefined && o.keepAlive !== null ? o.keepAlive : '2m', // 0 = descargar de la VRAM al terminar (antes de generar imágenes)\n    options: { temperature: articulo ? 0.3 : 0, num_ctx: 8192 },\n    format: articulo ? ESQUEMA_LLM_ARTICULO : ESQUEMA_LLM_PRODUCTO,\n    messages: [{ role: 'system', content: (articulo ? PROMPT_ARTICULO : PROMPT_PRODUCTO).replace('{{CATALOGO}}', catalogo) }, usuario]\n  };\n}\n// === FIN COPIAR A N8N ===\n// --- comun.js (Palmera Brava): ayudas compartidas por los nodos Code del núcleo (WF0, WF1, WF2, WF5, WF9) ---\n// Se inserta donde un Code dice \"// @incluir comun\". Sin require ni crypto (el task runner los bloquea).\nconst PB_TABLAS = { config: 'pb_config', locks: 'pb_locks', inbox: 'pb_inbox', borradores: 'pb_borradores', imagenes: 'pb_imagenes' };\n// Escapa texto para parse_mode HTML de Telegram.\nfunction h(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Quita tokens de Telegram, PAT de GitHub y similares de cualquier texto que vaya a un mensaje o a una tabla.\nfunction censurar(s) {\n  return String(s === null || s === undefined ? '' : s)\n    .replace(/bot\\d+:[\\w-]+/g, 'bot***')\n    .replace(/\\d{8,10}:[\\w-]{30,}/g, '***')\n    .replace(/github_pat_\\w+/g, 'github_pat_***')\n    .replace(/gh[pousr]_\\w+/g, 'gh*_***')\n    .replace(/(authorization[\"':=\\s]+)(token|bearer)\\s+[^\\s\"',}]+/gi, '$1$2 ***');\n}\n// Mensaje para Telegram (HTML). El texto YA debe venir escapado y terminar en \"Siguiente paso: ...\".\nfunction enviar(chatId, texto, extra) {\n  const t = String(texto || '');\n  if (!/\\nSiguiente paso: \\S/.test(t)) throw new Error('Mensaje sin \"Siguiente paso\": ' + t.slice(0, 60));\n  return { metodo: 'sendMessage', cuerpo: Object.assign({ chat_id: Number(chatId), text: t.slice(0, 4096), parse_mode: 'HTML', link_preview_options: { is_disabled: true } }, extra || {}) };\n}\nfunction quitarTeclado(chatId, messageId) {\n  return { metodo: 'editMessageReplyMarkup', cuerpo: { chat_id: Number(chatId), message_id: Number(messageId), reply_markup: { inline_keyboard: [] } } };\n}\nfunction botones(filas) { return { reply_markup: { inline_keyboard: filas } }; }\n// pb_config (filas {clave, valor}) -> objeto con tipos ya convertidos. Valores raros se ignoran (token con formato inválido = sin token).\nfunction armarConfig(filas) {\n  const c = {};\n  (filas || []).forEach(function (f) { if (f && typeof f.clave === 'string') c[f.clave] = f.valor === null || f.valor === undefined ? '' : String(f.valor); });\n  const num = function (k, d) { const n = Number(c[k]); return c[k] !== undefined && c[k] !== '' && Number.isFinite(n) ? n : d; };\n  const json = function (k, d) { try { const v = JSON.parse(c[k]); return v === null || v === undefined ? d : v; } catch (e) { return d; } };\n  const tok = String(c.BOT_TOKEN || '').trim();\n  let aut = json('AUTORIZADOS', []);\n  aut = (Array.isArray(aut) ? aut : []).filter(function (a) { return a && Number(a.id) > 0 && ['admin', 'dueno', 'marketing'].indexOf(a.rol) >= 0; })\n    .map(function (a) { return { id: Number(a.id), rol: a.rol, nombre: String(a.nombre || '').replace(/[<>]/g, '').slice(0, 60) }; });\n  const repo = String(c.REPO || '').trim();\n  const rama = String(c.REPO_BRANCH || '').trim();\n  const alertas = json('ALERTAS', {});\n  const desconocidos = json('DESCONOCIDOS', []);\n  return {\n    BOT_TOKEN: /^\\d{5,12}:[A-Za-z0-9_-]{30,}$/.test(tok) ? tok : '',\n    AUTORIZADOS: aut,\n    REPO: /^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repo) ? repo : 'Abnercayao/tienda-tarapoto',\n    REPO_BRANCH: /^[A-Za-z0-9_.\\/-]+$/.test(rama) ? rama : 'main',\n    SITIO_URL: /^https:\\/\\/[^\\s<>\"']+$/.test(c.SITIO_URL || '') ? c.SITIO_URL : 'https://abnercayao.github.io/tienda-tarapoto/',\n    COMMIT_EMAIL: /^[^\\s@<>]+@[^\\s@<>]+$/.test(c.COMMIT_EMAIL || '') ? c.COMMIT_EMAIL : '297644875+Abnercayao@users.noreply.github.com',\n    PAUSA: c.PAUSA === '1' ? 1 : 0,\n    MIN_ENTRE_COMMITS_MS: num('MIN_ENTRE_COMMITS_MS', 360000),\n    ULTIMO_COMMIT_AT: num('ULTIMO_COMMIT_AT', 0),\n    ULTIMO_POLL_AT: num('ULTIMO_POLL_AT', 0),\n    FALLOS_SEGUIDOS: num('FALLOS_SEGUIDOS', 0),\n    ULTIMA_ALERTA_AT: num('ULTIMA_ALERTA_AT', 0),\n    ALERTAS: alertas && typeof alertas === 'object' && !Array.isArray(alertas) ? alertas : {},\n    DESCONOCIDOS: Array.isArray(desconocidos) ? desconocidos.slice(-10) : [],\n    OLLAMA_URL: c.OLLAMA_URL || 'http://host.docker.internal:11434',\n    OLLAMA_MODELO: c.OLLAMA_MODELO || 'qwen3.5:4b-q4_K_M',\n    SD_URL: c.SD_URL || 'http://host.docker.internal:1234',\n    claves: Object.keys(c)\n  };\n}\nfunction rolDe(cfg, id) { const a = (cfg.AUTORIZADOS || []).find(function (x) { return x.id === Number(id); }); return a ? a.rol : null; }\n// Destinatarios de avisos técnicos: admins; si no hay, el dueño.\nfunction admins(cfg) {\n  const a = (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'admin'; });\n  return a.length ? a : (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'dueno'; });\n}\nfunction isoLima(ms) { const d = new Date((ms === undefined ? Date.now() : ms) - 5 * 3600000); return d.toISOString().slice(0, 19) + '-05:00'; }\n// --- fin comun.js ---\n// Entrada: {prompt, objetivo?, chat_id, from_id, rol, origen:\"telegram\"|\"panel\", seed?, size? (tamaño FINAL), personas? (\"adultos\"|\"ninguna\")}.\n// Arma el prompt (mismas frases que admin.html y tools/image-prompts.json, CONTRATO §12) y decide tamaño y recorte:\n//   - niños (en el texto) => SIEMPRE sin personas (regla de la tienda), aunque pidan personas;\n//   - personas adultas => se genera más alto y se recorta ARRIBA (Edit Image crop) para que no quede ningún rostro.\nconst cfg = $('Config').first().json;\nconst e = $('Entrada').first().json || {};\nconst origen = e.origen === 'panel' ? 'panel' : 'telegram';\nconst ESTILO = 'Editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon. Warm tropical golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, color palette of warm sand, palm green, lagoon turquoise, terracotta and mango orange. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.';\nconst SIN_ROSTRO = 'The photo is cropped at the neck, no face, no head visible, adults only: the top edge of the frame cuts across the collarbones, so the chin, mouth and face are completely outside the picture.';\nconst SIN_PERSONAS = 'No people, no mannequin, no hands, product only.';\nconst SOLO_PRENDA_NINOS = \"Product photo of children's clothing only, laid flat or on a hanger, nobody is wearing it.\";\nconst SIN_NINOS = 'No people, no children, no mannequin, no hands, product only.';\nconst RE_NINOS = /(ni[ñn][oa]s?\\b|infantil|beb[ée]s?\\b|\\bchild|\\bkids?\\b|\\bboys?\\b|\\bgirls?\\b|toddler|\\bbaby\\b|escolar|colegial|menor(es)? de edad)/i;\nconst RE_PERSONAS = /(persona|gente|modelo|mujer|hombre|se[ñn]or|dama|caballero|chic[oa]s?\\b|joven|pareja|alguien|adult[oa]|\\bwom[ae]n\\b|\\bm[ae]n\\b|\\bperson|\\bpeople\\b|\\bmodel\\b|\\bcouple\\b|\\blady\\b|\\bguy\\b|\\badult)/i;\nconst RE_ROSTRO = /(\\bface\\b|portrait|smil|\\beyes\\b|rostro|\\bcara\\b|retrato|sonr[ií]|\\bojos\\b)/i;\n// tamaño final -> tamaño a generar con personas y píxeles a recortar arriba (múltiplos de 64)\nconst ALTO = { '768x1024': ['768x1216', 192], '1344x768': ['1344x1024', 256], '1216x832': ['1216x1088', 256], '1024x1024': ['1024x1216', 192] };\nconst draftId = 'drf-' + Date.now().toString(36) + (Math.random().toString(36).slice(2) + '00').slice(0, 2);\nconst base = { valido: false, origen: origen, draft_id: draftId, chat_id: Number(e.chat_id) || 0, from_id: Number(e.from_id) || 0, rol: '', avisar_inicio: false };\nconst malo = function (motivo) { return [{ json: Object.assign(base, { error: motivo }) }]; };\n\n// Rol recalculado desde AUTORIZADOS (revocar surte efecto al instante). Sin autor válido no hay borrador ni Telegram.\nconst rol = base.from_id > 0 ? rolDe(cfg, base.from_id) : null;\nbase.rol = rol || '';\nif (origen === 'telegram' && (!rol || base.chat_id <= 0)) return malo('autor no autorizado');\nif (rol && !puede(rol, 'imagen')) return malo('tu rol (' + rol + ') no puede usar /imagen');\nif (!rol) { base.chat_id = 0; base.from_id = 0; }\nconst texto = String(e.prompt || '').replace(/[\\u0000-\\u001f\\u007f<>]/g, ' ').replace(/\\s+/g, ' ').trim();\nconst nCar = Array.from(texto).length;\nif (nCar < 3 || nCar > 1200) return malo('la descripción debe tener entre 3 y 1200 caracteres');\n\nconst obj = String(e.objetivo || '').trim().toLowerCase();\nconst objetivo = /^(art-\\d{4,6}|look-\\d{1,3})$/.test(obj) ? obj : '';\nconst final = ALTO[e.size] ? e.size : (/^art-/.test(objetivo) ? '1216x832' : /^look-/.test(objetivo) ? '768x1024' : '1344x768');\nconst ninos = RE_NINOS.test(texto);\nlet personas = e.personas === 'adultos' || e.personas === 'ninguna' ? e.personas : (RE_PERSONAS.test(texto) ? 'adultos' : 'ninguna');\nconst avisos = [];\nif (ninos) {\n  if (personas === 'adultos') avisos.push('Mencionas niños: se generó solo la prenda, sin personas (regla de la tienda).');\n  personas = 'ninguna';\n}\nif (personas === 'adultos') {\n  avisos.push('Persona adulta sin rostro: se generó más alta y se recortó la parte de arriba.');\n  if (RE_ROSTRO.test(texto)) avisos.push('La tienda no muestra rostros: se ignoró lo que pedía cara, ojos, sonrisa o retrato.');\n}\nconst generar = personas === 'adultos' ? ALTO[final][0] : final;\nconst recorte = personas === 'adultos' ? ALTO[final][1] : 0;\nconst s0 = Number(e.seed);\nconst seed = Number.isInteger(s0) && s0 >= 1 && s0 <= 2147483646 ? s0 : 1 + Math.floor(Math.random() * 2147483000);\nconst frase = /[.!?]$/.test(texto) ? texto : texto + '.';\nconst prompt = (ninos ? [SOLO_PRENDA_NINOS, frase, SIN_NINOS, ESTILO] : [frase, personas === 'adultos' ? SIN_ROSTRO : SIN_PERSONAS, ESTILO]).join(' ');\nconst extra = { seed: seed, sample_params: { sample_steps: 8, sample_method: 'euler', scheduler: 'simple', guidance: { txt_cfg: 1.0 } } };\nconst resumido = Array.from(texto).length > 300 ? Array.from(texto).slice(0, 297).join('') + '...' : texto;\nconst destinos = objetivo ? (/^art-/.test(objetivo) ? 'Hero o Portada de ' + objetivo : 'Hero o Lookbook ' + objetivo) : 'Hero (para Portada usa /imagen art-0001 …; para Lookbook, /imagen look-1 …)';\nconst caption = 'Imagen referencial generada con IA' + (origen === 'panel' ? ' desde el panel' : '') + ' (borrador ' + draftId + ').\\n' +\n  'Pedido: ' + h(resumido) + '\\n' +\n  'Puede ir a: ' + h(destinos) + '\\n' +\n  (avisos.length ? 'Avisos: ' + h(avisos.join(' ')) + '\\n' : '') +\n  'Revisa que no haya rostros, niños con personas, texto ni logos.\\n' +\n  'Siguiente paso: elige dónde usarla (Hero, Portada o Lookbook) o toca Descartar.';\nreturn [{ json: Object.assign(base, {\n  valido: true, error: '', texto: texto, objetivo: objetivo, final: final, generar: generar, recorte: recorte, personas: personas, ninos: ninos,\n  seed: seed, prompt: prompt, avisos: avisos, caption: caption,\n  alt: textoSeguro('Imagen referencial generada con IA: ' + texto, 160),\n  avisar_inicio: origen === 'telegram' && base.chat_id > 0 && cfg.BOT_TOKEN !== '',\n  cuerpo_sd: { prompt: prompt + ' <sd_cpp_extra_args>' + JSON.stringify(extra) + '</sd_cpp_extra_args>', n: 1, size: generar, output_format: 'webp', output_compression: 80 }\n}) }];\n"
+      }
+    },
+    {
+      "id": "e8ebb51d-dc12-4c0f-b337-ac5b39dca58b",
+      "name": "¿Válido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        960,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "fc640eac-5f4b-4ef0-a65e-f9defbc8b9ac",
+              "leftValue": "={{ $json.valido === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "be3b29b3-07b1-4e0a-a3a9-8464c03cb71b",
+      "name": "¿Avisar inicio?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1200,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "88e39395-15e5-4c68-9cb1-bf6721457f1f",
+              "leftValue": "={{ $json.avisar_inicio === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "7e35fb1f-6cd0-4aed-bd6a-746d2e1c2df7",
+      "name": "Aviso generando",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        -200
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// --- comun.js (Palmera Brava): ayudas compartidas por los nodos Code del núcleo (WF0, WF1, WF2, WF5, WF9) ---\n// Se inserta donde un Code dice \"// @incluir comun\". Sin require ni crypto (el task runner los bloquea).\nconst PB_TABLAS = { config: 'pb_config', locks: 'pb_locks', inbox: 'pb_inbox', borradores: 'pb_borradores', imagenes: 'pb_imagenes' };\n// Escapa texto para parse_mode HTML de Telegram.\nfunction h(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Quita tokens de Telegram, PAT de GitHub y similares de cualquier texto que vaya a un mensaje o a una tabla.\nfunction censurar(s) {\n  return String(s === null || s === undefined ? '' : s)\n    .replace(/bot\\d+:[\\w-]+/g, 'bot***')\n    .replace(/\\d{8,10}:[\\w-]{30,}/g, '***')\n    .replace(/github_pat_\\w+/g, 'github_pat_***')\n    .replace(/gh[pousr]_\\w+/g, 'gh*_***')\n    .replace(/(authorization[\"':=\\s]+)(token|bearer)\\s+[^\\s\"',}]+/gi, '$1$2 ***');\n}\n// Mensaje para Telegram (HTML). El texto YA debe venir escapado y terminar en \"Siguiente paso: ...\".\nfunction enviar(chatId, texto, extra) {\n  const t = String(texto || '');\n  if (!/\\nSiguiente paso: \\S/.test(t)) throw new Error('Mensaje sin \"Siguiente paso\": ' + t.slice(0, 60));\n  return { metodo: 'sendMessage', cuerpo: Object.assign({ chat_id: Number(chatId), text: t.slice(0, 4096), parse_mode: 'HTML', link_preview_options: { is_disabled: true } }, extra || {}) };\n}\nfunction quitarTeclado(chatId, messageId) {\n  return { metodo: 'editMessageReplyMarkup', cuerpo: { chat_id: Number(chatId), message_id: Number(messageId), reply_markup: { inline_keyboard: [] } } };\n}\nfunction botones(filas) { return { reply_markup: { inline_keyboard: filas } }; }\n// pb_config (filas {clave, valor}) -> objeto con tipos ya convertidos. Valores raros se ignoran (token con formato inválido = sin token).\nfunction armarConfig(filas) {\n  const c = {};\n  (filas || []).forEach(function (f) { if (f && typeof f.clave === 'string') c[f.clave] = f.valor === null || f.valor === undefined ? '' : String(f.valor); });\n  const num = function (k, d) { const n = Number(c[k]); return c[k] !== undefined && c[k] !== '' && Number.isFinite(n) ? n : d; };\n  const json = function (k, d) { try { const v = JSON.parse(c[k]); return v === null || v === undefined ? d : v; } catch (e) { return d; } };\n  const tok = String(c.BOT_TOKEN || '').trim();\n  let aut = json('AUTORIZADOS', []);\n  aut = (Array.isArray(aut) ? aut : []).filter(function (a) { return a && Number(a.id) > 0 && ['admin', 'dueno', 'marketing'].indexOf(a.rol) >= 0; })\n    .map(function (a) { return { id: Number(a.id), rol: a.rol, nombre: String(a.nombre || '').replace(/[<>]/g, '').slice(0, 60) }; });\n  const repo = String(c.REPO || '').trim();\n  const rama = String(c.REPO_BRANCH || '').trim();\n  const alertas = json('ALERTAS', {});\n  const desconocidos = json('DESCONOCIDOS', []);\n  return {\n    BOT_TOKEN: /^\\d{5,12}:[A-Za-z0-9_-]{30,}$/.test(tok) ? tok : '',\n    AUTORIZADOS: aut,\n    REPO: /^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repo) ? repo : 'Abnercayao/tienda-tarapoto',\n    REPO_BRANCH: /^[A-Za-z0-9_.\\/-]+$/.test(rama) ? rama : 'main',\n    SITIO_URL: /^https:\\/\\/[^\\s<>\"']+$/.test(c.SITIO_URL || '') ? c.SITIO_URL : 'https://abnercayao.github.io/tienda-tarapoto/',\n    COMMIT_EMAIL: /^[^\\s@<>]+@[^\\s@<>]+$/.test(c.COMMIT_EMAIL || '') ? c.COMMIT_EMAIL : '297644875+Abnercayao@users.noreply.github.com',\n    PAUSA: c.PAUSA === '1' ? 1 : 0,\n    MIN_ENTRE_COMMITS_MS: num('MIN_ENTRE_COMMITS_MS', 360000),\n    ULTIMO_COMMIT_AT: num('ULTIMO_COMMIT_AT', 0),\n    ULTIMO_POLL_AT: num('ULTIMO_POLL_AT', 0),\n    FALLOS_SEGUIDOS: num('FALLOS_SEGUIDOS', 0),\n    ULTIMA_ALERTA_AT: num('ULTIMA_ALERTA_AT', 0),\n    ALERTAS: alertas && typeof alertas === 'object' && !Array.isArray(alertas) ? alertas : {},\n    DESCONOCIDOS: Array.isArray(desconocidos) ? desconocidos.slice(-10) : [],\n    OLLAMA_URL: c.OLLAMA_URL || 'http://host.docker.internal:11434',\n    OLLAMA_MODELO: c.OLLAMA_MODELO || 'qwen3.5:4b-q4_K_M',\n    SD_URL: c.SD_URL || 'http://host.docker.internal:1234',\n    claves: Object.keys(c)\n  };\n}\nfunction rolDe(cfg, id) { const a = (cfg.AUTORIZADOS || []).find(function (x) { return x.id === Number(id); }); return a ? a.rol : null; }\n// Destinatarios de avisos técnicos: admins; si no hay, el dueño.\nfunction admins(cfg) {\n  const a = (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'admin'; });\n  return a.length ? a : (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'dueno'; });\n}\nfunction isoLima(ms) { const d = new Date((ms === undefined ? Date.now() : ms) - 5 * 3600000); return d.toISOString().slice(0, 19) + '-05:00'; }\n// --- fin comun.js ---\nconst p = $('Preparar').first().json;\nreturn [{ json: enviar(p.chat_id, 'Genero la imagen con la IA local (tarda alrededor de 1 min)' + (p.recorte ? '; con persona adulta, sin rostro' : '') + '.\\nSiguiente paso: espera la foto y elige Hero, Portada o Lookbook, o toca Descartar.') }];\n"
+      }
+    },
+    {
+      "id": "cd85c9dc-63d0-469d-b1f0-353908170797",
+      "name": "Enviar aviso",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1680,
+        -200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $('Config').first().json.BOT_TOKEN }}/{{ $json.metodo }}",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.cuerpo) }}",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "f306f099-fbf5-4b36-9f59-a1ba29ab4652",
+      "name": "Nota 2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1880,
+        -300
+      ],
+      "parameters": {
+        "content": "### 1 · GPU\nSe descargan de la VRAM los modelos de Ollama (`/api/ps` → `keep_alive:0` a cada uno) y se pide la imagen a sd-server con parámetros explícitos (`<sd_cpp_extra_args>`: seed, 8 pasos, euler, simple, txt_cfg 1.0; `output_format` webp).",
+        "width": 1180,
+        "height": 480,
+        "color": 6
+      }
+    },
+    {
+      "id": "71d637b0-bdf6-4a5f-a62e-c3b09c785059",
+      "name": "Ollama ps",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1920,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.OLLAMA_URL }}/api/ps",
+        "options": {
+          "timeout": 5000,
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput",
+      "executeOnce": true
+    },
+    {
+      "id": "e8d43abe-6c1c-497b-811f-4a654b36c977",
+      "name": "Modelos a liberar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Ollama y sd-server comparten la GPU: se descargan TODOS los modelos que Ollama tenga cargados (keep_alive:0) y siempre el configurado.\nconst cfg = $('Config').first().json;\nconst r = $input.first() ? $input.first().json || {} : {};\nconst nombres = (Array.isArray(r.models) ? r.models : []).map(function (m) { return String((m && (m.name || m.model)) || ''); })\n  .filter(function (n) { return /^[\\w.:\\/-]{1,120}$/.test(n); });\nif (nombres.indexOf(cfg.OLLAMA_MODELO) < 0) nombres.push(cfg.OLLAMA_MODELO);\nreturn nombres.slice(0, 6).map(function (n) { return { json: { cuerpo: { model: n, keep_alive: 0 } } }; });\n"
+      }
+    },
+    {
+      "id": "ad87210e-2587-4f92-acbd-1b4a5cffdd3d",
+      "name": "Liberar VRAM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2400,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.OLLAMA_URL }}/api/generate",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.cuerpo) }}"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "1d500bc7-7f66-4245-ad53-e2b22c2f5b00",
+      "name": "sd-server",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2640,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.SD_URL }}/v1/images/generations",
+        "options": {
+          "timeout": 600000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Preparar').first().json.cuerpo_sd) }}"
+      },
+      "onError": "continueRegularOutput",
+      "executeOnce": true
+    },
+    {
+      "id": "902b968e-20e6-46fe-ac4e-e6f537051f04",
+      "name": "Imagen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2880,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// --- comun.js (Palmera Brava): ayudas compartidas por los nodos Code del núcleo (WF0, WF1, WF2, WF5, WF9) ---\n// Se inserta donde un Code dice \"// @incluir comun\". Sin require ni crypto (el task runner los bloquea).\nconst PB_TABLAS = { config: 'pb_config', locks: 'pb_locks', inbox: 'pb_inbox', borradores: 'pb_borradores', imagenes: 'pb_imagenes' };\n// Escapa texto para parse_mode HTML de Telegram.\nfunction h(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Quita tokens de Telegram, PAT de GitHub y similares de cualquier texto que vaya a un mensaje o a una tabla.\nfunction censurar(s) {\n  return String(s === null || s === undefined ? '' : s)\n    .replace(/bot\\d+:[\\w-]+/g, 'bot***')\n    .replace(/\\d{8,10}:[\\w-]{30,}/g, '***')\n    .replace(/github_pat_\\w+/g, 'github_pat_***')\n    .replace(/gh[pousr]_\\w+/g, 'gh*_***')\n    .replace(/(authorization[\"':=\\s]+)(token|bearer)\\s+[^\\s\"',}]+/gi, '$1$2 ***');\n}\n// Mensaje para Telegram (HTML). El texto YA debe venir escapado y terminar en \"Siguiente paso: ...\".\nfunction enviar(chatId, texto, extra) {\n  const t = String(texto || '');\n  if (!/\\nSiguiente paso: \\S/.test(t)) throw new Error('Mensaje sin \"Siguiente paso\": ' + t.slice(0, 60));\n  return { metodo: 'sendMessage', cuerpo: Object.assign({ chat_id: Number(chatId), text: t.slice(0, 4096), parse_mode: 'HTML', link_preview_options: { is_disabled: true } }, extra || {}) };\n}\nfunction quitarTeclado(chatId, messageId) {\n  return { metodo: 'editMessageReplyMarkup', cuerpo: { chat_id: Number(chatId), message_id: Number(messageId), reply_markup: { inline_keyboard: [] } } };\n}\nfunction botones(filas) { return { reply_markup: { inline_keyboard: filas } }; }\n// pb_config (filas {clave, valor}) -> objeto con tipos ya convertidos. Valores raros se ignoran (token con formato inválido = sin token).\nfunction armarConfig(filas) {\n  const c = {};\n  (filas || []).forEach(function (f) { if (f && typeof f.clave === 'string') c[f.clave] = f.valor === null || f.valor === undefined ? '' : String(f.valor); });\n  const num = function (k, d) { const n = Number(c[k]); return c[k] !== undefined && c[k] !== '' && Number.isFinite(n) ? n : d; };\n  const json = function (k, d) { try { const v = JSON.parse(c[k]); return v === null || v === undefined ? d : v; } catch (e) { return d; } };\n  const tok = String(c.BOT_TOKEN || '').trim();\n  let aut = json('AUTORIZADOS', []);\n  aut = (Array.isArray(aut) ? aut : []).filter(function (a) { return a && Number(a.id) > 0 && ['admin', 'dueno', 'marketing'].indexOf(a.rol) >= 0; })\n    .map(function (a) { return { id: Number(a.id), rol: a.rol, nombre: String(a.nombre || '').replace(/[<>]/g, '').slice(0, 60) }; });\n  const repo = String(c.REPO || '').trim();\n  const rama = String(c.REPO_BRANCH || '').trim();\n  const alertas = json('ALERTAS', {});\n  const desconocidos = json('DESCONOCIDOS', []);\n  return {\n    BOT_TOKEN: /^\\d{5,12}:[A-Za-z0-9_-]{30,}$/.test(tok) ? tok : '',\n    AUTORIZADOS: aut,\n    REPO: /^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repo) ? repo : 'Abnercayao/tienda-tarapoto',\n    REPO_BRANCH: /^[A-Za-z0-9_.\\/-]+$/.test(rama) ? rama : 'main',\n    SITIO_URL: /^https:\\/\\/[^\\s<>\"']+$/.test(c.SITIO_URL || '') ? c.SITIO_URL : 'https://abnercayao.github.io/tienda-tarapoto/',\n    COMMIT_EMAIL: /^[^\\s@<>]+@[^\\s@<>]+$/.test(c.COMMIT_EMAIL || '') ? c.COMMIT_EMAIL : '297644875+Abnercayao@users.noreply.github.com',\n    PAUSA: c.PAUSA === '1' ? 1 : 0,\n    MIN_ENTRE_COMMITS_MS: num('MIN_ENTRE_COMMITS_MS', 360000),\n    ULTIMO_COMMIT_AT: num('ULTIMO_COMMIT_AT', 0),\n    ULTIMO_POLL_AT: num('ULTIMO_POLL_AT', 0),\n    FALLOS_SEGUIDOS: num('FALLOS_SEGUIDOS', 0),\n    ULTIMA_ALERTA_AT: num('ULTIMA_ALERTA_AT', 0),\n    ALERTAS: alertas && typeof alertas === 'object' && !Array.isArray(alertas) ? alertas : {},\n    DESCONOCIDOS: Array.isArray(desconocidos) ? desconocidos.slice(-10) : [],\n    OLLAMA_URL: c.OLLAMA_URL || 'http://host.docker.internal:11434',\n    OLLAMA_MODELO: c.OLLAMA_MODELO || 'qwen3.5:4b-q4_K_M',\n    SD_URL: c.SD_URL || 'http://host.docker.internal:1234',\n    claves: Object.keys(c)\n  };\n}\nfunction rolDe(cfg, id) { const a = (cfg.AUTORIZADOS || []).find(function (x) { return x.id === Number(id); }); return a ? a.rol : null; }\n// Destinatarios de avisos técnicos: admins; si no hay, el dueño.\nfunction admins(cfg) {\n  const a = (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'admin'; });\n  return a.length ? a : (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'dueno'; });\n}\nfunction isoLima(ms) { const d = new Date((ms === undefined ? Date.now() : ms) - 5 * 3600000); return d.toISOString().slice(0, 19) + '-05:00'; }\n// --- fin comun.js ---\n// Respuesta de sd-server (fullResponse) -> binario. Acepta WebP o PNG (si el servidor ignora output_format, Edit Image lo pasa a WebP).\nconst p = $('Preparar').first().json;\nconst r = $input.first() ? $input.first().json || {} : {};\nfunction medidas(b) {\n  if (!b || b.length < 30) return null;\n  if (b.toString('ascii', 0, 4) === 'RIFF' && b.toString('ascii', 8, 12) === 'WEBP') {\n    const f = b.toString('ascii', 12, 16);\n    if (f === 'VP8X') return { formato: 'webp', w: 1 + b.readUIntLE(24, 3), h: 1 + b.readUIntLE(27, 3) };\n    if (f === 'VP8 ') return { formato: 'webp', w: b.readUInt16LE(26) & 0x3fff, h: b.readUInt16LE(28) & 0x3fff };\n    if (f === 'VP8L') { const bits = b.readUInt32LE(21); return { formato: 'webp', w: (bits & 0x3fff) + 1, h: ((bits >>> 14) & 0x3fff) + 1 }; }\n    return null;\n  }\n  if (b.toString('ascii', 1, 4) === 'PNG') return { formato: 'png', w: b.readUInt32BE(16), h: b.readUInt32BE(20) };\n  return null;\n}\nlet j = r.body !== undefined ? r.body : r;\nif (typeof j === 'string') { try { j = JSON.parse(j); } catch (x) { j = null; } }\nconst st = Number(r.statusCode) || (j && j.data ? 200 : 0);\nconst d0 = j && Array.isArray(j.data) && j.data[0] ? j.data[0] : null;\nconst b64 = d0 && typeof d0.b64_json === 'string' ? d0.b64_json.replace(/^data:[^,]+,/, '') : '';\nif (st !== 200 || b64.length < 100) {\n  const e = (j && j.error) || r.error || '';\n  const det = typeof e === 'string' ? e : (e && (e.message || e.description)) || (st ? 'HTTP ' + st + ' sin imagen' : 'no responde');\n  return [{ json: { ok: false, etapa: 'sd', error: censurar('sd-server: ' + det).replace(/\\s+/g, ' ').slice(0, 200) } }];\n}\nconst buf = Buffer.from(b64, 'base64');\nconst m = medidas(buf);\nif (!m || buf.length > 8000000) return [{ json: { ok: false, etapa: 'sd', error: 'sd-server devolvió un archivo que no es WebP ni PNG' } }];\nconst fh = Number(p.final.split('x')[1]);\n// Gravedad Sur (igual que admin.html y CONTRATO §12): se conserva la parte de ABAJO; arriba se quitan al menos \"recorte\" px.\nconst altoFinal = p.recorte > 0 ? Math.min(fh, m.h - p.recorte) : m.h;\nif (altoFinal < 64) return [{ json: { ok: false, etapa: 'recorte', error: 'imagen demasiado baja para recortarla (' + m.w + 'x' + m.h + ')' } }];\nconst bin = await this.helpers.prepareBinaryData(buf, 'palmera-brava-ia-' + p.seed + '.' + m.formato, 'image/' + m.formato);\nreturn [{ json: {\n  ok: true, formato: m.formato, ancho: m.w, alto: m.h, convertir: p.recorte > 0 || m.formato !== 'webp',\n  crop_ancho: m.w, crop_alto: altoFinal, crop_y: m.h - altoFinal\n}, binary: { data: bin } }];\n"
+      }
+    },
+    {
+      "id": "9f6a232a-9157-4322-ad02-5acb03247042",
+      "name": "Nota 3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3080,
+        -300
+      ],
+      "parameters": {
+        "content": "### 2 · Sin rostros\nCon persona adulta se generó más alta (p. ej. 768×1216) y aquí se recorta la parte de **arriba** (gravedad Sur) hasta el tamaño final (768×1024). Si el recorte no sale exacto, la imagen **no se envía**. PNG → WebP con el mismo nodo.",
+        "width": 1180,
+        "height": 480,
+        "color": 5
+      }
+    },
+    {
+      "id": "041ee545-2741-4652-bd42-fef41aca8151",
+      "name": "¿Imagen ok?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3120,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "602eefd4-d080-4d24-afe2-43b9cef94f70",
+              "leftValue": "={{ $json.ok === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "4419e36f-47a9-4af5-80ce-b61dfe1105d0",
+      "name": "¿Recortar o convertir?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3360,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a3d9c14b-86d0-4a0b-85d8-2d8fd35aea5c",
+              "leftValue": "={{ $json.convertir === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "f4b3835e-8100-49b5-872d-8154cb0806e8",
+      "name": "Recortar arriba",
+      "type": "n8n-nodes-base.editImage",
+      "typeVersion": 1.1,
+      "position": [
+        3600,
+        -120
+      ],
+      "parameters": {
+        "operation": "crop",
+        "dataPropertyName": "data",
+        "width": "={{ $json.crop_ancho }}",
+        "height": "={{ $json.crop_alto }}",
+        "positionX": 0,
+        "positionY": "={{ $json.crop_y }}",
+        "options": {
+          "format": "webp"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "c0e41454-b941-45ae-9a82-fd19fcfd4dd4",
+      "name": "Imagen final",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3840,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Comprueba el resultado (WebP y medidas exactas). Con personas, si el recorte no salió, NO se envía la imagen (podría tener rostro).\nconst p = $('Preparar').first().json;\nconst im = $('Imagen').first().json;\nfunction medidas(b) {\n  if (!b || b.length < 30 || b.toString('ascii', 0, 4) !== 'RIFF' || b.toString('ascii', 8, 12) !== 'WEBP') return null;\n  const f = b.toString('ascii', 12, 16);\n  if (f === 'VP8X') return { w: 1 + b.readUIntLE(24, 3), h: 1 + b.readUIntLE(27, 3) };\n  if (f === 'VP8 ') return { w: b.readUInt16LE(26) & 0x3fff, h: b.readUInt16LE(28) & 0x3fff };\n  if (f === 'VP8L') { const bits = b.readUInt32LE(21); return { w: (bits & 0x3fff) + 1, h: ((bits >>> 14) & 0x3fff) + 1 }; }\n  return null;\n}\nlet buf = null;\ntry { const it = $input.first(); if (it && it.binary && it.binary.data) buf = await this.helpers.getBinaryDataBuffer(0, 'data'); } catch (x) { buf = null; }\nconst d = medidas(buf);\nconst w = im.convertir ? im.crop_ancho : im.ancho;\nconst hh = im.convertir ? im.crop_alto : im.alto;\nif (!d || d.w !== w || d.h !== hh || buf.length > 4000000) {\n  return [{ json: { ok: false, etapa: 'recorte', error: 'el recorte o la conversión a WebP no salió (' + (d ? d.w + 'x' + d.h : 'sin imagen') + ', esperaba ' + w + 'x' + hh + ')' } }];\n}\nconst bin = await this.helpers.prepareBinaryData(buf, 'palmera-brava-ia-' + p.seed + '.webp', 'image/webp');\nreturn [{ json: { ok: true, ancho: d.w, alto: d.h, bytes: buf.length, b64: buf.toString('base64') }, binary: { data: bin } }];\n"
+      }
+    },
+    {
+      "id": "7d6ff840-5c52-48bc-87ff-10919829479e",
+      "name": "¿Final ok?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        4080,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "9bb8edf5-d3b8-408f-be97-bd347cddcf76",
+              "leftValue": "={{ $json.ok === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "4e201d4f-482b-4793-8b0e-ad3e39e4f87b",
+      "name": "Nota 4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        4280,
+        -360
+      ],
+      "parameters": {
+        "content": "### 3 · Telegram y borrador\n`sendPhoto` (credencial **Telegram Palmera Brava**) con Hero / Portada / Lookbook / Descartar (`dst:<draft>:hero|portada|look`, `no:<draft>`). Su `message_id` es el `preview_message_id`: WF5 solo acepta esos botones, del autor y con el borrador `pendiente`. Panel sin admin/dueño con id → solo devuelve la imagen.",
+        "width": 1660,
+        "height": 540,
+        "color": 7
+      }
+    },
+    {
+      "id": "a0c2020f-07d2-414e-9bee-b89f0272e90b",
+      "name": "¿A Telegram?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        4320,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "98c6ce8d-b414-4da9-9108-36f1f0892462",
+              "leftValue": "={{ $('Preparar').first().json.chat_id > 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "1ab35da6-62af-4b90-ace6-451948288370",
+      "name": "Enviar foto",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        4560,
+        -120
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendPhoto",
+        "chatId": "={{ $('Preparar').first().json.chat_id }}",
+        "binaryData": true,
+        "binaryPropertyName": "data",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Hero",
+                    "additionalFields": {
+                      "callback_data": "=dst:{{ $('Preparar').first().json.draft_id }}:hero"
+                    }
+                  },
+                  {
+                    "text": "Portada",
+                    "additionalFields": {
+                      "callback_data": "=dst:{{ $('Preparar').first().json.draft_id }}:portada"
+                    }
+                  },
+                  {
+                    "text": "Lookbook",
+                    "additionalFields": {
+                      "callback_data": "=dst:{{ $('Preparar').first().json.draft_id }}:look"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Descartar",
+                    "additionalFields": {
+                      "callback_data": "=no:{{ $('Preparar').first().json.draft_id }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "caption": "={{ $('Preparar').first().json.caption }}",
+          "parse_mode": "HTML"
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "name": "Telegram Palmera Brava"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "05dbec82-f730-458c-af62-5e5d2f986fa1",
+      "name": "Foto enviada",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4800,
+        -120
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// --- comun.js (Palmera Brava): ayudas compartidas por los nodos Code del núcleo (WF0, WF1, WF2, WF5, WF9) ---\n// Se inserta donde un Code dice \"// @incluir comun\". Sin require ni crypto (el task runner los bloquea).\nconst PB_TABLAS = { config: 'pb_config', locks: 'pb_locks', inbox: 'pb_inbox', borradores: 'pb_borradores', imagenes: 'pb_imagenes' };\n// Escapa texto para parse_mode HTML de Telegram.\nfunction h(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Quita tokens de Telegram, PAT de GitHub y similares de cualquier texto que vaya a un mensaje o a una tabla.\nfunction censurar(s) {\n  return String(s === null || s === undefined ? '' : s)\n    .replace(/bot\\d+:[\\w-]+/g, 'bot***')\n    .replace(/\\d{8,10}:[\\w-]{30,}/g, '***')\n    .replace(/github_pat_\\w+/g, 'github_pat_***')\n    .replace(/gh[pousr]_\\w+/g, 'gh*_***')\n    .replace(/(authorization[\"':=\\s]+)(token|bearer)\\s+[^\\s\"',}]+/gi, '$1$2 ***');\n}\n// Mensaje para Telegram (HTML). El texto YA debe venir escapado y terminar en \"Siguiente paso: ...\".\nfunction enviar(chatId, texto, extra) {\n  const t = String(texto || '');\n  if (!/\\nSiguiente paso: \\S/.test(t)) throw new Error('Mensaje sin \"Siguiente paso\": ' + t.slice(0, 60));\n  return { metodo: 'sendMessage', cuerpo: Object.assign({ chat_id: Number(chatId), text: t.slice(0, 4096), parse_mode: 'HTML', link_preview_options: { is_disabled: true } }, extra || {}) };\n}\nfunction quitarTeclado(chatId, messageId) {\n  return { metodo: 'editMessageReplyMarkup', cuerpo: { chat_id: Number(chatId), message_id: Number(messageId), reply_markup: { inline_keyboard: [] } } };\n}\nfunction botones(filas) { return { reply_markup: { inline_keyboard: filas } }; }\n// pb_config (filas {clave, valor}) -> objeto con tipos ya convertidos. Valores raros se ignoran (token con formato inválido = sin token).\nfunction armarConfig(filas) {\n  const c = {};\n  (filas || []).forEach(function (f) { if (f && typeof f.clave === 'string') c[f.clave] = f.valor === null || f.valor === undefined ? '' : String(f.valor); });\n  const num = function (k, d) { const n = Number(c[k]); return c[k] !== undefined && c[k] !== '' && Number.isFinite(n) ? n : d; };\n  const json = function (k, d) { try { const v = JSON.parse(c[k]); return v === null || v === undefined ? d : v; } catch (e) { return d; } };\n  const tok = String(c.BOT_TOKEN || '').trim();\n  let aut = json('AUTORIZADOS', []);\n  aut = (Array.isArray(aut) ? aut : []).filter(function (a) { return a && Number(a.id) > 0 && ['admin', 'dueno', 'marketing'].indexOf(a.rol) >= 0; })\n    .map(function (a) { return { id: Number(a.id), rol: a.rol, nombre: String(a.nombre || '').replace(/[<>]/g, '').slice(0, 60) }; });\n  const repo = String(c.REPO || '').trim();\n  const rama = String(c.REPO_BRANCH || '').trim();\n  const alertas = json('ALERTAS', {});\n  const desconocidos = json('DESCONOCIDOS', []);\n  return {\n    BOT_TOKEN: /^\\d{5,12}:[A-Za-z0-9_-]{30,}$/.test(tok) ? tok : '',\n    AUTORIZADOS: aut,\n    REPO: /^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repo) ? repo : 'Abnercayao/tienda-tarapoto',\n    REPO_BRANCH: /^[A-Za-z0-9_.\\/-]+$/.test(rama) ? rama : 'main',\n    SITIO_URL: /^https:\\/\\/[^\\s<>\"']+$/.test(c.SITIO_URL || '') ? c.SITIO_URL : 'https://abnercayao.github.io/tienda-tarapoto/',\n    COMMIT_EMAIL: /^[^\\s@<>]+@[^\\s@<>]+$/.test(c.COMMIT_EMAIL || '') ? c.COMMIT_EMAIL : '297644875+Abnercayao@users.noreply.github.com',\n    PAUSA: c.PAUSA === '1' ? 1 : 0,\n    MIN_ENTRE_COMMITS_MS: num('MIN_ENTRE_COMMITS_MS', 360000),\n    ULTIMO_COMMIT_AT: num('ULTIMO_COMMIT_AT', 0),\n    ULTIMO_POLL_AT: num('ULTIMO_POLL_AT', 0),\n    FALLOS_SEGUIDOS: num('FALLOS_SEGUIDOS', 0),\n    ULTIMA_ALERTA_AT: num('ULTIMA_ALERTA_AT', 0),\n    ALERTAS: alertas && typeof alertas === 'object' && !Array.isArray(alertas) ? alertas : {},\n    DESCONOCIDOS: Array.isArray(desconocidos) ? desconocidos.slice(-10) : [],\n    OLLAMA_URL: c.OLLAMA_URL || 'http://host.docker.internal:11434',\n    OLLAMA_MODELO: c.OLLAMA_MODELO || 'qwen3.5:4b-q4_K_M',\n    SD_URL: c.SD_URL || 'http://host.docker.internal:1234',\n    claves: Object.keys(c)\n  };\n}\nfunction rolDe(cfg, id) { const a = (cfg.AUTORIZADOS || []).find(function (x) { return x.id === Number(id); }); return a ? a.rol : null; }\n// Destinatarios de avisos técnicos: admins; si no hay, el dueño.\nfunction admins(cfg) {\n  const a = (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'admin'; });\n  return a.length ? a : (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'dueno'; });\n}\nfunction isoLima(ms) { const d = new Date((ms === undefined ? Date.now() : ms) - 5 * 3600000); return d.toISOString().slice(0, 19) + '-05:00'; }\n// --- fin comun.js ---\n// Respuesta del nodo Telegram sendPhoto: {ok, result:{message_id}} o {error} (onError: continuar). Su message_id es la vista previa (D2).\nconst r = $input.first() ? $input.first().json || {} : {};\nconst mid = r.ok === true && r.result ? Number(r.result.message_id) || 0 : 0;\nif (mid > 0) return [{ json: { ok: true, message_id: mid } }];\nconst e = r.error || r.description || 'sin respuesta';\nreturn [{ json: { ok: false, etapa: 'telegram', error: censurar('Telegram sendPhoto: ' + (typeof e === 'string' ? e : (e.message || e.description || JSON.stringify(e)))).slice(0, 200) } }];\n"
+      }
+    },
+    {
+      "id": "56961760-6bab-46b8-8317-77c70a027b77",
+      "name": "¿Enviada?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        5040,
+        -120
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "bc2d2f6f-f482-40f0-a6fd-8301dda229e1",
+              "leftValue": "={{ $json.ok === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "48892dbe-b417-4fa7-af65-124cbd498937",
+      "name": "Fila borrador",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5280,
+        -240
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// --- comun.js (Palmera Brava): ayudas compartidas por los nodos Code del núcleo (WF0, WF1, WF2, WF5, WF9) ---\n// Se inserta donde un Code dice \"// @incluir comun\". Sin require ni crypto (el task runner los bloquea).\nconst PB_TABLAS = { config: 'pb_config', locks: 'pb_locks', inbox: 'pb_inbox', borradores: 'pb_borradores', imagenes: 'pb_imagenes' };\n// Escapa texto para parse_mode HTML de Telegram.\nfunction h(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Quita tokens de Telegram, PAT de GitHub y similares de cualquier texto que vaya a un mensaje o a una tabla.\nfunction censurar(s) {\n  return String(s === null || s === undefined ? '' : s)\n    .replace(/bot\\d+:[\\w-]+/g, 'bot***')\n    .replace(/\\d{8,10}:[\\w-]{30,}/g, '***')\n    .replace(/github_pat_\\w+/g, 'github_pat_***')\n    .replace(/gh[pousr]_\\w+/g, 'gh*_***')\n    .replace(/(authorization[\"':=\\s]+)(token|bearer)\\s+[^\\s\"',}]+/gi, '$1$2 ***');\n}\n// Mensaje para Telegram (HTML). El texto YA debe venir escapado y terminar en \"Siguiente paso: ...\".\nfunction enviar(chatId, texto, extra) {\n  const t = String(texto || '');\n  if (!/\\nSiguiente paso: \\S/.test(t)) throw new Error('Mensaje sin \"Siguiente paso\": ' + t.slice(0, 60));\n  return { metodo: 'sendMessage', cuerpo: Object.assign({ chat_id: Number(chatId), text: t.slice(0, 4096), parse_mode: 'HTML', link_preview_options: { is_disabled: true } }, extra || {}) };\n}\nfunction quitarTeclado(chatId, messageId) {\n  return { metodo: 'editMessageReplyMarkup', cuerpo: { chat_id: Number(chatId), message_id: Number(messageId), reply_markup: { inline_keyboard: [] } } };\n}\nfunction botones(filas) { return { reply_markup: { inline_keyboard: filas } }; }\n// pb_config (filas {clave, valor}) -> objeto con tipos ya convertidos. Valores raros se ignoran (token con formato inválido = sin token).\nfunction armarConfig(filas) {\n  const c = {};\n  (filas || []).forEach(function (f) { if (f && typeof f.clave === 'string') c[f.clave] = f.valor === null || f.valor === undefined ? '' : String(f.valor); });\n  const num = function (k, d) { const n = Number(c[k]); return c[k] !== undefined && c[k] !== '' && Number.isFinite(n) ? n : d; };\n  const json = function (k, d) { try { const v = JSON.parse(c[k]); return v === null || v === undefined ? d : v; } catch (e) { return d; } };\n  const tok = String(c.BOT_TOKEN || '').trim();\n  let aut = json('AUTORIZADOS', []);\n  aut = (Array.isArray(aut) ? aut : []).filter(function (a) { return a && Number(a.id) > 0 && ['admin', 'dueno', 'marketing'].indexOf(a.rol) >= 0; })\n    .map(function (a) { return { id: Number(a.id), rol: a.rol, nombre: String(a.nombre || '').replace(/[<>]/g, '').slice(0, 60) }; });\n  const repo = String(c.REPO || '').trim();\n  const rama = String(c.REPO_BRANCH || '').trim();\n  const alertas = json('ALERTAS', {});\n  const desconocidos = json('DESCONOCIDOS', []);\n  return {\n    BOT_TOKEN: /^\\d{5,12}:[A-Za-z0-9_-]{30,}$/.test(tok) ? tok : '',\n    AUTORIZADOS: aut,\n    REPO: /^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repo) ? repo : 'Abnercayao/tienda-tarapoto',\n    REPO_BRANCH: /^[A-Za-z0-9_.\\/-]+$/.test(rama) ? rama : 'main',\n    SITIO_URL: /^https:\\/\\/[^\\s<>\"']+$/.test(c.SITIO_URL || '') ? c.SITIO_URL : 'https://abnercayao.github.io/tienda-tarapoto/',\n    COMMIT_EMAIL: /^[^\\s@<>]+@[^\\s@<>]+$/.test(c.COMMIT_EMAIL || '') ? c.COMMIT_EMAIL : '297644875+Abnercayao@users.noreply.github.com',\n    PAUSA: c.PAUSA === '1' ? 1 : 0,\n    MIN_ENTRE_COMMITS_MS: num('MIN_ENTRE_COMMITS_MS', 360000),\n    ULTIMO_COMMIT_AT: num('ULTIMO_COMMIT_AT', 0),\n    ULTIMO_POLL_AT: num('ULTIMO_POLL_AT', 0),\n    FALLOS_SEGUIDOS: num('FALLOS_SEGUIDOS', 0),\n    ULTIMA_ALERTA_AT: num('ULTIMA_ALERTA_AT', 0),\n    ALERTAS: alertas && typeof alertas === 'object' && !Array.isArray(alertas) ? alertas : {},\n    DESCONOCIDOS: Array.isArray(desconocidos) ? desconocidos.slice(-10) : [],\n    OLLAMA_URL: c.OLLAMA_URL || 'http://host.docker.internal:11434',\n    OLLAMA_MODELO: c.OLLAMA_MODELO || 'qwen3.5:4b-q4_K_M',\n    SD_URL: c.SD_URL || 'http://host.docker.internal:1234',\n    claves: Object.keys(c)\n  };\n}\nfunction rolDe(cfg, id) { const a = (cfg.AUTORIZADOS || []).find(function (x) { return x.id === Number(id); }); return a ? a.rol : null; }\n// Destinatarios de avisos técnicos: admins; si no hay, el dueño.\nfunction admins(cfg) {\n  const a = (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'admin'; });\n  return a.length ? a : (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'dueno'; });\n}\nfunction isoLima(ms) { const d = new Date((ms === undefined ? Date.now() : ms) - 5 * 3600000); return d.toISOString().slice(0, 19) + '-05:00'; }\n// --- fin comun.js ---\n// Exactamente las columnas de pb_borradores (Insert con autoMap). destino = null => faltantes [\"destino\"]: WF5 solo publica\n// tras el botón Hero / Portada / Lookbook (dst:) y luego Publicar, del mismo autor y desde esta foto (preview_message_id).\nconst p = $('Preparar').first().json;\nconst f = $('Foto enviada').first().json;\nconst ahora = Date.now();\nconst campos = { prompt: p.texto, seed: p.seed, size: p.final, generado: p.generar, recorte_arriba: p.recorte, personas: p.personas,\n  objetivo: p.objetivo, destino: null, alt: p.alt };\nreturn [{ json: {\n  draft_id: p.draft_id, owner_id: p.from_id, rol: p.rol, chat_id: p.chat_id, preview_message_id: f.message_id, origen: p.origen,\n  op: 'agregar_imagen', entidad: 'sitio', entidad_id: p.objetivo || 'site', campos: JSON.stringify(campos), campos_inferidos: '[]',\n  faltantes: JSON.stringify(['destino']), avisos: JSON.stringify(p.avisos.slice(0, 10)), update_ids: '[]', file_ids: '[]', file_unique_ids: '[]',\n  fecha: isoLima(ahora), expira: isoLima(ahora + 86400000), estado: 'pendiente', confirmaciones: 0, confirmaciones_requeridas: 1,\n  intentos: 0, error: '', commit_sha: '', texto: p.texto.slice(0, 2000),\n  resumen: ('imagen IA ' + (p.objetivo || 'sin objetivo') + ': ' + p.texto).slice(0, 300), fecha_ms: ahora\n} }];\n"
+      }
+    },
+    {
+      "id": "4f210da1-972d-4b15-90bf-8ca063a89b38",
+      "name": "Insertar borrador",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        5520,
+        -240
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_borradores"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "draft_id",
+              "displayName": "draft_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "owner_id",
+              "displayName": "owner_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "rol",
+              "displayName": "rol",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "chat_id",
+              "displayName": "chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "preview_message_id",
+              "displayName": "preview_message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "origen",
+              "displayName": "origen",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "op",
+              "displayName": "op",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "entidad",
+              "displayName": "entidad",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "entidad_id",
+              "displayName": "entidad_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "campos",
+              "displayName": "campos",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "campos_inferidos",
+              "displayName": "campos_inferidos",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "faltantes",
+              "displayName": "faltantes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "avisos",
+              "displayName": "avisos",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "update_ids",
+              "displayName": "update_ids",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "file_ids",
+              "displayName": "file_ids",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "file_unique_ids",
+              "displayName": "file_unique_ids",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "expira",
+              "displayName": "expira",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado",
+              "displayName": "estado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "confirmaciones",
+              "displayName": "confirmaciones",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "confirmaciones_requeridas",
+              "displayName": "confirmaciones_requeridas",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "intentos",
+              "displayName": "intentos",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "error",
+              "displayName": "error",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "commit_sha",
+              "displayName": "commit_sha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "texto",
+              "displayName": "texto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "resumen",
+              "displayName": "resumen",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_ms",
+              "displayName": "fecha_ms",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "30bb5b22-2fc2-4ee6-aeea-764ffb546350",
+      "name": "Fila imagen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5760,
+        -240
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Una fila de pb_imagenes (WebP ya final, A7): WF5 la sube tal cual al elegir el destino y publicar.\nconst p = $('Preparar').first().json;\nconst fin = $('Imagen final').first().json;\nreturn [{ json: { draft_id: p.draft_id, n: 1, b64: fin.b64, mime: 'image/webp', ancho: fin.ancho, alto: fin.alto, origen: 'ia_local', alt: p.alt, file_unique_id: '' } }];\n"
+      }
+    },
+    {
+      "id": "c18d11a0-0aa2-45d5-9b24-028c09024c6d",
+      "name": "Insertar imagen",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        6000,
+        -240
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_imagenes"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "draft_id",
+              "displayName": "draft_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "n",
+              "displayName": "n",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "b64",
+              "displayName": "b64",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "mime",
+              "displayName": "mime",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ancho",
+              "displayName": "ancho",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "alto",
+              "displayName": "alto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "origen",
+              "displayName": "origen",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "alt",
+              "displayName": "alt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "file_unique_id",
+              "displayName": "file_unique_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b8bd09f2-fb34-4c70-9b0d-c2755f72f1e5",
+      "name": "Nota 5",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        4280,
+        260
+      ],
+      "parameters": {
+        "content": "### Fallos\nPedido inválido, sd-server caído, recorte fallido o Telegram sin entregar → un mensaje claro (solo si vino de Telegram) y `{ok:false}` sin reintento (cada intento ocupa la GPU ~1 min).",
+        "width": 1660,
+        "height": 400,
+        "color": 3
+      }
+    },
+    {
+      "id": "a5b0d64b-6a8e-447f-ba8c-ddc3c1e51507",
+      "name": "Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4560,
+        400
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// --- comun.js (Palmera Brava): ayudas compartidas por los nodos Code del núcleo (WF0, WF1, WF2, WF5, WF9) ---\n// Se inserta donde un Code dice \"// @incluir comun\". Sin require ni crypto (el task runner los bloquea).\nconst PB_TABLAS = { config: 'pb_config', locks: 'pb_locks', inbox: 'pb_inbox', borradores: 'pb_borradores', imagenes: 'pb_imagenes' };\n// Escapa texto para parse_mode HTML de Telegram.\nfunction h(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Quita tokens de Telegram, PAT de GitHub y similares de cualquier texto que vaya a un mensaje o a una tabla.\nfunction censurar(s) {\n  return String(s === null || s === undefined ? '' : s)\n    .replace(/bot\\d+:[\\w-]+/g, 'bot***')\n    .replace(/\\d{8,10}:[\\w-]{30,}/g, '***')\n    .replace(/github_pat_\\w+/g, 'github_pat_***')\n    .replace(/gh[pousr]_\\w+/g, 'gh*_***')\n    .replace(/(authorization[\"':=\\s]+)(token|bearer)\\s+[^\\s\"',}]+/gi, '$1$2 ***');\n}\n// Mensaje para Telegram (HTML). El texto YA debe venir escapado y terminar en \"Siguiente paso: ...\".\nfunction enviar(chatId, texto, extra) {\n  const t = String(texto || '');\n  if (!/\\nSiguiente paso: \\S/.test(t)) throw new Error('Mensaje sin \"Siguiente paso\": ' + t.slice(0, 60));\n  return { metodo: 'sendMessage', cuerpo: Object.assign({ chat_id: Number(chatId), text: t.slice(0, 4096), parse_mode: 'HTML', link_preview_options: { is_disabled: true } }, extra || {}) };\n}\nfunction quitarTeclado(chatId, messageId) {\n  return { metodo: 'editMessageReplyMarkup', cuerpo: { chat_id: Number(chatId), message_id: Number(messageId), reply_markup: { inline_keyboard: [] } } };\n}\nfunction botones(filas) { return { reply_markup: { inline_keyboard: filas } }; }\n// pb_config (filas {clave, valor}) -> objeto con tipos ya convertidos. Valores raros se ignoran (token con formato inválido = sin token).\nfunction armarConfig(filas) {\n  const c = {};\n  (filas || []).forEach(function (f) { if (f && typeof f.clave === 'string') c[f.clave] = f.valor === null || f.valor === undefined ? '' : String(f.valor); });\n  const num = function (k, d) { const n = Number(c[k]); return c[k] !== undefined && c[k] !== '' && Number.isFinite(n) ? n : d; };\n  const json = function (k, d) { try { const v = JSON.parse(c[k]); return v === null || v === undefined ? d : v; } catch (e) { return d; } };\n  const tok = String(c.BOT_TOKEN || '').trim();\n  let aut = json('AUTORIZADOS', []);\n  aut = (Array.isArray(aut) ? aut : []).filter(function (a) { return a && Number(a.id) > 0 && ['admin', 'dueno', 'marketing'].indexOf(a.rol) >= 0; })\n    .map(function (a) { return { id: Number(a.id), rol: a.rol, nombre: String(a.nombre || '').replace(/[<>]/g, '').slice(0, 60) }; });\n  const repo = String(c.REPO || '').trim();\n  const rama = String(c.REPO_BRANCH || '').trim();\n  const alertas = json('ALERTAS', {});\n  const desconocidos = json('DESCONOCIDOS', []);\n  return {\n    BOT_TOKEN: /^\\d{5,12}:[A-Za-z0-9_-]{30,}$/.test(tok) ? tok : '',\n    AUTORIZADOS: aut,\n    REPO: /^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repo) ? repo : 'Abnercayao/tienda-tarapoto',\n    REPO_BRANCH: /^[A-Za-z0-9_.\\/-]+$/.test(rama) ? rama : 'main',\n    SITIO_URL: /^https:\\/\\/[^\\s<>\"']+$/.test(c.SITIO_URL || '') ? c.SITIO_URL : 'https://abnercayao.github.io/tienda-tarapoto/',\n    COMMIT_EMAIL: /^[^\\s@<>]+@[^\\s@<>]+$/.test(c.COMMIT_EMAIL || '') ? c.COMMIT_EMAIL : '297644875+Abnercayao@users.noreply.github.com',\n    PAUSA: c.PAUSA === '1' ? 1 : 0,\n    MIN_ENTRE_COMMITS_MS: num('MIN_ENTRE_COMMITS_MS', 360000),\n    ULTIMO_COMMIT_AT: num('ULTIMO_COMMIT_AT', 0),\n    ULTIMO_POLL_AT: num('ULTIMO_POLL_AT', 0),\n    FALLOS_SEGUIDOS: num('FALLOS_SEGUIDOS', 0),\n    ULTIMA_ALERTA_AT: num('ULTIMA_ALERTA_AT', 0),\n    ALERTAS: alertas && typeof alertas === 'object' && !Array.isArray(alertas) ? alertas : {},\n    DESCONOCIDOS: Array.isArray(desconocidos) ? desconocidos.slice(-10) : [],\n    OLLAMA_URL: c.OLLAMA_URL || 'http://host.docker.internal:11434',\n    OLLAMA_MODELO: c.OLLAMA_MODELO || 'qwen3.5:4b-q4_K_M',\n    SD_URL: c.SD_URL || 'http://host.docker.internal:1234',\n    claves: Object.keys(c)\n  };\n}\nfunction rolDe(cfg, id) { const a = (cfg.AUTORIZADOS || []).find(function (x) { return x.id === Number(id); }); return a ? a.rol : null; }\n// Destinatarios de avisos técnicos: admins; si no hay, el dueño.\nfunction admins(cfg) {\n  const a = (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'admin'; });\n  return a.length ? a : (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'dueno'; });\n}\nfunction isoLima(ms) { const d = new Date((ms === undefined ? Date.now() : ms) - 5 * 3600000); return d.toISOString().slice(0, 19) + '-05:00'; }\n// --- fin comun.js ---\n// Un solo lugar para los fallos: pedido inválido, sd-server, recorte y Telegram. Avisa por Telegram (token de pb_config)\n// solo si el pedido vino de Telegram; el panel recibe el error en la respuesta de WF8.\nconst cfg = $('Config').first().json;\nconst p = $('Preparar').first().json;\nconst corrio = function (n) { try { return $(n).isExecuted === true; } catch (x) { return false; } };\nconst de = function (n) { const j = corrio(n) ? $(n).first().json : null; return j && j.ok === false ? j : null; };\nconst f = de('Foto enviada') || de('Imagen final') || de('Imagen') || { etapa: 'pedido', error: p.error || 'pedido inválido' };\nconst TEXTOS = {\n  pedido: 'No puedo generar esa imagen: ' + h(f.error) + '.\\nSiguiente paso: usa /imagen [art-0001|look-1] descripción (3 a 500 caracteres).',\n  sd: 'No pude generar la imagen (' + h(f.error) + ').\\nSiguiente paso: en la PC de la tienda ejecuta tools\\\\iniciar-sd-server.bat, espera 1-2 min y repite /imagen.',\n  recorte: 'La imagen no se pudo recortar para ocultar rostros, así que no la envío.\\nSiguiente paso: repite /imagen (sale con otra semilla).',\n  telegram: 'Generé la imagen pero no pude enviarte la foto (' + h(f.error) + ').\\nSiguiente paso: revisa en n8n la credencial \"Telegram Palmera Brava\" (mismo token que pb_config) y repite /imagen.'\n};\nconst avisar = p.origen === 'telegram' && p.chat_id > 0 && cfg.BOT_TOKEN !== '' && (f.etapa !== 'pedido' || p.rol !== '');\nreturn [{ json: Object.assign(enviar(p.chat_id, TEXTOS[f.etapa] || TEXTOS.sd), { etapa: f.etapa, error: f.error, avisar: avisar }) }];\n"
+      }
+    },
+    {
+      "id": "2cc9b9ab-3df4-40ae-99f2-56bfad8f44c2",
+      "name": "¿Avisar error?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        4800,
+        400
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "684a5c79-066a-42e1-867d-e0bdad26cd4d",
+              "leftValue": "={{ $json.avisar === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "1bc535e0-6bb7-4105-8944-9ec0434eaf9d",
+      "name": "Enviar error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        5040,
+        320
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $('Config').first().json.BOT_TOKEN }}/{{ $json.metodo }}",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.cuerpo) }}",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "4203508c-742c-4687-948d-8e71084b0f94",
+      "name": "Salida",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6240,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// --- comun.js (Palmera Brava): ayudas compartidas por los nodos Code del núcleo (WF0, WF1, WF2, WF5, WF9) ---\n// Se inserta donde un Code dice \"// @incluir comun\". Sin require ni crypto (el task runner los bloquea).\nconst PB_TABLAS = { config: 'pb_config', locks: 'pb_locks', inbox: 'pb_inbox', borradores: 'pb_borradores', imagenes: 'pb_imagenes' };\n// Escapa texto para parse_mode HTML de Telegram.\nfunction h(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Quita tokens de Telegram, PAT de GitHub y similares de cualquier texto que vaya a un mensaje o a una tabla.\nfunction censurar(s) {\n  return String(s === null || s === undefined ? '' : s)\n    .replace(/bot\\d+:[\\w-]+/g, 'bot***')\n    .replace(/\\d{8,10}:[\\w-]{30,}/g, '***')\n    .replace(/github_pat_\\w+/g, 'github_pat_***')\n    .replace(/gh[pousr]_\\w+/g, 'gh*_***')\n    .replace(/(authorization[\"':=\\s]+)(token|bearer)\\s+[^\\s\"',}]+/gi, '$1$2 ***');\n}\n// Mensaje para Telegram (HTML). El texto YA debe venir escapado y terminar en \"Siguiente paso: ...\".\nfunction enviar(chatId, texto, extra) {\n  const t = String(texto || '');\n  if (!/\\nSiguiente paso: \\S/.test(t)) throw new Error('Mensaje sin \"Siguiente paso\": ' + t.slice(0, 60));\n  return { metodo: 'sendMessage', cuerpo: Object.assign({ chat_id: Number(chatId), text: t.slice(0, 4096), parse_mode: 'HTML', link_preview_options: { is_disabled: true } }, extra || {}) };\n}\nfunction quitarTeclado(chatId, messageId) {\n  return { metodo: 'editMessageReplyMarkup', cuerpo: { chat_id: Number(chatId), message_id: Number(messageId), reply_markup: { inline_keyboard: [] } } };\n}\nfunction botones(filas) { return { reply_markup: { inline_keyboard: filas } }; }\n// pb_config (filas {clave, valor}) -> objeto con tipos ya convertidos. Valores raros se ignoran (token con formato inválido = sin token).\nfunction armarConfig(filas) {\n  const c = {};\n  (filas || []).forEach(function (f) { if (f && typeof f.clave === 'string') c[f.clave] = f.valor === null || f.valor === undefined ? '' : String(f.valor); });\n  const num = function (k, d) { const n = Number(c[k]); return c[k] !== undefined && c[k] !== '' && Number.isFinite(n) ? n : d; };\n  const json = function (k, d) { try { const v = JSON.parse(c[k]); return v === null || v === undefined ? d : v; } catch (e) { return d; } };\n  const tok = String(c.BOT_TOKEN || '').trim();\n  let aut = json('AUTORIZADOS', []);\n  aut = (Array.isArray(aut) ? aut : []).filter(function (a) { return a && Number(a.id) > 0 && ['admin', 'dueno', 'marketing'].indexOf(a.rol) >= 0; })\n    .map(function (a) { return { id: Number(a.id), rol: a.rol, nombre: String(a.nombre || '').replace(/[<>]/g, '').slice(0, 60) }; });\n  const repo = String(c.REPO || '').trim();\n  const rama = String(c.REPO_BRANCH || '').trim();\n  const alertas = json('ALERTAS', {});\n  const desconocidos = json('DESCONOCIDOS', []);\n  return {\n    BOT_TOKEN: /^\\d{5,12}:[A-Za-z0-9_-]{30,}$/.test(tok) ? tok : '',\n    AUTORIZADOS: aut,\n    REPO: /^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repo) ? repo : 'Abnercayao/tienda-tarapoto',\n    REPO_BRANCH: /^[A-Za-z0-9_.\\/-]+$/.test(rama) ? rama : 'main',\n    SITIO_URL: /^https:\\/\\/[^\\s<>\"']+$/.test(c.SITIO_URL || '') ? c.SITIO_URL : 'https://abnercayao.github.io/tienda-tarapoto/',\n    COMMIT_EMAIL: /^[^\\s@<>]+@[^\\s@<>]+$/.test(c.COMMIT_EMAIL || '') ? c.COMMIT_EMAIL : '297644875+Abnercayao@users.noreply.github.com',\n    PAUSA: c.PAUSA === '1' ? 1 : 0,\n    MIN_ENTRE_COMMITS_MS: num('MIN_ENTRE_COMMITS_MS', 360000),\n    ULTIMO_COMMIT_AT: num('ULTIMO_COMMIT_AT', 0),\n    ULTIMO_POLL_AT: num('ULTIMO_POLL_AT', 0),\n    FALLOS_SEGUIDOS: num('FALLOS_SEGUIDOS', 0),\n    ULTIMA_ALERTA_AT: num('ULTIMA_ALERTA_AT', 0),\n    ALERTAS: alertas && typeof alertas === 'object' && !Array.isArray(alertas) ? alertas : {},\n    DESCONOCIDOS: Array.isArray(desconocidos) ? desconocidos.slice(-10) : [],\n    OLLAMA_URL: c.OLLAMA_URL || 'http://host.docker.internal:11434',\n    OLLAMA_MODELO: c.OLLAMA_MODELO || 'qwen3.5:4b-q4_K_M',\n    SD_URL: c.SD_URL || 'http://host.docker.internal:1234',\n    claves: Object.keys(c)\n  };\n}\nfunction rolDe(cfg, id) { const a = (cfg.AUTORIZADOS || []).find(function (x) { return x.id === Number(id); }); return a ? a.rol : null; }\n// Destinatarios de avisos técnicos: admins; si no hay, el dueño.\nfunction admins(cfg) {\n  const a = (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'admin'; });\n  return a.length ? a : (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'dueno'; });\n}\nfunction isoLima(ms) { const d = new Date((ms === undefined ? Date.now() : ms) - 5 * 3600000); return d.toISOString().slice(0, 19) + '-05:00'; }\n// --- fin comun.js ---\n// Salida común {ok, draft_id, ...} + binario \"data\" (WebP final). Para el panel (WF8) va también b64: WF8 rehace el binario en su\n// propia ejecución. ok:false nunca pide reintento (cada intento ocupa la GPU ~1 min; el usuario ya recibió el aviso).\nconst p = $('Preparar').first().json;\nconst corrio = function (n) { try { return $(n).isExecuted === true; } catch (x) { return false; } };\nconst fin = corrio('Imagen final') ? $('Imagen final').first() : null;\nconst err = corrio('Error') ? $('Error').first().json : null;\nif (!fin || !fin.json || fin.json.ok !== true) {\n  return [{ json: { ok: false, reintentar: false, etapa: err ? err.etapa : 'sd', error: censurar(err ? err.error : 'sin imagen').slice(0, 300) } }];\n}\nconst guardado = corrio('Insertar imagen');\nconst out = { ok: guardado || p.origen === 'panel', draft_id: guardado ? p.draft_id : '', telegram: guardado, seed: p.seed, tamano: fin.json.ancho + 'x' + fin.json.alto,\n  recorte_arriba: p.recorte, personas: p.personas, avisos: p.avisos };\nif (!guardado) {\n  out.aviso = err ? err.error : 'sin destinatario: nadie en AUTORIZADOS (admin o dueño con id) para recibir la foto en Telegram';\n  if (!out.ok) { out.reintentar = false; out.etapa = err ? err.etapa : 'telegram'; out.error = censurar(out.aviso).slice(0, 300); }\n}\nif (p.origen === 'panel') out.b64 = fin.json.b64;\nreturn [{ json: out, binary: fin.binary }];\n"
+      }
+    }
+  ],
+  "connections": {
+    "Entrada": {
+      "main": [
+        [
+          {
+            "node": "Leer config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer config": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Preparar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar": {
+      "main": [
+        [
+          {
+            "node": "¿Válido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Válido?": {
+      "main": [
+        [
+          {
+            "node": "¿Avisar inicio?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Avisar inicio?": {
+      "main": [
+        [
+          {
+            "node": "Aviso generando",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ollama ps",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aviso generando": {
+      "main": [
+        [
+          {
+            "node": "Enviar aviso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar aviso": {
+      "main": [
+        [
+          {
+            "node": "Ollama ps",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama ps": {
+      "main": [
+        [
+          {
+            "node": "Modelos a liberar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Modelos a liberar": {
+      "main": [
+        [
+          {
+            "node": "Liberar VRAM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Liberar VRAM": {
+      "main": [
+        [
+          {
+            "node": "sd-server",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "sd-server": {
+      "main": [
+        [
+          {
+            "node": "Imagen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Imagen": {
+      "main": [
+        [
+          {
+            "node": "¿Imagen ok?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Imagen ok?": {
+      "main": [
+        [
+          {
+            "node": "¿Recortar o convertir?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Recortar o convertir?": {
+      "main": [
+        [
+          {
+            "node": "Recortar arriba",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Imagen final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recortar arriba": {
+      "main": [
+        [
+          {
+            "node": "Imagen final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Imagen final": {
+      "main": [
+        [
+          {
+            "node": "¿Final ok?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Final ok?": {
+      "main": [
+        [
+          {
+            "node": "¿A Telegram?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿A Telegram?": {
+      "main": [
+        [
+          {
+            "node": "Enviar foto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar foto": {
+      "main": [
+        [
+          {
+            "node": "Foto enviada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Foto enviada": {
+      "main": [
+        [
+          {
+            "node": "¿Enviada?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Enviada?": {
+      "main": [
+        [
+          {
+            "node": "Fila borrador",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fila borrador": {
+      "main": [
+        [
+          {
+            "node": "Insertar borrador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insertar borrador": {
+      "main": [
+        [
+          {
+            "node": "Fila imagen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fila imagen": {
+      "main": [
+        [
+          {
+            "node": "Insertar imagen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insertar imagen": {
+      "main": [
+        [
+          {
+            "node": "Salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error": {
+      "main": [
+        [
+          {
+            "node": "¿Avisar error?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Avisar error?": {
+      "main": [
+        [
+          {
+            "node": "Enviar error",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar error": {
+      "main": [
+        [
+          {
+            "node": "Salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Lima",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "errorWorkflow": "pbWf09Errores000",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "meta": {},
+  "tags": []
+}

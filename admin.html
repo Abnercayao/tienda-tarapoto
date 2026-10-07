@@ -12,7 +12,7 @@
     (versión y liberar VRAM) y sd-server 127.0.0.1:1234 (estado y "Generar sin n8n").
   - La clave X-Tienda-Key se pide al usarla y vive solo en sessionStorage (se borra al cerrar la pestaña).
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'sha256-vqoVgBvFzU0l1n1E1l6QS6fdPxBQkiNXzss7Cr9VmkU='; connect-src 'self' http://127.0.0.1:5678 http://localhost:5678 http://127.0.0.1:1234 http://127.0.0.1:11434; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'sha256-ZjvKRIfVycC4wtg1NuJw5126/zqwAQt7d/Wz6AgnwRs='; connect-src 'self' http://127.0.0.1:5678 http://localhost:5678 http://127.0.0.1:1234 http://127.0.0.1:11434; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
 <meta name="color-scheme" content="light dark">
@@ -476,6 +476,8 @@ details.prompt-final p{margin-top:8px;font-size:.88rem;color:var(--text-muted);w
       var img = new Image();
       img.onload = function () {
         var m = /^(\d+)x(\d+)$/.exec(tamFinal);
+        // n8n (WF6) ya la devuelve recortada al tamaño final: no se recorta dos veces.
+        if (m && img.naturalHeight <= +m[2]) { URL.revokeObjectURL(url); resolver({ blob: blob, recortada: true }); return; }
         var w = img.naturalWidth, hFinal = m ? Math.min(+m[2], img.naturalHeight - recorte) : img.naturalHeight - recorte;
         var y = img.naturalHeight - hFinal; // gravedad Sur: se conserva la parte de abajo
         var c = document.createElement('canvas');
@@ -519,7 +521,7 @@ details.prompt-final p{margin-top:8px;font-size:.88rem;color:var(--text-muted);w
       throw e1;
     }
     var tipo = (r.headers.get('Content-Type') || '').toLowerCase();
-    if (r.ok && tipo.indexOf('image/') === 0) return { blob: await r.blob(), via: 'n8n' };
+    if (r.ok && tipo.indexOf('image/') === 0) return { blob: await r.blob(), via: 'n8n', telegram: r.headers.get('X-Telegram') !== 'no' };
     var cuerpo = null, crudo = '';
     try { crudo = await r.text(); cuerpo = JSON.parse(crudo); } catch (e) { cuerpo = null; }
     if (r.ok && cuerpo) {
@@ -670,7 +672,7 @@ details.prompt-final p{margin-top:8px;font-size:.88rem;color:var(--text-muted);w
         $('#vista-arco').scrollIntoView({ block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
       }
       nota(msg, 'Imagen lista. Revísala antes de usarla: sin rostro, sin niños con personas, sin texto ni logos.' +
-        (res.via === 'n8n' ? ' También llegó a Telegram con los botones Portada / Hero / Lookbook / Descartar.' : ' Para publicarla, envíala al bot por Telegram como foto.'), 'ok');
+        (res.via === 'n8n' ? (res.telegram === false ? ' No llegó a Telegram (revisa AUTORIZADOS y la credencial Telegram en n8n); para publicarla, envíala al bot como foto.' : ' También llegó a Telegram con los botones Portada / Hero / Lookbook / Descartar.') : ' Para publicarla, envíala al bot por Telegram como foto.'), 'ok');
     } catch (e) {
       if (e.name === 'AbortError') nota(msg, c.signal.aborted ? 'Cancelado. La GPU termina el trabajo en curso antes de aceptar otro.' : 'Se agotó el tiempo de espera. Revisa el estado de los servicios arriba.', 'error');
       else nota(msg, e.message + (e.paso ? ' Siguiente paso: ' + e.paso : ''), 'error');

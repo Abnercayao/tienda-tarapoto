@@ -1,0 +1,20 @@
+[
+  {
+    "id": "pbCredTelegram01",
+    "name": "Telegram Palmera Brava",
+    "type": "telegramApi",
+    "data": { "accessToken": "PEGAR_EN_LA_UI_DE_N8N", "baseUrl": "https://api.telegram.org" }
+  },
+  {
+    "id": "pbCredGithub0001",
+    "name": "GitHub Palmera Brava",
+    "type": "githubApi",
+    "data": { "server": "https://api.github.com", "user": "Abnercayao", "accessToken": "PEGAR_EN_LA_UI_DE_N8N" }
+  },
+  {
+    "id": "pbCredHeader0001",
+    "name": "Header X-Tienda-Key",
+    "type": "httpHeaderAuth",
+    "data": { "name": "X-Tienda-Key", "value": "PEGAR_EN_LA_UI_DE_N8N" }
+  }
+]

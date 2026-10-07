@@ -1,0 +1,1403 @@
+{
+  "id": "pbWf02Worker0000",
+  "name": "PB WF2 Worker",
+  "active": false,
+  "nodes": [
+    {
+      "id": "8d315f92-796a-4c33-a863-405cbee03e4e",
+      "name": "Nota 1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -600
+      ],
+      "parameters": {
+        "content": "## WF2 · Worker (cada 10 s)\nToma el lock `worker` (lease 15 min, lo comparte con el panel WF8: GPU y GitHub nunca en paralelo), procesa **un** trabajo de `pb_inbox`, lo marca y, si toca, publica el lote con WF5. Siempre libera el lock al final (si muere, WF9 lo libera).",
+        "width": 640,
+        "height": 280,
+        "color": 4
+      }
+    },
+    {
+      "id": "868e7378-12f8-426c-ab36-8859b66f2085",
+      "name": "Nota 2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -280
+      ],
+      "parameters": {
+        "content": "### 1 · Lock\n`UPDATE pb_locks SET holder=<ejecución> WHERE nombre=worker AND hasta < ahora` (atómico). Si no lo obtiene, termina.",
+        "width": 1180,
+        "height": 460,
+        "color": 7
+      }
+    },
+    {
+      "id": "84c5e7d3-69b6-4b0b-b1e9-521daff574ef",
+      "name": "Cada 10 s",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "seconds",
+              "secondsInterval": 10
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "1668f638-a2ec-4013-892b-585c6f9ea045",
+      "name": "Leer config",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_config"
+        },
+        "matchType": "allConditions",
+        "filters": {},
+        "returnAll": true
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "8a34afb8-03bd-4afc-9f04-51fa82bcaff6",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// --- comun.js (Palmera Brava): ayudas compartidas por los nodos Code del núcleo (WF0, WF1, WF2, WF5, WF9) ---\n// Se inserta donde un Code dice \"// @incluir comun\". Sin require ni crypto (el task runner los bloquea).\nconst PB_TABLAS = { config: 'pb_config', locks: 'pb_locks', inbox: 'pb_inbox', borradores: 'pb_borradores', imagenes: 'pb_imagenes' };\n// Escapa texto para parse_mode HTML de Telegram.\nfunction h(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Quita tokens de Telegram, PAT de GitHub y similares de cualquier texto que vaya a un mensaje o a una tabla.\nfunction censurar(s) {\n  return String(s === null || s === undefined ? '' : s)\n    .replace(/bot\\d+:[\\w-]+/g, 'bot***')\n    .replace(/\\d{8,10}:[\\w-]{30,}/g, '***')\n    .replace(/github_pat_\\w+/g, 'github_pat_***')\n    .replace(/gh[pousr]_\\w+/g, 'gh*_***')\n    .replace(/(authorization[\"':=\\s]+)(token|bearer)\\s+[^\\s\"',}]+/gi, '$1$2 ***');\n}\n// Mensaje para Telegram (HTML). El texto YA debe venir escapado y terminar en \"Siguiente paso: ...\".\nfunction enviar(chatId, texto, extra) {\n  const t = String(texto || '');\n  if (!/\\nSiguiente paso: \\S/.test(t)) throw new Error('Mensaje sin \"Siguiente paso\": ' + t.slice(0, 60));\n  return { metodo: 'sendMessage', cuerpo: Object.assign({ chat_id: Number(chatId), text: t.slice(0, 4096), parse_mode: 'HTML', link_preview_options: { is_disabled: true } }, extra || {}) };\n}\nfunction quitarTeclado(chatId, messageId) {\n  return { metodo: 'editMessageReplyMarkup', cuerpo: { chat_id: Number(chatId), message_id: Number(messageId), reply_markup: { inline_keyboard: [] } } };\n}\nfunction botones(filas) { return { reply_markup: { inline_keyboard: filas } }; }\n// pb_config (filas {clave, valor}) -> objeto con tipos ya convertidos. Valores raros se ignoran (token con formato inválido = sin token).\nfunction armarConfig(filas) {\n  const c = {};\n  (filas || []).forEach(function (f) { if (f && typeof f.clave === 'string') c[f.clave] = f.valor === null || f.valor === undefined ? '' : String(f.valor); });\n  const num = function (k, d) { const n = Number(c[k]); return c[k] !== undefined && c[k] !== '' && Number.isFinite(n) ? n : d; };\n  const json = function (k, d) { try { const v = JSON.parse(c[k]); return v === null || v === undefined ? d : v; } catch (e) { return d; } };\n  const tok = String(c.BOT_TOKEN || '').trim();\n  let aut = json('AUTORIZADOS', []);\n  aut = (Array.isArray(aut) ? aut : []).filter(function (a) { return a && Number(a.id) > 0 && ['admin', 'dueno', 'marketing'].indexOf(a.rol) >= 0; })\n    .map(function (a) { return { id: Number(a.id), rol: a.rol, nombre: String(a.nombre || '').replace(/[<>]/g, '').slice(0, 60) }; });\n  const repo = String(c.REPO || '').trim();\n  const rama = String(c.REPO_BRANCH || '').trim();\n  const alertas = json('ALERTAS', {});\n  const desconocidos = json('DESCONOCIDOS', []);\n  return {\n    BOT_TOKEN: /^\\d{5,12}:[A-Za-z0-9_-]{30,}$/.test(tok) ? tok : '',\n    AUTORIZADOS: aut,\n    REPO: /^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repo) ? repo : 'Abnercayao/tienda-tarapoto',\n    REPO_BRANCH: /^[A-Za-z0-9_.\\/-]+$/.test(rama) ? rama : 'main',\n    SITIO_URL: /^https:\\/\\/[^\\s<>\"']+$/.test(c.SITIO_URL || '') ? c.SITIO_URL : 'https://abnercayao.github.io/tienda-tarapoto/',\n    COMMIT_EMAIL: /^[^\\s@<>]+@[^\\s@<>]+$/.test(c.COMMIT_EMAIL || '') ? c.COMMIT_EMAIL : '297644875+Abnercayao@users.noreply.github.com',\n    PAUSA: c.PAUSA === '1' ? 1 : 0,\n    MIN_ENTRE_COMMITS_MS: num('MIN_ENTRE_COMMITS_MS', 360000),\n    ULTIMO_COMMIT_AT: num('ULTIMO_COMMIT_AT', 0),\n    ULTIMO_POLL_AT: num('ULTIMO_POLL_AT', 0),\n    FALLOS_SEGUIDOS: num('FALLOS_SEGUIDOS', 0),\n    ULTIMA_ALERTA_AT: num('ULTIMA_ALERTA_AT', 0),\n    ALERTAS: alertas && typeof alertas === 'object' && !Array.isArray(alertas) ? alertas : {},\n    DESCONOCIDOS: Array.isArray(desconocidos) ? desconocidos.slice(-10) : [],\n    OLLAMA_URL: c.OLLAMA_URL || 'http://host.docker.internal:11434',\n    OLLAMA_MODELO: c.OLLAMA_MODELO || 'qwen3.5:4b-q4_K_M',\n    SD_URL: c.SD_URL || 'http://host.docker.internal:1234',\n    claves: Object.keys(c)\n  };\n}\nfunction rolDe(cfg, id) { const a = (cfg.AUTORIZADOS || []).find(function (x) { return x.id === Number(id); }); return a ? a.rol : null; }\n// Destinatarios de avisos técnicos: admins; si no hay, el dueño.\nfunction admins(cfg) {\n  const a = (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'admin'; });\n  return a.length ? a : (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'dueno'; });\n}\nfunction isoLima(ms) { const d = new Date((ms === undefined ? Date.now() : ms) - 5 * 3600000); return d.toISOString().slice(0, 19) + '-05:00'; }\n// --- fin comun.js ---\nconst cfg = armarConfig($input.all().map(function (i) { return i.json; }));\nif (!cfg.BOT_TOKEN) return [];\nreturn [{ json: cfg }];\n"
+      }
+    },
+    {
+      "id": "ca2f2694-b284-43f8-a641-2023dcadcd98",
+      "name": "Tomar lock",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_locks"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "nombre",
+              "condition": "eq",
+              "keyValue": "worker"
+            },
+            {
+              "keyName": "hasta",
+              "condition": "lt",
+              "keyValue": "={{ Date.now() }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "holder": "={{ $execution.id }}",
+            "hasta": "={{ Date.now() + 900000 }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "holder",
+              "displayName": "holder",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "hasta",
+              "displayName": "hasta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "e5127e9b-6686-4779-8702-f37b0e10f3e3",
+      "name": "¿Lock tomado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        960,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "55d1b3f4-19ea-49c7-a0b8-83f7df699cf0",
+              "leftValue": "={{ $json.holder === $execution.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "7c21d8c7-253d-447f-8cde-03a3fe32833e",
+      "name": "Nota 3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1160,
+        -280
+      ],
+      "parameters": {
+        "content": "### 2 · Elegir trabajo\nEl más antiguo en `nuevo`; un álbum entero cuando su última foto tiene ≥ 20 s. **Rol recalculado** desde AUTORIZADOS (revocar = efecto inmediato). Huérfanos en `procesando` (worker muerto) se reintentan hasta 2 veces. \"completar\" = el autor tiene un borrador con faltantes de < 24 h.",
+        "width": 1660,
+        "height": 460,
+        "color": 5
+      }
+    },
+    {
+      "id": "21c8522f-cbb3-4de2-86ff-92111a6d27bc",
+      "name": "Leer inbox",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1200,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_inbox"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "estado",
+              "condition": "eq",
+              "keyValue": "nuevo"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 20,
+        "orderBy": true,
+        "orderByColumn": "id",
+        "orderByDirection": "ASC"
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "ec398ab2-8314-4197-9db3-8d22d7ab4036",
+      "name": "Leer huerfanos",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1440,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_inbox"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "estado",
+              "condition": "eq",
+              "keyValue": "procesando"
+            },
+            {
+              "keyName": "intentos",
+              "condition": "lt",
+              "keyValue": 2
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 5,
+        "orderBy": true,
+        "orderByColumn": "id",
+        "orderByDirection": "ASC"
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "8aad938c-9bf8-4090-a3dd-26e9bab22c59",
+      "name": "Elegir",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// --- comun.js (Palmera Brava): ayudas compartidas por los nodos Code del núcleo (WF0, WF1, WF2, WF5, WF9) ---\n// Se inserta donde un Code dice \"// @incluir comun\". Sin require ni crypto (el task runner los bloquea).\nconst PB_TABLAS = { config: 'pb_config', locks: 'pb_locks', inbox: 'pb_inbox', borradores: 'pb_borradores', imagenes: 'pb_imagenes' };\n// Escapa texto para parse_mode HTML de Telegram.\nfunction h(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Quita tokens de Telegram, PAT de GitHub y similares de cualquier texto que vaya a un mensaje o a una tabla.\nfunction censurar(s) {\n  return String(s === null || s === undefined ? '' : s)\n    .replace(/bot\\d+:[\\w-]+/g, 'bot***')\n    .replace(/\\d{8,10}:[\\w-]{30,}/g, '***')\n    .replace(/github_pat_\\w+/g, 'github_pat_***')\n    .replace(/gh[pousr]_\\w+/g, 'gh*_***')\n    .replace(/(authorization[\"':=\\s]+)(token|bearer)\\s+[^\\s\"',}]+/gi, '$1$2 ***');\n}\n// Mensaje para Telegram (HTML). El texto YA debe venir escapado y terminar en \"Siguiente paso: ...\".\nfunction enviar(chatId, texto, extra) {\n  const t = String(texto || '');\n  if (!/\\nSiguiente paso: \\S/.test(t)) throw new Error('Mensaje sin \"Siguiente paso\": ' + t.slice(0, 60));\n  return { metodo: 'sendMessage', cuerpo: Object.assign({ chat_id: Number(chatId), text: t.slice(0, 4096), parse_mode: 'HTML', link_preview_options: { is_disabled: true } }, extra || {}) };\n}\nfunction quitarTeclado(chatId, messageId) {\n  return { metodo: 'editMessageReplyMarkup', cuerpo: { chat_id: Number(chatId), message_id: Number(messageId), reply_markup: { inline_keyboard: [] } } };\n}\nfunction botones(filas) { return { reply_markup: { inline_keyboard: filas } }; }\n// pb_config (filas {clave, valor}) -> objeto con tipos ya convertidos. Valores raros se ignoran (token con formato inválido = sin token).\nfunction armarConfig(filas) {\n  const c = {};\n  (filas || []).forEach(function (f) { if (f && typeof f.clave === 'string') c[f.clave] = f.valor === null || f.valor === undefined ? '' : String(f.valor); });\n  const num = function (k, d) { const n = Number(c[k]); return c[k] !== undefined && c[k] !== '' && Number.isFinite(n) ? n : d; };\n  const json = function (k, d) { try { const v = JSON.parse(c[k]); return v === null || v === undefined ? d : v; } catch (e) { return d; } };\n  const tok = String(c.BOT_TOKEN || '').trim();\n  let aut = json('AUTORIZADOS', []);\n  aut = (Array.isArray(aut) ? aut : []).filter(function (a) { return a && Number(a.id) > 0 && ['admin', 'dueno', 'marketing'].indexOf(a.rol) >= 0; })\n    .map(function (a) { return { id: Number(a.id), rol: a.rol, nombre: String(a.nombre || '').replace(/[<>]/g, '').slice(0, 60) }; });\n  const repo = String(c.REPO || '').trim();\n  const rama = String(c.REPO_BRANCH || '').trim();\n  const alertas = json('ALERTAS', {});\n  const desconocidos = json('DESCONOCIDOS', []);\n  return {\n    BOT_TOKEN: /^\\d{5,12}:[A-Za-z0-9_-]{30,}$/.test(tok) ? tok : '',\n    AUTORIZADOS: aut,\n    REPO: /^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repo) ? repo : 'Abnercayao/tienda-tarapoto',\n    REPO_BRANCH: /^[A-Za-z0-9_.\\/-]+$/.test(rama) ? rama : 'main',\n    SITIO_URL: /^https:\\/\\/[^\\s<>\"']+$/.test(c.SITIO_URL || '') ? c.SITIO_URL : 'https://abnercayao.github.io/tienda-tarapoto/',\n    COMMIT_EMAIL: /^[^\\s@<>]+@[^\\s@<>]+$/.test(c.COMMIT_EMAIL || '') ? c.COMMIT_EMAIL : '297644875+Abnercayao@users.noreply.github.com',\n    PAUSA: c.PAUSA === '1' ? 1 : 0,\n    MIN_ENTRE_COMMITS_MS: num('MIN_ENTRE_COMMITS_MS', 360000),\n    ULTIMO_COMMIT_AT: num('ULTIMO_COMMIT_AT', 0),\n    ULTIMO_POLL_AT: num('ULTIMO_POLL_AT', 0),\n    FALLOS_SEGUIDOS: num('FALLOS_SEGUIDOS', 0),\n    ULTIMA_ALERTA_AT: num('ULTIMA_ALERTA_AT', 0),\n    ALERTAS: alertas && typeof alertas === 'object' && !Array.isArray(alertas) ? alertas : {},\n    DESCONOCIDOS: Array.isArray(desconocidos) ? desconocidos.slice(-10) : [],\n    OLLAMA_URL: c.OLLAMA_URL || 'http://host.docker.internal:11434',\n    OLLAMA_MODELO: c.OLLAMA_MODELO || 'qwen3.5:4b-q4_K_M',\n    SD_URL: c.SD_URL || 'http://host.docker.internal:1234',\n    claves: Object.keys(c)\n  };\n}\nfunction rolDe(cfg, id) { const a = (cfg.AUTORIZADOS || []).find(function (x) { return x.id === Number(id); }); return a ? a.rol : null; }\n// Destinatarios de avisos técnicos: admins; si no hay, el dueño.\nfunction admins(cfg) {\n  const a = (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'admin'; });\n  return a.length ? a : (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'dueno'; });\n}\nfunction isoLima(ms) { const d = new Date((ms === undefined ? Date.now() : ms) - 5 * 3600000); return d.toISOString().slice(0, 19) + '-05:00'; }\n// --- fin comun.js ---\n// Toma UN trabajo: el mensaje más antiguo en estado \"nuevo\". Un álbum (media_group_id) se procesa entero, y solo\n// cuando su foto más reciente llegó hace >= 20 s. Filas \"procesando\" = huérfanas de un worker que murió (tenemos el lock):\n// se reintentan una vez más (intentos + 1); con intentos >= 2 se dejan.\nconst cfg = $('Config').first().json;\nconst ahora = Date.now();\nconst filas = $('Leer inbox').all().concat($input.all()).map(function (i) { return i.json; })\n  .filter(function (j) { return j.update_id !== undefined && j.update_id !== null && (j.estado === 'nuevo' || (j.estado === 'procesando' && (Number(j.intentos) || 0) < 2)); })\n  .sort(function (a, b) { return (Number(a.id) || 0) - (Number(b.id) || 0); });\nconst usados = new Set();\nlet elegido = null;\nfor (const f of filas) {\n  if (usados.has(f.update_id)) continue;\n  if (f.media_group_id) {\n    const grupo = filas.filter(function (x) { return x.media_group_id === f.media_group_id && x.chat_id === f.chat_id; });\n    grupo.forEach(function (x) { usados.add(x.update_id); });\n    const masNuevo = Math.max.apply(null, grupo.map(function (x) { return Number(x.recibido) || 0; }));\n    if (ahora - masNuevo < 20000) continue;                              // el álbum todavía puede estar llegando\n    elegido = grupo.slice().sort(function (a, b) { return (Number(a.message_id) || 0) - (Number(b.message_id) || 0); });\n    break;\n  }\n  elegido = [f];\n  break;\n}\nif (!elegido) return [{ json: { hay: false, ruta: 'nada', filas: [] } }];\n// Duplicados del mismo update_id (solapamiento de WF1) se marcan juntos (el update filtra por update_id).\nconst unicos = [];\nconst vistos = new Set();\nelegido.forEach(function (x) { if (!vistos.has(x.update_id)) { vistos.add(x.update_id); unicos.push(x); } });\nconst base = unicos[0];\nconst rol = rolDe(cfg, base.from_id);                                  // rol recalculado: revocar surte efecto al instante\nconst fotos = unicos.filter(function (x) { return x.tipo === 'foto' && x.file_id; }).slice(0, 6)\n  .map(function (x) { return { file_id: x.file_id, file_unique_id: x.file_unique_id }; });\nconst conTexto = unicos.find(function (x) { return x.texto && String(x.texto).trim(); });\nconst texto = conTexto ? String(conTexto.texto) : '';\nlet comando = '';\nlet args = [];\nconst t = texto.trim();\nif (t.charAt(0) === '/' && base.tipo !== 'callback') {\n  const partes = t.split(/\\s+/);\n  comando = partes[0].slice(1).split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 32);\n  args = partes.slice(1, 40).map(function (a) { return a.slice(0, 200); });\n}\nconst tipo = fotos.length ? 'foto' : base.tipo;\nlet ruta;\nif (!rol) ruta = 'rechazado';\nelse if (tipo === 'callback') ruta = 'callback';\nelse if (comando) ruta = 'comando';\nelse if (tipo === 'foto' || tipo === 'texto') ruta = 'borrador';\nelse ruta = 'fijo';\nconst trabajo = {\n  tipo: tipo, update_ids: unicos.map(function (x) { return Number(x.update_id); }), chat_id: Number(base.chat_id), from_id: Number(base.from_id),\n  nombre: String(base.nombre || ''), rol: rol || '', message_id: Number(base.message_id) || 0, texto: texto, comando: comando, args: args, fotos: fotos,\n  callback: tipo === 'callback' ? { id: base.callback_id, data: base.callback_data, message_id: Number(base.callback_message_id) || 0 } : null,\n  origen: 'telegram'\n};\nreturn [{ json: {\n  hay: true, ruta: ruta, trabajo: trabajo,\n  filas: unicos.map(function (x) {\n    const previo = x.estado;\n    return { update_id: Number(x.update_id), estado_previo: previo, intentos: (Number(x.intentos) || 0) + (previo === 'procesando' ? 1 : 0) };\n  })\n} }];\n"
+      }
+    },
+    {
+      "id": "ff27248d-ad0c-449e-895c-a5b373774630",
+      "name": "Pendientes del autor",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1920,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_borradores"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "owner_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.hay ? $json.trabajo.from_id : -1 }}"
+            },
+            {
+              "keyName": "estado",
+              "condition": "eq",
+              "keyValue": "pendiente"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "8d2d5181-10cd-46b6-bff4-835a06ea28c1",
+      "name": "Preparar trabajo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Decide el modo de WF3: \"completar\" si el autor tiene un borrador pendiente con faltantes (< 24 h) y manda solo texto.\nconst e = $('Elegir').first().json;\nif (!e.hay) return [{ json: e }];\nconst t = e.trabajo;\nlet modo = e.ruta === 'callback' ? 'callback' : 'llm';\nlet draftId = '';\nlet tipoEntidad = 'producto';\nif (e.ruta === 'borrador' && !t.fotos.length) {\n  const ahora = Date.now();\n  const pend = $input.all().map(function (i) { return i.json; })\n    .filter(function (b) { return b.draft_id && b.estado === 'pendiente' && Number(b.owner_id) === t.from_id && ahora - (Number(b.fecha_ms) || 0) < 86400000; })\n    .filter(function (b) { let f = []; try { f = JSON.parse(b.faltantes || '[]'); } catch (x) { f = []; } return Array.isArray(f) && f.length > 0 && f.indexOf('destino') < 0; })\n    .sort(function (a, b) { return (Number(b.fecha_ms) || 0) - (Number(a.fecha_ms) || 0); });\n  if (pend.length) { modo = 'completar'; draftId = pend[0].draft_id; tipoEntidad = pend[0].entidad === 'articulo' ? 'articulo' : 'producto'; }\n}\n// Entrada de los sub-workflows: campos del trabajo en el primer nivel + el mismo objeto en \"trabajo\".\nconst entrada = Object.assign({}, t, { trabajo: t, modo: modo, tipo_entidad: tipoEntidad, draft_id: draftId });\nreturn [{ json: Object.assign({}, e, { entrada: entrada }) }];\n"
+      }
+    },
+    {
+      "id": "d6ea64d0-d149-4e8b-b434-1016b8bb68ee",
+      "name": "Por mensaje",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const p = $input.first().json;\nif (!p.hay) return [{ json: { update_id: -1, estado_previo: 'nuevo', intentos: 0 } }];\nreturn p.filas.map(function (f) { return { json: f }; });\n"
+      }
+    },
+    {
+      "id": "3d9dac40-6939-443a-9106-806154a9dd0f",
+      "name": "Marcar procesando",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2640,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_inbox"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "update_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.update_id }}"
+            },
+            {
+              "keyName": "estado",
+              "condition": "eq",
+              "keyValue": "={{ $json.estado_previo }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "estado": "procesando",
+            "intentos": "={{ $json.intentos }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "estado",
+              "displayName": "estado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "intentos",
+              "displayName": "intentos",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "459cf17d-c15e-420c-a4dd-681b9d79ef89",
+      "name": "Reunir",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2880,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Si no se pudo pasar ninguna fila a \"procesando\" (ya la tomó otro), no se hace nada.\nconst p = $('Preparar trabajo').first().json;\nconst tomados = $input.all().filter(function (i) { return i.json && i.json.id !== undefined; }).length;\nif (!p.hay || tomados === 0) return [{ json: { ruta: 'nada' } }];\nreturn [{ json: Object.assign({ ruta: p.ruta }, p.entrada) }];\n"
+      }
+    },
+    {
+      "id": "57d146e5-d1fd-4131-a0d0-40be740c5680",
+      "name": "Nota 4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3080,
+        -560
+      ],
+      "parameters": {
+        "content": "### 3 · Despacho\n`callback` → WF5 (verifica dueño, vista previa vigente y estado). `comando` → WF4. Foto/texto → WF3 (borrador con IA). Voz/archivo → respuesta fija. Los sub-workflows deben estar **publicados**.",
+        "width": 980,
+        "height": 900,
+        "color": 6
+      }
+    },
+    {
+      "id": "55239651-d0ef-4cfd-a694-d14290ba05d7",
+      "name": "Ruta",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        3120,
+        0
+      ],
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "fcbea030-1dc9-40ef-80a6-5dab23b6016c",
+                    "leftValue": "={{ $json.ruta }}",
+                    "rightValue": "callback",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "callback"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "cde12770-39d1-4c43-9aa9-ef26b2c7076c",
+                    "leftValue": "={{ $json.ruta }}",
+                    "rightValue": "comando",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "comando"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "bd7d6252-5d94-4543-876e-4263066d89e8",
+                    "leftValue": "={{ $json.ruta }}",
+                    "rightValue": "borrador",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "borrador"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "61254ed5-d3a8-4a00-8188-b2ef54fd7fe3",
+                    "leftValue": "={{ $json.ruta }}",
+                    "rightValue": "fijo",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "fijo"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "otro"
+        }
+      }
+    },
+    {
+      "id": "86afbdd4-bad6-406e-a7ae-82406575898e",
+      "name": "WF5 callback",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        3360,
+        -360
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "pbWf05Publicar00"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "048f7a7f-4afc-49d1-b39a-47c4f6161d95",
+      "name": "WF4 Comandos",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        3360,
+        -180
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "pbWf04Comandos00"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "98ce6394-b217-4e46-99f8-d2e187416bc6",
+      "name": "WF3 Borrador",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        3360,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "pbWf03Borrador00"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "53c81972-329b-4634-a6ae-18287f0aa1aa",
+      "name": "Mensaje fijo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3360,
+        180
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// --- comun.js (Palmera Brava): ayudas compartidas por los nodos Code del núcleo (WF0, WF1, WF2, WF5, WF9) ---\n// Se inserta donde un Code dice \"// @incluir comun\". Sin require ni crypto (el task runner los bloquea).\nconst PB_TABLAS = { config: 'pb_config', locks: 'pb_locks', inbox: 'pb_inbox', borradores: 'pb_borradores', imagenes: 'pb_imagenes' };\n// Escapa texto para parse_mode HTML de Telegram.\nfunction h(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Quita tokens de Telegram, PAT de GitHub y similares de cualquier texto que vaya a un mensaje o a una tabla.\nfunction censurar(s) {\n  return String(s === null || s === undefined ? '' : s)\n    .replace(/bot\\d+:[\\w-]+/g, 'bot***')\n    .replace(/\\d{8,10}:[\\w-]{30,}/g, '***')\n    .replace(/github_pat_\\w+/g, 'github_pat_***')\n    .replace(/gh[pousr]_\\w+/g, 'gh*_***')\n    .replace(/(authorization[\"':=\\s]+)(token|bearer)\\s+[^\\s\"',}]+/gi, '$1$2 ***');\n}\n// Mensaje para Telegram (HTML). El texto YA debe venir escapado y terminar en \"Siguiente paso: ...\".\nfunction enviar(chatId, texto, extra) {\n  const t = String(texto || '');\n  if (!/\\nSiguiente paso: \\S/.test(t)) throw new Error('Mensaje sin \"Siguiente paso\": ' + t.slice(0, 60));\n  return { metodo: 'sendMessage', cuerpo: Object.assign({ chat_id: Number(chatId), text: t.slice(0, 4096), parse_mode: 'HTML', link_preview_options: { is_disabled: true } }, extra || {}) };\n}\nfunction quitarTeclado(chatId, messageId) {\n  return { metodo: 'editMessageReplyMarkup', cuerpo: { chat_id: Number(chatId), message_id: Number(messageId), reply_markup: { inline_keyboard: [] } } };\n}\nfunction botones(filas) { return { reply_markup: { inline_keyboard: filas } }; }\n// pb_config (filas {clave, valor}) -> objeto con tipos ya convertidos. Valores raros se ignoran (token con formato inválido = sin token).\nfunction armarConfig(filas) {\n  const c = {};\n  (filas || []).forEach(function (f) { if (f && typeof f.clave === 'string') c[f.clave] = f.valor === null || f.valor === undefined ? '' : String(f.valor); });\n  const num = function (k, d) { const n = Number(c[k]); return c[k] !== undefined && c[k] !== '' && Number.isFinite(n) ? n : d; };\n  const json = function (k, d) { try { const v = JSON.parse(c[k]); return v === null || v === undefined ? d : v; } catch (e) { return d; } };\n  const tok = String(c.BOT_TOKEN || '').trim();\n  let aut = json('AUTORIZADOS', []);\n  aut = (Array.isArray(aut) ? aut : []).filter(function (a) { return a && Number(a.id) > 0 && ['admin', 'dueno', 'marketing'].indexOf(a.rol) >= 0; })\n    .map(function (a) { return { id: Number(a.id), rol: a.rol, nombre: String(a.nombre || '').replace(/[<>]/g, '').slice(0, 60) }; });\n  const repo = String(c.REPO || '').trim();\n  const rama = String(c.REPO_BRANCH || '').trim();\n  const alertas = json('ALERTAS', {});\n  const desconocidos = json('DESCONOCIDOS', []);\n  return {\n    BOT_TOKEN: /^\\d{5,12}:[A-Za-z0-9_-]{30,}$/.test(tok) ? tok : '',\n    AUTORIZADOS: aut,\n    REPO: /^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repo) ? repo : 'Abnercayao/tienda-tarapoto',\n    REPO_BRANCH: /^[A-Za-z0-9_.\\/-]+$/.test(rama) ? rama : 'main',\n    SITIO_URL: /^https:\\/\\/[^\\s<>\"']+$/.test(c.SITIO_URL || '') ? c.SITIO_URL : 'https://abnercayao.github.io/tienda-tarapoto/',\n    COMMIT_EMAIL: /^[^\\s@<>]+@[^\\s@<>]+$/.test(c.COMMIT_EMAIL || '') ? c.COMMIT_EMAIL : '297644875+Abnercayao@users.noreply.github.com',\n    PAUSA: c.PAUSA === '1' ? 1 : 0,\n    MIN_ENTRE_COMMITS_MS: num('MIN_ENTRE_COMMITS_MS', 360000),\n    ULTIMO_COMMIT_AT: num('ULTIMO_COMMIT_AT', 0),\n    ULTIMO_POLL_AT: num('ULTIMO_POLL_AT', 0),\n    FALLOS_SEGUIDOS: num('FALLOS_SEGUIDOS', 0),\n    ULTIMA_ALERTA_AT: num('ULTIMA_ALERTA_AT', 0),\n    ALERTAS: alertas && typeof alertas === 'object' && !Array.isArray(alertas) ? alertas : {},\n    DESCONOCIDOS: Array.isArray(desconocidos) ? desconocidos.slice(-10) : [],\n    OLLAMA_URL: c.OLLAMA_URL || 'http://host.docker.internal:11434',\n    OLLAMA_MODELO: c.OLLAMA_MODELO || 'qwen3.5:4b-q4_K_M',\n    SD_URL: c.SD_URL || 'http://host.docker.internal:1234',\n    claves: Object.keys(c)\n  };\n}\nfunction rolDe(cfg, id) { const a = (cfg.AUTORIZADOS || []).find(function (x) { return x.id === Number(id); }); return a ? a.rol : null; }\n// Destinatarios de avisos técnicos: admins; si no hay, el dueño.\nfunction admins(cfg) {\n  const a = (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'admin'; });\n  return a.length ? a : (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'dueno'; });\n}\nfunction isoLima(ms) { const d = new Date((ms === undefined ? Date.now() : ms) - 5 * 3600000); return d.toISOString().slice(0, 19) + '-05:00'; }\n// --- fin comun.js ---\nconst t = $input.first().json;\nconst textos = {\n  voz: 'Aún no entiendo audios.\\nSiguiente paso: escríbeme el mensaje o envía una foto.',\n  documento: 'Recibí un archivo. Si es una foto, reenvíala como foto (así se borran los datos de ubicación).\\nSiguiente paso: reenvíala como foto.',\n  otro: 'Solo entiendo texto, fotos y comandos.\\nSiguiente paso: escribe /ayuda para ver la lista.'\n};\nreturn [{ json: enviar(t.chat_id, textos[t.tipo] || textos.otro) }];\n"
+      }
+    },
+    {
+      "id": "565b1002-5c8b-4f60-8f19-18396d147ae8",
+      "name": "Enviar fijo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        3600,
+        180
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $('Config').first().json.BOT_TOKEN }}/{{ $json.metodo }}",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.cuerpo) }}",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "52a5dc67-4fe4-4086-96c0-85040101624f",
+      "name": "Nota 5",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3800,
+        -280
+      ],
+      "parameters": {
+        "content": "### 4 · Marcar y publicar\n`hecho`, o `error` con `intentos+1` (vuelve a `nuevo` si < 3; error censurado). Luego, si hay aprobados, no hay `PAUSA` y pasaron ≥ 6 min desde el último commit → WF5 modo lote. Al final **libera el lock**.",
+        "width": 1900,
+        "height": 520,
+        "color": 7
+      }
+    },
+    {
+      "id": "ad68c779-2c3d-4b70-953f-5982ea6d81e1",
+      "name": "Resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3840,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// --- comun.js (Palmera Brava): ayudas compartidas por los nodos Code del núcleo (WF0, WF1, WF2, WF5, WF9) ---\n// Se inserta donde un Code dice \"// @incluir comun\". Sin require ni crypto (el task runner los bloquea).\nconst PB_TABLAS = { config: 'pb_config', locks: 'pb_locks', inbox: 'pb_inbox', borradores: 'pb_borradores', imagenes: 'pb_imagenes' };\n// Escapa texto para parse_mode HTML de Telegram.\nfunction h(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Quita tokens de Telegram, PAT de GitHub y similares de cualquier texto que vaya a un mensaje o a una tabla.\nfunction censurar(s) {\n  return String(s === null || s === undefined ? '' : s)\n    .replace(/bot\\d+:[\\w-]+/g, 'bot***')\n    .replace(/\\d{8,10}:[\\w-]{30,}/g, '***')\n    .replace(/github_pat_\\w+/g, 'github_pat_***')\n    .replace(/gh[pousr]_\\w+/g, 'gh*_***')\n    .replace(/(authorization[\"':=\\s]+)(token|bearer)\\s+[^\\s\"',}]+/gi, '$1$2 ***');\n}\n// Mensaje para Telegram (HTML). El texto YA debe venir escapado y terminar en \"Siguiente paso: ...\".\nfunction enviar(chatId, texto, extra) {\n  const t = String(texto || '');\n  if (!/\\nSiguiente paso: \\S/.test(t)) throw new Error('Mensaje sin \"Siguiente paso\": ' + t.slice(0, 60));\n  return { metodo: 'sendMessage', cuerpo: Object.assign({ chat_id: Number(chatId), text: t.slice(0, 4096), parse_mode: 'HTML', link_preview_options: { is_disabled: true } }, extra || {}) };\n}\nfunction quitarTeclado(chatId, messageId) {\n  return { metodo: 'editMessageReplyMarkup', cuerpo: { chat_id: Number(chatId), message_id: Number(messageId), reply_markup: { inline_keyboard: [] } } };\n}\nfunction botones(filas) { return { reply_markup: { inline_keyboard: filas } }; }\n// pb_config (filas {clave, valor}) -> objeto con tipos ya convertidos. Valores raros se ignoran (token con formato inválido = sin token).\nfunction armarConfig(filas) {\n  const c = {};\n  (filas || []).forEach(function (f) { if (f && typeof f.clave === 'string') c[f.clave] = f.valor === null || f.valor === undefined ? '' : String(f.valor); });\n  const num = function (k, d) { const n = Number(c[k]); return c[k] !== undefined && c[k] !== '' && Number.isFinite(n) ? n : d; };\n  const json = function (k, d) { try { const v = JSON.parse(c[k]); return v === null || v === undefined ? d : v; } catch (e) { return d; } };\n  const tok = String(c.BOT_TOKEN || '').trim();\n  let aut = json('AUTORIZADOS', []);\n  aut = (Array.isArray(aut) ? aut : []).filter(function (a) { return a && Number(a.id) > 0 && ['admin', 'dueno', 'marketing'].indexOf(a.rol) >= 0; })\n    .map(function (a) { return { id: Number(a.id), rol: a.rol, nombre: String(a.nombre || '').replace(/[<>]/g, '').slice(0, 60) }; });\n  const repo = String(c.REPO || '').trim();\n  const rama = String(c.REPO_BRANCH || '').trim();\n  const alertas = json('ALERTAS', {});\n  const desconocidos = json('DESCONOCIDOS', []);\n  return {\n    BOT_TOKEN: /^\\d{5,12}:[A-Za-z0-9_-]{30,}$/.test(tok) ? tok : '',\n    AUTORIZADOS: aut,\n    REPO: /^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repo) ? repo : 'Abnercayao/tienda-tarapoto',\n    REPO_BRANCH: /^[A-Za-z0-9_.\\/-]+$/.test(rama) ? rama : 'main',\n    SITIO_URL: /^https:\\/\\/[^\\s<>\"']+$/.test(c.SITIO_URL || '') ? c.SITIO_URL : 'https://abnercayao.github.io/tienda-tarapoto/',\n    COMMIT_EMAIL: /^[^\\s@<>]+@[^\\s@<>]+$/.test(c.COMMIT_EMAIL || '') ? c.COMMIT_EMAIL : '297644875+Abnercayao@users.noreply.github.com',\n    PAUSA: c.PAUSA === '1' ? 1 : 0,\n    MIN_ENTRE_COMMITS_MS: num('MIN_ENTRE_COMMITS_MS', 360000),\n    ULTIMO_COMMIT_AT: num('ULTIMO_COMMIT_AT', 0),\n    ULTIMO_POLL_AT: num('ULTIMO_POLL_AT', 0),\n    FALLOS_SEGUIDOS: num('FALLOS_SEGUIDOS', 0),\n    ULTIMA_ALERTA_AT: num('ULTIMA_ALERTA_AT', 0),\n    ALERTAS: alertas && typeof alertas === 'object' && !Array.isArray(alertas) ? alertas : {},\n    DESCONOCIDOS: Array.isArray(desconocidos) ? desconocidos.slice(-10) : [],\n    OLLAMA_URL: c.OLLAMA_URL || 'http://host.docker.internal:11434',\n    OLLAMA_MODELO: c.OLLAMA_MODELO || 'qwen3.5:4b-q4_K_M',\n    SD_URL: c.SD_URL || 'http://host.docker.internal:1234',\n    claves: Object.keys(c)\n  };\n}\nfunction rolDe(cfg, id) { const a = (cfg.AUTORIZADOS || []).find(function (x) { return x.id === Number(id); }); return a ? a.rol : null; }\n// Destinatarios de avisos técnicos: admins; si no hay, el dueño.\nfunction admins(cfg) {\n  const a = (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'admin'; });\n  return a.length ? a : (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'dueno'; });\n}\nfunction isoLima(ms) { const d = new Date((ms === undefined ? Date.now() : ms) - 5 * 3600000); return d.toISOString().slice(0, 19) + '-05:00'; }\n// --- fin comun.js ---\n// Sub-workflow: {ok:true} = hecho; {ok:false, reintentar:true} o excepción = vuelve a \"nuevo\" (máx. 3 intentos);\n// {ok:false} sin reintentar = error definitivo (el sub ya le avisó al usuario).\nconst p = $('Preparar trabajo').first().json;\nconst r = $('Reunir').first().json;\nconst nada = [{ json: { update_id: -1, estado: 'procesando', intentos: 0, error: '', aviso: null } }];\nif (!p.hay || r.ruta === 'nada') return nada;\nconst s = ($input.first() && $input.first().json) || {};\nlet ok = true;\nlet reintentar = false;\nlet error = '';\nif (p.ruta === 'rechazado') { ok = false; error = 'no autorizado'; }\nelse if (p.ruta !== 'fijo') {\n  if (s.error !== undefined && s.ok === undefined) {\n    ok = false; reintentar = true;\n    error = typeof s.error === 'string' ? s.error : (s.error && (s.error.message || s.error.description)) || 'error en el sub-workflow';\n  } else if (s.ok === false) { ok = false; reintentar = s.reintentar === true; error = String(s.error || 'no se pudo procesar'); }\n}\nerror = censurar(error).replace(/\\s+/g, ' ').slice(0, 300);\nconst items = p.filas.map(function (f) {\n  if (ok) return { update_id: f.update_id, estado: 'hecho', intentos: f.intentos, error: '' };\n  const n = f.intentos + 1;\n  return { update_id: f.update_id, estado: reintentar && n < 3 ? 'nuevo' : 'error', intentos: n, error: error };\n});\nconst definitivo = !ok && reintentar && !items.some(function (i) { return i.estado === 'nuevo'; });\nitems[0].aviso = definitivo\n  ? enviar(p.trabajo.chat_id, 'No pude procesar tu mensaje tras 3 intentos (' + h(error.slice(0, 150)) + ').\\nSiguiente paso: inténtalo de nuevo en unos minutos; si se repite, avisa al admin.')\n  : null;\nreturn items.map(function (j) { return { json: j }; });\n"
+      }
+    },
+    {
+      "id": "24ae94e7-acec-4450-88a3-ecfcf28ac4af",
+      "name": "Marcar resultado",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        4080,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_inbox"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "update_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.update_id }}"
+            },
+            {
+              "keyName": "estado",
+              "condition": "eq",
+              "keyValue": "procesando"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "estado": "={{ $json.estado }}",
+            "intentos": "={{ $json.intentos }}",
+            "error": "={{ $json.error }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "estado",
+              "displayName": "estado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "intentos",
+              "displayName": "intentos",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "error",
+              "displayName": "error",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "56123db2-1f93-4aa6-a175-a7e53b438847",
+      "name": "Aviso de fallo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4080,
+        180
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const a = $('Resultado').first().json.aviso;\nreturn a ? [{ json: a }] : [];\n"
+      }
+    },
+    {
+      "id": "65f96391-51cd-4e03-896f-82b184121f76",
+      "name": "Enviar aviso",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        4320,
+        180
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $('Config').first().json.BOT_TOKEN }}/{{ $json.metodo }}",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.cuerpo) }}",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "d085a55a-b15b-47c6-b7c6-5f3e47eeb8d1",
+      "name": "Leer aprobados",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        4320,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_borradores"
+        },
+        "matchType": "anyCondition",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "estado",
+              "condition": "eq",
+              "keyValue": "aprobado"
+            },
+            {
+              "keyName": "estado",
+              "condition": "eq",
+              "keyValue": "publicando"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 1
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "265bee19-92b9-47ca-aad3-3f98221b0da5",
+      "name": "Decidir lote",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4560,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Publica (WF5 modo lote) si hay borradores aprobados, no hay pausa y pasaron >= MIN_ENTRE_COMMITS_MS desde el último commit.\nconst cfg = $('Config').first().json;\nconst hay = $input.all().some(function (i) { return i.json && i.json.draft_id; });\nconst lote = hay && cfg.PAUSA !== 1 && Date.now() - cfg.ULTIMO_COMMIT_AT >= cfg.MIN_ENTRE_COMMITS_MS;\nreturn [{ json: { lote: lote, modo: 'lote', origen: 'worker' } }];\n"
+      }
+    },
+    {
+      "id": "ccce1bfc-c0e1-49b8-9295-964471a18517",
+      "name": "¿Publicar lote?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        4800,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "1412e0d5-e8e9-4627-a893-480c1f5de7fe",
+              "leftValue": "={{ $json.lote === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "a1aa29e4-79c1-4f90-ac91-9cd8fcd5d190",
+      "name": "WF5 lote",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        5040,
+        -120
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "pbWf05Publicar00"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "e759b91c-dbd3-4dfe-a79b-a2d3613a87f3",
+      "name": "Liberar lock",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        5280,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pb_locks"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "nombre",
+              "condition": "eq",
+              "keyValue": "worker"
+            },
+            {
+              "keyName": "holder",
+              "condition": "eq",
+              "keyValue": "={{ $execution.id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "holder": "",
+            "hasta": 0
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "holder",
+              "displayName": "holder",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "hasta",
+              "displayName": "hasta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    }
+  ],
+  "connections": {
+    "Cada 10 s": {
+      "main": [
+        [
+          {
+            "node": "Leer config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer config": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Tomar lock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tomar lock": {
+      "main": [
+        [
+          {
+            "node": "¿Lock tomado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Lock tomado?": {
+      "main": [
+        [
+          {
+            "node": "Leer inbox",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer inbox": {
+      "main": [
+        [
+          {
+            "node": "Leer huerfanos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer huerfanos": {
+      "main": [
+        [
+          {
+            "node": "Elegir",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Elegir": {
+      "main": [
+        [
+          {
+            "node": "Pendientes del autor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pendientes del autor": {
+      "main": [
+        [
+          {
+            "node": "Preparar trabajo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar trabajo": {
+      "main": [
+        [
+          {
+            "node": "Por mensaje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Por mensaje": {
+      "main": [
+        [
+          {
+            "node": "Marcar procesando",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar procesando": {
+      "main": [
+        [
+          {
+            "node": "Reunir",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reunir": {
+      "main": [
+        [
+          {
+            "node": "Ruta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ruta": {
+      "main": [
+        [
+          {
+            "node": "WF5 callback",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "WF4 Comandos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "WF3 Borrador",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mensaje fijo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WF5 callback": {
+      "main": [
+        [
+          {
+            "node": "Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WF4 Comandos": {
+      "main": [
+        [
+          {
+            "node": "Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WF3 Borrador": {
+      "main": [
+        [
+          {
+            "node": "Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensaje fijo": {
+      "main": [
+        [
+          {
+            "node": "Enviar fijo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar fijo": {
+      "main": [
+        [
+          {
+            "node": "Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resultado": {
+      "main": [
+        [
+          {
+            "node": "Marcar resultado",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Aviso de fallo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar resultado": {
+      "main": [
+        [
+          {
+            "node": "Leer aprobados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer aprobados": {
+      "main": [
+        [
+          {
+            "node": "Decidir lote",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decidir lote": {
+      "main": [
+        [
+          {
+            "node": "¿Publicar lote?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aviso de fallo": {
+      "main": [
+        [
+          {
+            "node": "Enviar aviso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Publicar lote?": {
+      "main": [
+        [
+          {
+            "node": "WF5 lote",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Liberar lock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WF5 lote": {
+      "main": [
+        [
+          {
+            "node": "Liberar lock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Lima",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "errorWorkflow": "pbWf09Errores000",
+    "executionTimeout": 840
+  },
+  "meta": {},
+  "tags": []
+}

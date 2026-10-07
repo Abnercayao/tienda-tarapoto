@@ -1,0 +1,87 @@
+[
+  {
+    "id": "pbWfRefWebhook00",
+    "name": "PB Ref Webhook",
+    "active": false,
+    "nodes": [
+      {
+        "id": "a3000000-0000-4000-8000-000000000001",
+        "name": "POST ref-crear-imagen",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [0, 0],
+        "webhookId": "a3000000-0000-4000-8000-0000000000a1",
+        "credentials": { "httpHeaderAuth": { "id": "pbCredHeader0001", "name": "Header X-Tienda-Key" } },
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "ref-crear-imagen",
+          "authentication": "headerAuth",
+          "responseMode": "responseNode",
+          "options": { "allowedOrigins": "http://localhost:8080,http://127.0.0.1:8080" }
+        }
+      },
+      {
+        "id": "a3000000-0000-4000-8000-000000000002",
+        "name": "Imagen de prueba",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [220, 0],
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "language": "javaScript",
+          "jsCode": "const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');\nconst bin = await this.helpers.prepareBinaryData(png, 'prueba.png', 'image/png');\nreturn [{ json: { prompt: $input.first().json.body && $input.first().json.body.prompt }, binary: { data: bin } }];"
+        }
+      },
+      {
+        "id": "a3000000-0000-4000-8000-000000000003",
+        "name": "Responder imagen",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [440, 0],
+        "parameters": {
+          "respondWith": "binary",
+          "responseDataSource": "set",
+          "inputFieldName": "data",
+          "options": {}
+        }
+      },
+      {
+        "id": "a3000000-0000-4000-8000-000000000004",
+        "name": "GET ref-estado",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [0, 220],
+        "webhookId": "a3000000-0000-4000-8000-0000000000a2",
+        "credentials": { "httpHeaderAuth": { "id": "pbCredHeader0001", "name": "Header X-Tienda-Key" } },
+        "parameters": {
+          "httpMethod": "GET",
+          "path": "ref-estado",
+          "authentication": "headerAuth",
+          "responseMode": "responseNode",
+          "options": { "allowedOrigins": "http://localhost:8080,http://127.0.0.1:8080" }
+        }
+      },
+      {
+        "id": "a3000000-0000-4000-8000-000000000005",
+        "name": "Responder estado",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [220, 220],
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ JSON.stringify({ ok: true, ocupado: false, ts: $now.toISO() }) }}",
+          "options": {}
+        }
+      }
+    ],
+    "connections": {
+      "POST ref-crear-imagen": { "main": [[{ "node": "Imagen de prueba", "type": "main", "index": 0 }]] },
+      "Imagen de prueba": { "main": [[{ "node": "Responder imagen", "type": "main", "index": 0 }]] },
+      "GET ref-estado": { "main": [[{ "node": "Responder estado", "type": "main", "index": 0 }]] }
+    },
+    "settings": { "executionOrder": "v1" },
+    "pinData": {},
+    "meta": {},
+    "tags": []
+  }
+]
