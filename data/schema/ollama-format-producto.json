@@ -164,6 +164,25 @@
             ]
           }
         },
+        "stock_por_color": {
+          "type": "array",
+          "description": "v2: cantidad por color, de 0 a 20. \"10 por color\" -> 10 en cada color",
+          "items": {
+            "type": "object",
+            "properties": {
+              "color": {
+                "type": "string"
+              },
+              "cantidad": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "color",
+              "cantidad"
+            ]
+          }
+        },
         "stock_modo": {
           "type": [
             "string",
@@ -188,6 +207,21 @@
             "string",
             "null"
           ]
+        },
+        "frescura": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "enum": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            null
+          ],
+          "description": "v2: índice de frescura 1 a 5 hojitas según la tela"
         },
         "descripcion": {
           "type": [
@@ -222,9 +256,11 @@
         "precio_oferta",
         "tallas",
         "stock_tallas",
+        "stock_por_color",
         "stock_modo",
         "colores",
         "material",
+        "frescura",
         "descripcion",
         "etiquetas",
         "alt_imagen",
@@ -243,9 +279,11 @@
           "precio_oferta",
           "tallas",
           "stock_tallas",
+          "stock_por_color",
           "stock_modo",
           "colores",
           "material",
+          "frescura",
           "descripcion",
           "etiquetas",
           "alt_imagen",
@@ -265,9 +303,11 @@
           "precio_oferta",
           "tallas",
           "stock_tallas",
+          "stock_por_color",
           "stock_modo",
           "colores",
           "material",
+          "frescura",
           "descripcion",
           "etiquetas",
           "alt_imagen",

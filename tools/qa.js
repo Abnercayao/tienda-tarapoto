@@ -10,9 +10,11 @@
  *      la semilla en línea de index.html (si existe) tiene los mismos productos activos; el bloque KPIS del README está al día.
  *   2. Unidades: precios con 2 decimales y formato "S/ 69.90" (Intl es-PE); index.html usa es-PE/PEN.
  *   3. Datos que citan su fuente: las tarjetas llevan data-id.
- *   4. Datos sensibles: sin secretos con forma de token en el repo; imágenes sin EXIF/GPS; validador de datos.
+ *   4. Datos sensibles: sin secretos con forma de token en el repo; imágenes sin EXIF/GPS; validador de datos;
+ *      contrato v2: sin avisos de "muestra" ni de "IA" (la demo debe parecer una tienda real).
  *   5. Rutas: las imágenes citadas por los JSON existen; sin rutas absolutas "/..." (salvo 404.html, que usa
- *      /tienda-tarapoto/... a propósito y deben existir); enlaces internos (#ancla y archivos) válidos; sitemap.
+ *      /tienda-tarapoto/... a propósito y deben existir); enlaces internos (#ancla y archivos) válidos;
+ *      demo privada: sin sitemap.xml y con <meta name="robots" content="noindex, nofollow"> en cada página.
  *   6. Tamaños: cada JSON de data/ < 1 MB; cada imagen < 250 KB (aviso desde 200 KB).
  *   7. CSP: hash del script en línea de index.html y admin.html (tools/csp.js).
  *   8. Pages y n8n: .nojekyll y 404.html presentes; n8n/workflows limpios (tools/limpiar-workflows.js).
@@ -151,8 +153,8 @@ try { validar = require('./validar.js'); } catch (e) { anotar('Datos sensibles',
 try { csp = require('./csp.js'); } catch (e) { anotar('CSP', 'FALLA', 'tools/csp.js no carga', e.message); }
 try { limpiar = require('./limpiar-workflows.js'); } catch (e) { limpiar = null; }
 
-const txt = { products: leer('data/products.json'), articles: leer('data/articles.json'), site: leer('data/site.json') };
-const doc = { products: json(txt.products), articles: json(txt.articles), site: json(txt.site) };
+const txt = { products: leer('data/products.json'), articles: leer('data/articles.json'), site: leer('data/site.json'), chat: leer('data/chat.json') };
+const doc = { products: json(txt.products), articles: json(txt.articles), site: json(txt.site), chat: json(txt.chat) };
 const htmlTxt = {};
 HTMLS.forEach(function (h) { htmlTxt[h] = leer(h); });
 
@@ -313,11 +315,19 @@ const imagenes = repo.archivos.filter(function (f) { return /^assets\/img\//.tes
 (function validador() {
   const M = 'Datos sensibles según políticas';
   if (!validar) return;
-  const r = validar.validar({ products: txt.products, articles: txt.articles, site: txt.site }, {});
-  anotar(M, r.ok ? 'OK' : 'FALLA', 'Validador del contrato (tools/validar.js)', r.ok ? 'sin errores; ' + r.avisos.length + ' aviso(s)' : lista(r.errores, 4));
-  const S = doc.site;
-  const ok = S && typeof S.aviso_ia === 'string' && S.aviso_ia.length > 0 && typeof S.aviso_muestra === 'string';
-  anotar(M, ok ? 'OK' : 'FALLA', 'Avisos de IA y de catálogo de muestra definidos en site.json', ok ? '"' + S.aviso_ia + '" y "' + S.aviso_muestra + '"' : 'faltan aviso_ia o aviso_muestra');
+  const r = validar.validar({ products: txt.products, articles: txt.articles, site: txt.site, chat: txt.chat }, {});
+  anotar(M, r.ok ? 'OK' : 'FALLA', 'Validador del contrato ' + validar.CONTRATO_VERSION + ' (tools/validar.js)', r.ok ? 'sin errores; ' + r.avisos.length + ' aviso(s)' : lista(r.errores, 4));
+  if (txt.chat === null) anotar(M, 'FALLA', 'data/chat.json (URL del chat del agente)', 'no existe');
+  // Contrato v2: la web es una demo privada que debe parecer una tienda real (sin avisos de muestra ni de IA).
+  const S = doc.site || {};
+  const enSitio = ['aviso_muestra', 'aviso_ia'].filter(function (k) { return S[k] !== undefined; })
+    .concat(S.mensajes && S.mensajes.consulta_muestra !== undefined ? ['mensajes.consulta_muestra'] : []);
+  const RE_AVISO = /cat[aá]logo de muestra|precios? referencial|imagen(es)? referencial|generad[ao]s? (con|por) (la )?(ia|inteligencia artificial)|\(IA\)/i;
+  const PUBLICAS = ['index.html', '404.html']; // admin.html es interna (noindex + guardia de hostname): puede hablar de IA
+  const enHtml = PUBLICAS.filter(function (h) { return htmlTxt[h] !== null && RE_AVISO.test(htmlTxt[h]); });
+  anotar(M, enSitio.length || enHtml.length ? 'FALLA' : 'OK', 'Sin avisos de "muestra" ni de "IA" en las páginas públicas (la demo parece una tienda real)',
+    enSitio.length || enHtml.length ? (enSitio.length ? 'site.json: ' + enSitio.join(', ') + '. ' : '') + (enHtml.length ? 'textos de aviso en: ' + enHtml.join(', ') : '')
+      : 'site.json y ' + PUBLICAS.join(', ') + ' sin avisos');
 })();
 
 // ---------------------------------------------------------------------------------------------
@@ -382,19 +392,18 @@ const imagenes = repo.archivos.filter(function (f) { return /^assets\/img\//.tes
   });
 })();
 
-(function sitemap() {
+(function demoPrivada() {
+  // Contrato v2: la demo solo se muestra a dueños de negocios; los buscadores no deben indexarla.
   const M = 'Rutas e imágenes';
-  const s = leer('sitemap.xml');
-  if (s === null) { anotar(M, 'FALLA', 'sitemap.xml', 'no existe'); return; }
-  const locs = [];
-  s.replace(/<loc>\s*([^<]+?)\s*<\/loc>/g, function (x, u) { locs.push(u); return x; });
-  const malas = locs.filter(function (u) {
-    if (u.indexOf(SITIO) !== 0) return true;
-    let r = u.slice(SITIO.length).split('#')[0].split('?')[0];
-    if (r === '' || r.slice(-1) === '/') r += 'index.html';
-    return !existe(r);
+  anotar(M, existe('sitemap.xml') ? 'FALLA' : 'OK', 'Demo privada: sin sitemap.xml', existe('sitemap.xml') ? 'sitemap.xml todavía existe: bórralo' : 'no hay sitemap.xml en ' + SITIO);
+  const sinMeta = HTMLS.filter(function (h) {
+    const html = htmlTxt[h];
+    if (html === null) return true;
+    const metas = html.match(/<meta\b[^>]*>/gi) || [];
+    return !metas.some(function (m) { return /name=["']robots["']/i.test(m) && /noindex/i.test(m) && /nofollow/i.test(m); });
   });
-  anotar(M, !locs.length || malas.length ? 'FALLA' : 'OK', 'sitemap.xml apunta a páginas que existen', malas.length ? lista(malas) : locs.length + ' URL(s) bajo ' + SITIO);
+  anotar(M, sinMeta.length ? 'FALLA' : 'OK', 'Demo privada: meta robots "noindex, nofollow" en cada página',
+    sinMeta.length ? 'falta en: ' + sinMeta.join(', ') : HTMLS.join(', '));
 })();
 
 // ---------------------------------------------------------------------------------------------
@@ -402,7 +411,7 @@ const imagenes = repo.archivos.filter(function (f) { return /^assets\/img\//.tes
 // ---------------------------------------------------------------------------------------------
 (function tamanosJson() {
   const det = [], malos = [];
-  ['products', 'articles', 'site'].forEach(function (n) {
+  ['products', 'articles', 'site', 'chat'].forEach(function (n) {
     const f = 'data/' + n + '.json';
     if (!existe(f)) { malos.push(f + ' no existe'); return; }
     const b = fs.statSync(path.join(RAIZ, f)).size;

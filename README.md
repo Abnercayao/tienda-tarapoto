@@ -4,7 +4,7 @@ Catálogo web de una tienda de ropa de verano en **Tarapoto (San Martín, Perú)
 
 - **Sitio publicado:** https://abnercayao.github.io/tienda-tarapoto/
 - **Sitio y panel en la PC de la tienda:** http://127.0.0.1:8080/tienda-tarapoto/ y http://127.0.0.1:8080/tienda-tarapoto/admin.html (con `tools\iniciar-todo.bat`)
-- **Estado:** v1 con **catálogo de muestra**. Las 16 prendas actuales son de referencia, con imágenes generadas por IA local y la etiqueta "Imagen referencial (IA)". Mientras existan, la web muestra el banner "Catálogo de muestra · precios referenciales" y el botón **Consultar por WhatsApp** (pregunta por prendas similares). Las prendas reales llevan bolsa y **Pedir por WhatsApp** con un solo mensaje.
+- **Estado:** v2, **demo privada**. Abner la muestra solo a dueños de negocios para enseñarles lo que pueden tener (web + agente de n8n/Telegram); nunca será una tienda abierta al público. Por eso **parece una tienda real**: sin avisos de "muestra" ni de imágenes de IA, todas las prendas van a la bolsa y se piden por WhatsApp, y cada página lleva `noindex, nofollow` (no hay `sitemap.xml`). Las 16 prendas de referencia siguen marcadas `muestra:true` en los datos solo para `/limpiar_muestras`.
 
 | Dato | Valor |
 |---|---|
@@ -20,22 +20,22 @@ Catálogo web de una tienda de ropa de verano en **Tarapoto (San Martín, Perú)
 <!-- KPIS:INICIO (generado con: node tools/kpis.js --readme; no editar a mano) -->
 | Cifra | Valor |
 |---|---|
-| Productos visibles (`activo: true`) | 16 |
-| Hombres / Mujeres / Niños / Accesorios | 4 / 4 / 4 / 4 (suman 16) |
+| Productos visibles (`activo: true`) | 17 |
+| Hombres / Mujeres / Niños / Accesorios | 5 / 4 / 4 / 4 (suman 17) |
 | ¿Las categorías suman el total? | Sí |
-| De muestra / reales | 16 / 0 |
+| De muestra / reales | 16 / 1 |
 | Productos ocultos (`activo: false`) | 0 |
 | En oferta (descuento máximo) | 5 (-19 %) |
 | Agotados | 0 |
-| Unidades en stock | 215 |
+| Unidades en stock | 248 |
 | Rango de precios (con la oferta aplicada) | S/ 24.90 a S/ 89.90 |
-| Imágenes de productos (IA local / foto / provisional) | 16 / 0 / 0 |
+| Imágenes de productos (IA local / foto / provisional) | 34 / 1 / 0 |
 | Artículos del blog publicados | 3 de 3 |
 | Looks del lookbook | 4 |
 | Testimonios verificados | 0 |
 | WhatsApp configurado | Sí |
-| Versión de los datos (productos / artículos / tienda) | 1 / 1 / 1 |
-| Datos actualizados | 2026-10-06T06:00:00-05:00 |
+| Versión de los datos (productos / artículos / tienda) | 3 / 2 / 2 |
+| Datos actualizados | 2026-10-07T06:34:49-05:00 |
 
 Cifras calculadas por `tools/kpis.js` sobre `data/*.json` (las mismas que responde `/estado` y muestra el panel local).
 <!-- KPIS:FIN -->
@@ -63,11 +63,11 @@ tienda-tarapoto/
 ├─ index.html        landing + catálogo + blog (#blog/<slug>); CSS y JS en línea, un comentario por sección
 ├─ admin.html        panel local (noindex, CSP propia, solo funciona en 127.0.0.1/localhost)
 ├─ 404.html          página de error con rutas ABSOLUTAS /tienda-tarapoto/...
-├─ README.md  .nojekyll  .gitignore  .gitattributes  sitemap.xml      (sin robots.txt)
+├─ README.md  .nojekyll  .gitignore  .gitattributes      (sin sitemap.xml ni robots.txt: demo privada con noindex)
 ├─ assets/
 │  ├─ fonts/         Bricolage Grotesque, Figtree e Instrument Serif (OFL), alojadas aquí
 │  └─ img/           brand/ products/ blog/ lookbook/ (WebP < 250 KB)
-├─ data/             products.json  articles.json  site.json  schema/ (JSON Schema 2020-12)
+├─ data/             products.json  articles.json  site.json  chat.json  schema/ (JSON Schema 2020-12 + frescura-materiales.json)
 ├─ n8n/workflows/    workflows exportados y limpios (sin secretos, pinData ni instanceId)
 ├─ docs/             PLAN.md  CONTRATO.md  RUNBOOK.md  investigacion/
 └─ tools/
@@ -77,8 +77,10 @@ tienda-tarapoto/
    ├─ csp.js                        hash del <script> en línea dentro de la CSP
    ├─ limpiar-workflows.js          limpia los exports de n8n antes de cada commit
    ├─ serve.py                      servidor local SOLO en 127.0.0.1:8080, bajo /tienda-tarapoto/
+   ├─ semilla.js                    copia data/*.json (y la tabla de frescura) dentro de index.html para file://
+   ├─ chat-proxy.py  iniciar-chat.bat   proxy mínimo del chat (127.0.0.1:8787) + túnel rápido de Cloudflare
    ├─ iniciar-todo.bat  iniciar-sd-server.bat  detener-sd-server.bat
-   ├─ generar-imagenes.mjs  image-prompts.json    imágenes de muestra con IA local
+   ├─ generar-imagenes.mjs  image-prompts.json    fotos de referencia (una por color) con IA local
    ├─ ruleset-main.json             protección de main (sin borrado ni force-push)
    └─ hooks/pre-commit              secretos + validador + CSP antes de cada commit
 ```
@@ -168,6 +170,17 @@ Los cambios publicados tardan hasta 6 min (lote del bot) más 1–10 min (build 
 | **Revisa:** las decisiones de impacto alto pasan por revisión humana | Toda escritura es borrador + Publicar; doble confirmación en `/borrar`, `/limpiar_muestras` y `/whatsapp`; roles | Pruebas 4–6, 9, 17 y 18 de F7 |
 | **Regla de cierre:** lo atractivo también es verificable | Lighthouse ≥ 90 en rendimiento y ≥ 95 en accesibilidad, buenas prácticas y SEO, más las filas anteriores | Chrome DevTools → Lighthouse en local y en Pages |
 
+## Qué trae la web (v2)
+
+- **Menú por secciones.** En el celular, el botón de menú abre acordeones: **Catálogo** (Hombres, Mujeres, Niños, Accesorios, Novedades, Ofertas; cada opción filtra el catálogo), **Blog** (cada artículo), **Nosotros** (Cómo comprar, Por qué Palmera Brava, Looks, Dónde estamos), **Guía de tallas** y **Contacto**. En escritorio, los mismos menús se despliegan desde la cabecera (Catálogo con fotos de cada categoría).
+- **Índice de frescura (1 a 5 hojitas)** en cada tarjeta y en la vista rápida. Manda el campo `frescura`; si falta, la web lo calcula con la **misma tabla por material que usa el bot** (`data/schema/frescura-materiales.json`, generada desde `tools/validar.js`).
+- **Color con foto y stock.** Cada color tiene su foto (`imagenes[].color`): elegir un color en la tarjeta o en la vista rápida cambia la foto con un fundido, y la vista rápida trae miniaturas por color. El stock se lleva **por color** (`stock_por_color`, 0 a 20): "Quedan N", "¡Últimas N unidades!" o "Agotado en <color>" (ese color no se puede pedir y aparece "Avísame cuando vuelva este color"). La bolsa no deja pasar del stock del color, sumando todas las tallas.
+- **Guía de tallas** desde cada prenda (tarjeta y vista rápida), el menú y el pie: abre la tabla de la categoría de la prenda, marca la talla elegida, explica cómo medir con una ilustración y recomienda tallas holgadas para el calor. Se edita en `data/site.json` → `guia_tallas`.
+- **Chat con Valeria**, la asesora virtual (burbuja amarilla sobre el botón de WhatsApp). Responde con el agente de n8n y el modelo local `llama3.1:8b`; muestra "escribiendo…" mientras espera (10 a 20 s es normal; a los 25 s dice "sigue escribiendo…") y a los 60 s, o si el agente no responde, ofrece WhatsApp. La conversación se guarda en el navegador (botón "Conversación nueva" para empezar de cero).
+  - **Dónde se conecta:** la web lee `data/chat.json` (`{url, activo, actualizado}`) sin caché y llama a `url + "/chat"`. Si `activo` es `false` o la URL está vacía, la burbuja no aparece. En la PC de la tienda usa primero `http://127.0.0.1:8787/chat` (el proxy local) si responde.
+  - **Encenderlo para una demo:** `toolsiniciar-chat.bat` arranca el proxy y el túnel rápido de Cloudflare y registra la URL nueva en `data/chat.json` (vía n8n, solo si cambió). La CSP de `index.html` ya permite `https://*.trycloudflare.com` y el proxy local (`node tools/csp.js --check` lo comprueba).
+  - Petición: `POST {sessionId, mensaje, pagina:{seccion, producto?}}` → `{respuesta, escribiendo_ms?}`. Todo se pinta con `textContent`; solo se enlazan URLs de `wa.me` y de este sitio.
+
 ## El bot de Telegram
 
 **Uso diario:** manda al bot una **foto** de la prenda (como foto, no como archivo) con el nombre, precio, tallas y colores en el texto. El bot responde "Recibido", arma un borrador con IA (los campos que dedujo llevan "(sugerido por IA)") y muestra los botones **Publicar** / **Cancelar**. Si falta algo, pide solo eso. Al tocar Publicar, el cambio sale en el siguiente lote.
@@ -177,7 +190,7 @@ Los cambios publicados tardan hasta 6 min (lote del bot) más 1–10 min (build 
 | Comando | Qué hace | admin | dueño | marketing |
 |---|---|:-:|:-:|:-:|
 | `/ayuda`, `/lista`, `/ver <id>`, `/estado`, `/historial` | Consultas (el `/estado` usa las cifras de `tools/kpis.js`) | sí | sí | sí |
-| foto o texto libre, `/precio <id> <n>`, `/stock <id> <talla> <n>`, `/ocultar <id>`, `/mostrar <id>`, `/foto <id>` | Crear y editar productos (siempre como borrador) | sí | sí | sí |
+| foto o texto libre, `/precio <id> <n>`, `/stock <id> <color> <n>` (0 a 20), `/ocultar <id>`, `/mostrar <id>`, `/foto <id>` | Crear y editar productos (siempre como borrador) | sí | sí | sí |
 | `/articulo <tema>`, `/articulo_editar <id>`, `/articulo_ocultar <id>` | Artículos del blog | sí | sí | sí |
 | `/imagen <prompt>` y botones Portada / Hero / Lookbook / Descartar | Imagen con la IA local | sí | sí | sí |
 | Publicar / Cancelar | Confirma o descarta **sus** borradores | sí | sí | sí |
@@ -227,11 +240,12 @@ Detalle completo, con responsables: **[docs/RUNBOOK.md](docs/RUNBOOK.md)**.
 
 - Repo y sitio **públicos**: ningún token en el repo. Barreras: hook `tools/hooks/pre-commit` (activar con `git config core.hooksPath tools/hooks`), `tools/qa.js`, el validador y `tools/limpiar-workflows.js` para los exports de n8n.
 - El token del bot vive en la credencial de n8n y en la Data Table `config`; el PAT, solo en la credencial de n8n; la clave del panel, en `sessionStorage` del navegador.
-- Imágenes: WebP sin EXIF; personas sin rostro; niños sin personas. Las imágenes de IA solo se usan en hero, lookbook, blog y productos **de muestra**, siempre con "Imagen referencial (IA)"; los productos reales no admiten imágenes de IA (lo impide el validador).
+- Imágenes: WebP sin EXIF; personas sin rostro; niños sin personas. v2: como la web es una demo privada, no lleva etiquetas de IA (`origen` queda como dato interno).
+- Chat: el proxy local solo reenvía `POST /chat` (JSON de hasta 4 KB) a n8n, con CORS para este sitio y límite de mensajes; nunca expone el resto de n8n. La web limita cada mensaje a 500 caracteres y frena los envíos seguidos.
 - Testimonios: solo reales y verificados. Si no hay, la sección no aparece.
 
 ## Créditos y licencias
 
 - Fuentes Bricolage Grotesque, Figtree e Instrument Serif: SIL Open Font License (`assets/fonts/OFL-*.txt`).
-- Imágenes de muestra generadas en local con Z-Image Turbo (Apache-2.0) mediante el motor de Open Generative AI (`sd-server` de stable-diffusion.cpp).
+- Imágenes de referencia generadas en local con Z-Image Turbo (Apache-2.0) mediante el motor de Open Generative AI (`sd-server` de stable-diffusion.cpp).
 - Skill de diseño `frontend-design` de `anthropics/skills` en `.claude/skills/` (ver su `LICENSE.txt`).

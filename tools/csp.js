@@ -11,6 +11,8 @@
  *    (application/json, application/ld+json), los que están dentro de comentarios y los externos (src=...).
  *  - Calcula sha256 en base64 del texto del script tal como lo ve el navegador (saltos CRLF/CR → LF, como el
  *    parser HTML), sobre sus bytes UTF-8.
+ *  - Si la página usa el chat (lee data/chat.json), exige que connect-src permita https://*.trycloudflare.com,
+ *    http://127.0.0.1:8787 y http://localhost:8787 (contrato v2, sección 0.6).
  *  - En el <meta http-equiv="Content-Security-Policy">, reescribe la directiva script-src: quita los hashes
  *    anteriores y el marcador CSP_HASH_PLACEHOLDER (con o sin 'sha256-') y añade los hashes actuales.
  * Lo ideal es UN script en línea por página (PLAN D10); si hay más, se añaden todos y se avisa.
@@ -22,6 +24,9 @@ const fs = require('fs');
 const path = require('path');
 
 const MARCADOR = 'CSP_HASH_PLACEHOLDER';
+// Contrato v2: la página que usa el chat del agente (lee data/chat.json) debe permitir en connect-src el túnel
+// rápido de Cloudflare y el proxy local tools/chat-proxy.py.
+const ORIGENES_CHAT = ['https://*.trycloudflare.com', 'http://127.0.0.1:8787', 'http://localhost:8787'];
 const TIPOS_JS = ['', 'module', 'text/javascript', 'application/javascript', 'application/ecmascript', 'text/ecmascript',
   'application/x-javascript', 'text/jscript', 'text/livescript', 'text/x-ecmascript', 'text/x-javascript', 'text/javascript1.0',
   'text/javascript1.1', 'text/javascript1.2', 'text/javascript1.3', 'text/javascript1.4', 'text/javascript1.5'];
@@ -106,6 +111,11 @@ function analizar(html) {
   if (!ss) { r.problemas.push('la CSP no tiene script-src'); return r; }
   r.hashesCsp = ss.fuentes.filter(function (f) { return esHash(f) && !esMarcador(f); });
   r.marcador = ss.fuentes.some(esMarcador) || metas[0].valor.indexOf(MARCADOR) >= 0;
+  if (html.indexOf('data/chat.json') >= 0) {
+    const cs = dir.filter(function (d) { return d.nombre === 'connect-src'; })[0];
+    const faltanC = ORIGENES_CHAT.filter(function (o) { return !cs || cs.fuentes.indexOf(o) < 0; });
+    if (faltanC.length) r.problemas.push('connect-src no permite el chat del agente (falta ' + faltanC.join(' ') + ')');
+  }
   if (enLinea.length > 1) r.avisos.push('hay ' + enLinea.length + ' scripts en línea ejecutables; el PLAN pide uno solo');
   if (r.marcador) r.problemas.push('la CSP aún tiene ' + MARCADOR + '; ejecuta: node tools/csp.js');
   const faltan = hashes.filter(function (h) { return r.hashesCsp.indexOf(h) < 0; });
@@ -158,7 +168,7 @@ function actualizarArchivo(archivo) {
   return r;
 }
 
-module.exports = { MARCADOR, scripts, hashScript, analizar, actualizarHtml, revisarArchivo, actualizarArchivo, ARCHIVOS: ['index.html', 'admin.html'] };
+module.exports = { MARCADOR, ORIGENES_CHAT, scripts, hashScript, analizar, actualizarHtml, revisarArchivo, actualizarArchivo, ARCHIVOS: ['index.html', 'admin.html'] };
 
 function cli(argv) {
   const raiz = path.resolve(__dirname, '..');

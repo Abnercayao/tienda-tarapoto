@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Palmera Brava — data/site.json",
-  "description": "Datos de la tienda, hero, categorías, lookbook y textos de aviso. Generado desde tools/validar.js.",
+  "description": "Datos de la tienda, hero, categorías, lookbook, guía de tallas y plantillas de WhatsApp. Generado desde tools/validar.js.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -27,8 +27,7 @@
     "categorias",
     "lookbook",
     "testimonios",
-    "aviso_muestra",
-    "aviso_ia",
+    "guia_tallas",
     "mensajes"
   ],
   "properties": {
@@ -37,8 +36,8 @@
       "pattern": "^\\./schema/[a-z-]+\\.schema\\.json$"
     },
     "schema_version": {
-      "const": 1,
-      "description": "Versión del contrato (cambia solo si cambia el esquema)."
+      "const": 2,
+      "description": "Versión del contrato (cambia solo si cambia el esquema). v2 desde 2026-10-07."
     },
     "version": {
       "type": "integer",
@@ -403,24 +402,212 @@
       },
       "description": "Solo testimonios REALES y verificados; nunca inventados."
     },
-    "aviso_muestra": {
-      "type": "string",
-      "minLength": 5,
-      "maxLength": 120,
-      "pattern": "^[^<>]*$"
-    },
-    "aviso_ia": {
-      "type": "string",
-      "minLength": 5,
-      "maxLength": 80,
-      "pattern": "^[^<>]*$"
+    "guia_tallas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "titulo",
+        "intro",
+        "consejo_calor",
+        "como_medir",
+        "tablas"
+      ],
+      "description": "v2: guía de tallas (modal de la web, abierto desde cada prenda). Medidas del CUERPO en cm salvo que la columna diga otra cosa.",
+      "properties": {
+        "titulo": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 60,
+          "pattern": "^[^<>]*$"
+        },
+        "intro": {
+          "type": "string",
+          "maxLength": 300,
+          "pattern": "^[^<>]*$"
+        },
+        "consejo_calor": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 400,
+          "pattern": "^[^<>]*$",
+          "description": "Consejo para el calor (tallas holgadas)."
+        },
+        "ayuda": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "^[^<>]*$",
+          "description": "Opcional: texto final (p. ej. \"¿Dudas? Escríbenos por WhatsApp\")."
+        },
+        "como_medir": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 9,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "titulo",
+              "texto"
+            ],
+            "properties": {
+              "id": {
+                "enum": [
+                  "pecho",
+                  "busto",
+                  "cintura",
+                  "cadera",
+                  "largo",
+                  "entrepierna",
+                  "estatura",
+                  "cabeza",
+                  "pie"
+                ],
+                "description": "La web dibuja esta zona en la ilustración SVG."
+              },
+              "titulo": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 40,
+                "pattern": "^[^<>]*$"
+              },
+              "texto": {
+                "type": "string",
+                "minLength": 5,
+                "maxLength": 300,
+                "pattern": "^[^<>]*$"
+              }
+            }
+          }
+        },
+        "tablas": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "categoria",
+              "subcategorias",
+              "titulo",
+              "medidas",
+              "columnas",
+              "filas"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 40,
+                "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+              },
+              "categoria": {
+                "enum": [
+                  "hombres",
+                  "mujeres",
+                  "ninos",
+                  "accesorios"
+                ]
+              },
+              "subcategorias": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 18,
+                "uniqueItems": true,
+                "items": {
+                  "enum": [
+                    "polos",
+                    "camisas",
+                    "blusas",
+                    "vestidos",
+                    "faldas",
+                    "shorts",
+                    "bermudas",
+                    "pantalones",
+                    "conjuntos",
+                    "ropa-de-bano",
+                    "pijamas",
+                    "sombreros",
+                    "gorros",
+                    "gorras",
+                    "sandalias",
+                    "lentes",
+                    "bolsos",
+                    "otros"
+                  ]
+                },
+                "description": "Subcategorías a las que aplica (ver tablaDeTallas)."
+              },
+              "titulo": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 60,
+                "pattern": "^[^<>]*$"
+              },
+              "medidas": {
+                "type": "array",
+                "maxItems": 9,
+                "uniqueItems": true,
+                "items": {
+                  "enum": [
+                    "pecho",
+                    "busto",
+                    "cintura",
+                    "cadera",
+                    "largo",
+                    "entrepierna",
+                    "estatura",
+                    "cabeza",
+                    "pie"
+                  ]
+                },
+                "description": "Zonas de como_medir que explica esta tabla."
+              },
+              "columnas": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 6,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 30,
+                  "pattern": "^[^<>]*$"
+                }
+              },
+              "filas": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 16,
+                "items": {
+                  "type": "array",
+                  "minItems": 2,
+                  "maxItems": 6,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 30,
+                    "pattern": "^[^<>]*$"
+                  }
+                },
+                "description": "Cada fila tiene tantas celdas como columnas. La 1.ª celda es la talla como en el producto (UNICA se escribe \"Única\")."
+              },
+              "nota": {
+                "type": "string",
+                "maxLength": 240,
+                "pattern": "^[^<>]*$"
+              }
+            }
+          }
+        }
+      }
     },
     "mensajes": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "pedido",
-        "consulta_muestra",
         "consulta"
       ],
       "description": "Plantillas de WhatsApp. Marcadores: {nombre} {id} {url}.",
@@ -429,12 +616,6 @@
           "type": "string",
           "minLength": 5,
           "maxLength": 300,
-          "pattern": "^[^<>]*$"
-        },
-        "consulta_muestra": {
-          "type": "string",
-          "minLength": 5,
-          "maxLength": 400,
           "pattern": "^[^<>]*$"
         },
         "consulta": {
@@ -476,7 +657,7 @@
             "ia_local",
             "placeholder"
           ],
-          "description": "foto = foto real de la tienda; ia_local = generada con IA local (sd-server); placeholder = ilustración provisional."
+          "description": "Metadato interno (la web no lo muestra): foto = foto real; ia_local = generada con IA local (sd-server); placeholder = ilustración provisional."
         },
         "ancho": {
           "type": "integer",

@@ -28,7 +28,8 @@
 //   --retries <n>        Intentos por imagen (por defecto 3).
 //   --sd <url>           sd-server (por defecto http://127.0.0.1:1234).
 //   --ollama <url>       Ollama (por defecto http://127.0.0.1:11434).
-//   --model <nombre>     Modelo de Ollama a descargar de la VRAM (qwen3.5:4b-q4_K_M).
+//   --model <nombre>     Modelo a descargar si /api/ps no responde (qwen3.5:4b-q4_K_M);
+//                        si responde, se descargan todos los modelos cargados.
 //   --no-unload          No pide a Ollama liberar la VRAM.
 //   --container <name>   Contenedor con GraphicsMagick para recortar (n8n).
 //   --log <archivo>      Guarda un informe JSON de la ejecución.
@@ -192,6 +193,31 @@ const AJUSTES_QA = {
     motivo: "intento anterior: limitar los colores del bolso a la paleta",
     extra: "The bag is natural jute color with only one thin mango-orange stripe and no other colors."
   },
+  // Variantes por color (2026-10-07): seed +20000/+40000 sobre la del JSON.
+  "assets/img/products/prd-0005-arena.webp": {
+    seed_original: 10501,
+    seed: 30501,
+    motivo: "corte distinto al de prd-0005-1 (cintura imperio fruncida) y sombra de una cabeza de perfil en la pared",
+    extra: "Simple A-line slip sundress cut, smooth from the chest to the hem with no waist seam and no gathers, straight neckline with wide shoulder straps, falling loosely to mid-calf. Plain wall background with only palm leaf shadows."
+  },
+  "assets/img/products/prd-0009-mango.webp": {
+    seed_original: 10901,
+    seed: 30901,
+    motivo: "salía un traje de baño enterizo en vez del polo UV de manga larga",
+    extra: "The garment is a separate rash guard top only: a long-sleeve T-shirt shape with a straight hem at the waist, laid flat with both sleeves spread out, exactly like a swim T-shirt."
+  },
+  "assets/img/products/prd-0013-tostado.webp": {
+    seed_original: 11302,
+    seed: 31302,
+    motivo: "el tono tostado casi no se distinguía del natural",
+    extra: "The hat straw is a deep toasted caramel-brown color, clearly much darker than natural straw, uniform all over."
+  },
+  "assets/img/products/prd-0015-natural.webp": {
+    seed_original: 11501,
+    seed: 51501,
+    motivo: "letras grabadas en las plantillas (también con las seeds 21501, 31501 y 41501)",
+    extra: "The footbed insoles are plain smooth tan leather, completely blank and unmarked, the same color as the straps."
+  },
   "assets/img/brand/hero-2.webp": {
     seed_original: 202,
     seed: 1202,
@@ -227,13 +253,20 @@ function aplicarAjustes(e) {
 // ---------- servicios ----------
 async function liberarOllama(o) {
   try {
-    const r = await fetch(`${o.ollama}/api/generate`, {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model: o.model, keep_alive: 0 }),
-      signal: AbortSignal.timeout(30000),
-    });
-    await r.text();
-    console.log(`Ollama: pedido liberar "${o.model}" de la VRAM (HTTP ${r.status}).`);
+    // Descarga TODOS los modelos que /api/ps lista como cargados (qwen3.5 del
+    // bot, llama3.1 del chat de la web…). Si /api/ps no responde, usa --model.
+    const ps0 = await fetch(`${o.ollama}/api/ps`, { signal: AbortSignal.timeout(5000) })
+      .then((x) => x.json()).catch(() => null);
+    const modelos = ps0 ? [...new Set((ps0.models || []).map((m) => m.name || m.model).filter(Boolean))] : [o.model];
+    for (const modelo of modelos) {
+      const r = await fetch(`${o.ollama}/api/generate`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ model: modelo, keep_alive: 0 }),
+        signal: AbortSignal.timeout(30000),
+      });
+      await r.text();
+      console.log(`Ollama: pedido liberar "${modelo}" de la VRAM (HTTP ${r.status}).`);
+    }
     // Espera (máx. 15 s) a que /api/ps ya no liste ningún modelo cargado.
     for (let i = 0; i < 15; i++) {
       const ps = await fetch(`${o.ollama}/api/ps`, { signal: AbortSignal.timeout(5000) })

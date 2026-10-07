@@ -12,7 +12,8 @@ const raiz = path.join(__dirname, '..');
 const html = path.join(raiz, 'index.html');
 const leer = (n) => JSON.parse(fs.readFileSync(path.join(raiz, 'data', n + '.json'), 'utf8'));
 
-const semilla = { products: leer('products'), articles: leer('articles'), site: leer('site') };
+// v2: también la tabla de frescura por material (la misma que usa el bot), para inferir hojitas en file://.
+const semilla = { products: leer('products'), articles: leer('articles'), site: leer('site'), frescura: leer('schema/frescura-materiales') };
 // "</" escapado para que el contenido no pueda cerrar la etiqueta <script>.
 const json = JSON.stringify(semilla).replace(/<\//g, '<\\/');
 

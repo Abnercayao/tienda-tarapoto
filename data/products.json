@@ -1,8 +1,8 @@
 {
   "$schema": "./schema/products.schema.json",
-  "schema_version": 1,
-  "version": 2,
-  "actualizado": "2026-10-07T05:48:23-05:00",
+  "schema_version": 2,
+  "version": 3,
+  "actualizado": "2026-10-07T06:34:49-05:00",
   "borradores_aplicados": [
     "drf-muxzhknxoc"
   ],
@@ -22,13 +22,11 @@
         "L",
         "XL"
       ],
-      "stock_por_talla": {
-        "S": 3,
-        "M": 5,
-        "L": 4,
-        "XL": 2
+      "stock_por_color": {
+        "Arena": 12,
+        "Blanco hueso": 7
       },
-      "stock": 14,
+      "stock": 19,
       "colores": [
         {
           "nombre": "Arena",
@@ -53,14 +51,23 @@
           "alt": "Camisa de lino color arena de manga corta en un modelo adulto, encuadre de hombros a cintura sin rostro",
           "origen": "ia_local",
           "ancho": 768,
-          "alto": 1024
+          "alto": 1024,
+          "color": "Arena"
+        },
+        {
+          "src": "assets/img/products/prd-0001-blanco-hueso.webp",
+          "alt": "Camisa de lino color blanco hueso de manga corta en un modelo adulto, encuadre de hombros a cintura sin rostro",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Blanco hueso"
         }
       ],
       "destacado": true,
       "activo": true,
       "muestra": true,
       "fecha_creacion": "2026-09-28T10:00:00-05:00",
-      "fecha_actualizacion": "2026-09-28T10:00:00-05:00"
+      "fecha_actualizacion": "2026-10-07T06:34:49-05:00"
     },
     {
       "id": "prd-0002",
@@ -76,14 +83,11 @@
         "XL",
         "XXL"
       ],
-      "stock_por_talla": {
-        "S": 2,
-        "M": 4,
-        "L": 4,
-        "XL": 3,
-        "XXL": 1
+      "stock_por_color": {
+        "Blanco hueso": 9,
+        "Celeste": 0
       },
-      "stock": 14,
+      "stock": 9,
       "colores": [
         {
           "nombre": "Blanco hueso",
@@ -108,14 +112,23 @@
           "alt": "Guayabera blanca de algodón con pliegues verticales en un modelo adulto, encuadre sin rostro",
           "origen": "ia_local",
           "ancho": 768,
-          "alto": 1024
+          "alto": 1024,
+          "color": "Blanco hueso"
+        },
+        {
+          "src": "assets/img/products/prd-0002-celeste.webp",
+          "alt": "Guayabera celeste de algodón con pliegues verticales en un modelo adulto, encuadre sin rostro",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Celeste"
         }
       ],
       "destacado": false,
       "activo": true,
       "muestra": true,
       "fecha_creacion": "2026-09-10T10:00:00-05:00",
-      "fecha_actualizacion": "2026-09-10T10:00:00-05:00"
+      "fecha_actualizacion": "2026-10-07T06:34:49-05:00"
     },
     {
       "id": "prd-0003",
@@ -130,13 +143,12 @@
         "L",
         "XL"
       ],
-      "stock_por_talla": {
-        "S": 5,
-        "M": 8,
-        "L": 6,
-        "XL": 0
+      "stock_por_color": {
+        "Verde palma": 15,
+        "Arena": 6,
+        "Azul laguna": 3
       },
-      "stock": 19,
+      "stock": 24,
       "colores": [
         {
           "nombre": "Verde palma",
@@ -165,14 +177,31 @@
           "alt": "Polo verde palma de algodón pima en un modelo adulto, encuadre de hombros a cintura sin rostro",
           "origen": "ia_local",
           "ancho": 768,
-          "alto": 1024
+          "alto": 1024,
+          "color": "Verde palma"
+        },
+        {
+          "src": "assets/img/products/prd-0003-arena.webp",
+          "alt": "Polo color arena de algodón pima en un modelo adulto, encuadre de hombros a cintura sin rostro",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Arena"
+        },
+        {
+          "src": "assets/img/products/prd-0003-azul-laguna.webp",
+          "alt": "Polo azul laguna de algodón pima en un modelo adulto, encuadre de hombros a cintura sin rostro",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Azul laguna"
         }
       ],
       "destacado": true,
       "activo": true,
       "muestra": true,
       "fecha_creacion": "2026-10-02T10:00:00-05:00",
-      "fecha_actualizacion": "2026-10-02T10:00:00-05:00"
+      "fecha_actualizacion": "2026-10-07T06:34:49-05:00"
     },
     {
       "id": "prd-0004",
@@ -187,11 +216,9 @@
         "L",
         "XL"
       ],
-      "stock_por_talla": {
-        "S": 2,
-        "M": 5,
-        "L": 5,
-        "XL": 3
+      "stock_por_color": {
+        "Beige": 11,
+        "Verde oliva": 4
       },
       "stock": 15,
       "colores": [
@@ -218,14 +245,23 @@
           "alt": "Bermuda beige de lino con cordón en un modelo adulto, encuadre de pecho a rodillas sin rostro",
           "origen": "ia_local",
           "ancho": 768,
-          "alto": 1024
+          "alto": 1024,
+          "color": "Beige"
+        },
+        {
+          "src": "assets/img/products/prd-0004-verde-oliva.webp",
+          "alt": "Bermuda verde oliva de lino con cordón en un modelo adulto, encuadre de pecho a rodillas sin rostro",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Verde oliva"
         }
       ],
       "destacado": false,
       "activo": true,
       "muestra": true,
       "fecha_creacion": "2026-09-15T10:00:00-05:00",
-      "fecha_actualizacion": "2026-09-15T10:00:00-05:00"
+      "fecha_actualizacion": "2026-10-07T06:34:49-05:00"
     },
     {
       "id": "prd-0005",
@@ -241,13 +277,11 @@
         "M",
         "L"
       ],
-      "stock_por_talla": {
-        "XS": 2,
-        "S": 4,
-        "M": 4,
-        "L": 2
+      "stock_por_color": {
+        "Terracota": 8,
+        "Arena": 2
       },
-      "stock": 12,
+      "stock": 10,
       "colores": [
         {
           "nombre": "Terracota",
@@ -272,14 +306,23 @@
           "alt": "Vestido midi de lino color terracota en una modelo adulta, encuadre desde los hombros sin rostro",
           "origen": "ia_local",
           "ancho": 768,
-          "alto": 1024
+          "alto": 1024,
+          "color": "Terracota"
+        },
+        {
+          "src": "assets/img/products/prd-0005-arena.webp",
+          "alt": "Vestido midi de lino color arena en una modelo adulta, encuadre desde los hombros sin rostro",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Arena"
         }
       ],
       "destacado": true,
       "activo": true,
       "muestra": true,
       "fecha_creacion": "2026-09-30T10:00:00-05:00",
-      "fecha_actualizacion": "2026-09-30T10:00:00-05:00"
+      "fecha_actualizacion": "2026-10-07T06:34:49-05:00"
     },
     {
       "id": "prd-0006",
@@ -295,14 +338,11 @@
         "L",
         "XL"
       ],
-      "stock_por_talla": {
-        "XS": 1,
-        "S": 4,
-        "M": 5,
-        "L": 3,
-        "XL": 2
+      "stock_por_color": {
+        "Blanco hueso": 14,
+        "Amarillo sol": 0
       },
-      "stock": 15,
+      "stock": 14,
       "colores": [
         {
           "nombre": "Blanco hueso",
@@ -327,14 +367,23 @@
           "alt": "Blusa blanca de gasa de algodón con escote en V en una modelo adulta, encuadre sin rostro",
           "origen": "ia_local",
           "ancho": 768,
-          "alto": 1024
+          "alto": 1024,
+          "color": "Blanco hueso"
+        },
+        {
+          "src": "assets/img/products/prd-0006-amarillo-sol.webp",
+          "alt": "Blusa amarillo sol de gasa de algodón con escote en V en una modelo adulta, encuadre sin rostro",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Amarillo sol"
         }
       ],
       "destacado": false,
       "activo": true,
       "muestra": true,
       "fecha_creacion": "2026-09-05T10:00:00-05:00",
-      "fecha_actualizacion": "2026-09-05T10:00:00-05:00"
+      "fecha_actualizacion": "2026-10-07T06:34:49-05:00"
     },
     {
       "id": "prd-0007",
@@ -349,13 +398,11 @@
         "M",
         "L"
       ],
-      "stock_por_talla": {
-        "XS": 3,
-        "S": 5,
-        "M": 4,
-        "L": 0
+      "stock_por_color": {
+        "Verde palma": 5,
+        "Arena": 10
       },
-      "stock": 12,
+      "stock": 15,
       "colores": [
         {
           "nombre": "Verde palma",
@@ -380,14 +427,23 @@
           "alt": "Short de lino verde palma de tiro alto en una modelo adulta, encuadre de pecho a muslos sin rostro",
           "origen": "ia_local",
           "ancho": 768,
-          "alto": 1024
+          "alto": 1024,
+          "color": "Verde palma"
+        },
+        {
+          "src": "assets/img/products/prd-0007-arena.webp",
+          "alt": "Short de lino color arena de tiro alto en una modelo adulta, encuadre de pecho a muslos sin rostro",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Arena"
         }
       ],
       "destacado": false,
       "activo": true,
       "muestra": true,
       "fecha_creacion": "2026-10-04T10:00:00-05:00",
-      "fecha_actualizacion": "2026-10-04T10:00:00-05:00"
+      "fecha_actualizacion": "2026-10-07T06:34:49-05:00"
     },
     {
       "id": "prd-0008",
@@ -403,13 +459,11 @@
         "L",
         "XL"
       ],
-      "stock_por_talla": {
-        "S": 3,
-        "M": 4,
-        "L": 3,
-        "XL": 2
+      "stock_por_color": {
+        "Azul laguna": 7,
+        "Hibisco": 1
       },
-      "stock": 12,
+      "stock": 8,
       "colores": [
         {
           "nombre": "Azul laguna",
@@ -434,14 +488,23 @@
           "alt": "Pantalón palazzo azul laguna de caída fluida en una modelo adulta, encuadre de pecho a pies sin rostro",
           "origen": "ia_local",
           "ancho": 768,
-          "alto": 1024
+          "alto": 1024,
+          "color": "Azul laguna"
+        },
+        {
+          "src": "assets/img/products/prd-0008-hibisco.webp",
+          "alt": "Pantalón palazzo color hibisco de caída fluida en una modelo adulta, encuadre de pecho a pies sin rostro",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Hibisco"
         }
       ],
       "destacado": false,
       "activo": true,
       "muestra": true,
       "fecha_creacion": "2026-09-12T10:00:00-05:00",
-      "fecha_actualizacion": "2026-09-12T10:00:00-05:00"
+      "fecha_actualizacion": "2026-10-07T06:34:49-05:00"
     },
     {
       "id": "prd-0009",
@@ -457,14 +520,11 @@
         "10",
         "12"
       ],
-      "stock_por_talla": {
-        "4": 3,
-        "6": 4,
-        "8": 4,
-        "10": 3,
-        "12": 2
+      "stock_por_color": {
+        "Azul laguna": 13,
+        "Mango": 9
       },
-      "stock": 16,
+      "stock": 22,
       "colores": [
         {
           "nombre": "Azul laguna",
@@ -489,14 +549,23 @@
           "alt": "Polo infantil de manga larga azul laguna con protección UV, extendido sobre una superficie clara",
           "origen": "ia_local",
           "ancho": 768,
-          "alto": 1024
+          "alto": 1024,
+          "color": "Azul laguna"
+        },
+        {
+          "src": "assets/img/products/prd-0009-mango.webp",
+          "alt": "Polo infantil de manga larga color mango con protección UV, extendido sobre una superficie clara",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Mango"
         }
       ],
       "destacado": true,
       "activo": true,
       "muestra": true,
       "fecha_creacion": "2026-10-01T10:00:00-05:00",
-      "fecha_actualizacion": "2026-10-01T10:00:00-05:00"
+      "fecha_actualizacion": "2026-10-07T06:34:49-05:00"
     },
     {
       "id": "prd-0010",
@@ -513,14 +582,11 @@
         "8",
         "10"
       ],
-      "stock_por_talla": {
-        "2": 2,
-        "4": 3,
-        "6": 3,
-        "8": 2,
-        "10": 1
+      "stock_por_color": {
+        "Rosa guayaba": 6,
+        "Amarillo sol": 4
       },
-      "stock": 11,
+      "stock": 10,
       "colores": [
         {
           "nombre": "Rosa guayaba",
@@ -545,14 +611,23 @@
           "alt": "Vestido de algodón rosa guayaba para niña colgado en una percha de madera",
           "origen": "ia_local",
           "ancho": 768,
-          "alto": 1024
+          "alto": 1024,
+          "color": "Rosa guayaba"
+        },
+        {
+          "src": "assets/img/products/prd-0010-amarillo-sol.webp",
+          "alt": "Vestido de algodón amarillo sol para niña colgado en una percha de madera",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Amarillo sol"
         }
       ],
       "destacado": false,
       "activo": true,
       "muestra": true,
       "fecha_creacion": "2026-09-18T10:00:00-05:00",
-      "fecha_actualizacion": "2026-09-18T10:00:00-05:00"
+      "fecha_actualizacion": "2026-10-07T06:34:49-05:00"
     },
     {
       "id": "prd-0011",
@@ -569,15 +644,11 @@
         "12",
         "14"
       ],
-      "stock_por_talla": {
-        "4": 2,
-        "6": 3,
-        "8": 4,
-        "10": 3,
-        "12": 2,
-        "14": 0
+      "stock_por_color": {
+        "Beige": 3,
+        "Verde oliva": 0
       },
-      "stock": 14,
+      "stock": 3,
       "colores": [
         {
           "nombre": "Beige",
@@ -602,14 +673,23 @@
           "alt": "Bermuda beige de drill para niño doblada sobre una superficie de madera clara",
           "origen": "ia_local",
           "ancho": 768,
-          "alto": 1024
+          "alto": 1024,
+          "color": "Beige"
+        },
+        {
+          "src": "assets/img/products/prd-0011-verde-oliva.webp",
+          "alt": "Bermuda verde oliva de drill para niño doblada sobre una superficie de madera clara",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Verde oliva"
         }
       ],
       "destacado": false,
       "activo": true,
       "muestra": true,
       "fecha_creacion": "2026-09-08T10:00:00-05:00",
-      "fecha_actualizacion": "2026-09-08T10:00:00-05:00"
+      "fecha_actualizacion": "2026-10-07T06:34:49-05:00"
     },
     {
       "id": "prd-0012",
@@ -621,10 +701,11 @@
       "tallas": [
         "UNICA"
       ],
-      "stock_por_talla": {
-        "UNICA": 15
+      "stock_por_color": {
+        "Azul laguna": 18,
+        "Mango": 11
       },
-      "stock": 15,
+      "stock": 29,
       "colores": [
         {
           "nombre": "Azul laguna",
@@ -649,14 +730,23 @@
           "alt": "Gorro legionario infantil azul laguna con cubrenuca sobre hojas de palma",
           "origen": "ia_local",
           "ancho": 768,
-          "alto": 1024
+          "alto": 1024,
+          "color": "Azul laguna"
+        },
+        {
+          "src": "assets/img/products/prd-0012-mango.webp",
+          "alt": "Gorro legionario infantil color mango con cubrenuca sobre hojas de palma",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Mango"
         }
       ],
       "destacado": false,
       "activo": true,
       "muestra": true,
       "fecha_creacion": "2026-10-03T10:00:00-05:00",
-      "fecha_actualizacion": "2026-10-03T10:00:00-05:00"
+      "fecha_actualizacion": "2026-10-07T06:34:49-05:00"
     },
     {
       "id": "prd-0013",
@@ -668,14 +758,24 @@
       "tallas": [
         "UNICA"
       ],
-      "stock_por_talla": {
-        "UNICA": 10
+      "stock_por_color": {
+        "Natural": 6,
+        "Blanco hueso": 4,
+        "Tostado": 0
       },
       "stock": 10,
       "colores": [
         {
           "nombre": "Natural",
           "hex": "#D8C3A0"
+        },
+        {
+          "nombre": "Blanco hueso",
+          "hex": "#F4F1E8"
+        },
+        {
+          "nombre": "Tostado",
+          "hex": "#A9784F"
         }
       ],
       "material": "Fibra de palma natural",
@@ -692,14 +792,31 @@
           "alt": "Sombrero de ala ancha de fibra de palma natural apoyado sobre un banco de madera",
           "origen": "ia_local",
           "ancho": 768,
-          "alto": 1024
+          "alto": 1024,
+          "color": "Natural"
+        },
+        {
+          "src": "assets/img/products/prd-0013-blanco-hueso.webp",
+          "alt": "Sombrero de ala ancha de fibra de palma blanco hueso apoyado sobre un banco de madera",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Blanco hueso"
+        },
+        {
+          "src": "assets/img/products/prd-0013-tostado.webp",
+          "alt": "Sombrero de ala ancha de fibra de palma tostada apoyado sobre un banco de madera",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Tostado"
         }
       ],
       "destacado": true,
       "activo": true,
       "muestra": true,
       "fecha_creacion": "2026-09-25T10:00:00-05:00",
-      "fecha_actualizacion": "2026-09-25T10:00:00-05:00"
+      "fecha_actualizacion": "2026-10-07T06:34:49-05:00"
     },
     {
       "id": "prd-0014",
@@ -712,11 +829,11 @@
         "M",
         "L"
       ],
-      "stock_por_talla": {
-        "M": 6,
-        "L": 5
+      "stock_por_color": {
+        "Verde palma": 9,
+        "Arena": 13
       },
-      "stock": 11,
+      "stock": 22,
       "colores": [
         {
           "nombre": "Verde palma",
@@ -741,14 +858,23 @@
           "alt": "Gorro pescador de algodón verde palma colgado en una pared color arena",
           "origen": "ia_local",
           "ancho": 768,
-          "alto": 1024
+          "alto": 1024,
+          "color": "Verde palma"
+        },
+        {
+          "src": "assets/img/products/prd-0014-arena.webp",
+          "alt": "Gorro pescador de algodón color arena colgado en una pared color arena",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Arena"
         }
       ],
       "destacado": false,
       "activo": true,
       "muestra": true,
       "fecha_creacion": "2026-09-02T10:00:00-05:00",
-      "fecha_actualizacion": "2026-09-02T10:00:00-05:00"
+      "fecha_actualizacion": "2026-10-07T06:34:49-05:00"
     },
     {
       "id": "prd-0015",
@@ -768,17 +894,11 @@
         "42",
         "43"
       ],
-      "stock_por_talla": {
-        "36": 1,
-        "37": 2,
-        "38": 3,
-        "39": 3,
-        "40": 3,
-        "41": 2,
-        "42": 2,
-        "43": 1
+      "stock_por_color": {
+        "Cacao": 5,
+        "Natural": 2
       },
-      "stock": 17,
+      "stock": 7,
       "colores": [
         {
           "nombre": "Cacao",
@@ -803,14 +923,23 @@
           "alt": "Par de sandalias de cuero color cacao sobre baldosas de terracota con sombras de palmera",
           "origen": "ia_local",
           "ancho": 768,
-          "alto": 1024
+          "alto": 1024,
+          "color": "Cacao"
+        },
+        {
+          "src": "assets/img/products/prd-0015-natural.webp",
+          "alt": "Par de sandalias de cuero color natural sobre baldosas de terracota con sombras de palmera",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Natural"
         }
       ],
       "destacado": false,
       "activo": true,
       "muestra": true,
       "fecha_creacion": "2026-09-22T10:00:00-05:00",
-      "fecha_actualizacion": "2026-09-22T10:00:00-05:00"
+      "fecha_actualizacion": "2026-10-07T06:34:49-05:00"
     },
     {
       "id": "prd-0016",
@@ -822,10 +951,11 @@
       "tallas": [
         "UNICA"
       ],
-      "stock_por_talla": {
-        "UNICA": 8
+      "stock_por_color": {
+        "Natural": 8,
+        "Mango": 3
       },
-      "stock": 8,
+      "stock": 11,
       "colores": [
         {
           "nombre": "Natural",
@@ -837,6 +967,7 @@
         }
       ],
       "material": "Yute con asas de algodón",
+      "frescura": 5,
       "descripcion": "Bolso amplio de yute con asas de algodón y bolsillo interior. Ideal para el mercado, un paseo a la laguna o el día a día.",
       "etiquetas": [
         "bolso",
@@ -849,14 +980,23 @@
           "alt": "Bolso de yute tejido con asas de algodón sobre un banco de madera junto a hojas de palma",
           "origen": "ia_local",
           "ancho": 768,
-          "alto": 1024
+          "alto": 1024,
+          "color": "Natural"
+        },
+        {
+          "src": "assets/img/products/prd-0016-mango.webp",
+          "alt": "Bolso de yute tejido color mango con asas de algodón sobre un banco de madera junto a hojas de palma",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Mango"
         }
       ],
       "destacado": false,
       "activo": true,
       "muestra": true,
       "fecha_creacion": "2026-08-20T10:00:00-05:00",
-      "fecha_actualizacion": "2026-08-20T10:00:00-05:00"
+      "fecha_actualizacion": "2026-10-07T06:34:49-05:00"
     },
     {
       "id": "prd-0017",
@@ -871,13 +1011,10 @@
         "L",
         "XL"
       ],
-      "stock_por_talla": {
-        "S": 10,
-        "M": 10,
-        "L": 10,
-        "XL": 10
+      "stock_por_color": {
+        "Blanco": 20
       },
-      "stock": 40,
+      "stock": 20,
       "colores": [
         {
           "nombre": "Blanco",
@@ -885,6 +1022,7 @@
         }
       ],
       "material": "lino",
+      "frescura": 5,
       "descripcion": "Polo de lino fresco y ligero para el calor. Ideal para días calurosos.",
       "etiquetas": [
         "lino",
@@ -898,14 +1036,15 @@
           "alt": "Modelo masculino vistiendo un polo blanco con textura vertical, cuello tipo polo y mangas cortas. La tela parece lino o similar, muy fresca para el clima...",
           "origen": "foto",
           "ancho": 1011,
-          "alto": 1200
+          "alto": 1200,
+          "color": "Blanco"
         }
       ],
       "destacado": false,
       "activo": true,
       "muestra": false,
       "fecha_creacion": "2026-10-07T05:48:23-05:00",
-      "fecha_actualizacion": "2026-10-07T05:48:23-05:00"
+      "fecha_actualizacion": "2026-10-07T06:34:49-05:00"
     }
   ]
 }

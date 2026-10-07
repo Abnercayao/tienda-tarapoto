@@ -6,7 +6,7 @@
 <!-- 404.html: GitHub Pages la sirve para CUALQUIER ruta inexistente (también /tienda-tarapoto/a/b/c),
      por eso todas las rutas son ABSOLUTAS /tienda-tarapoto/... (PLAN F2). Sin JavaScript: script-src 'none'. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'none'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
-<meta name="robots" content="noindex">
+<meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#0F5C46">
@@ -77,8 +77,6 @@ h1{font:700 clamp(1.75rem,1.3rem + 2vw,2.6rem)/1.1 var(--font-display);letter-sp
   box-shadow:0 14px 32px -10px rgb(15 92 70/.30);outline:8px solid var(--surface);outline-offset:-1px}
 .arco__marco img{display:block;width:100%;height:100%;object-fit:cover}
 .arco figcaption{margin-top:12px;text-align:center;font:italic 400 1.15rem/1.3 var(--font-accent);color:var(--text-muted)}
-.etiqueta-ia{position:absolute;left:12px;bottom:12px;background:rgb(16 35 28/.78);color:#FBF6EC;font:600 .75rem/1 var(--font-body);
-  padding:6px 10px;border-radius:999px}
 
 /* ---- Onda de río al pie ---- */
 .onda{display:block;width:100%;height:56px;color:var(--wave)}
@@ -118,7 +116,6 @@ footer a{color:inherit}
     <div class="arco__marco">
       <img src="/tienda-tarapoto/assets/img/brand/cat-accesorios.webp" width="768" height="1024" decoding="async"
            alt="Sombrero de palma, sandalias de cuero y bolso de yute sobre un banco de madera">
-      <span class="etiqueta-ia">Imagen referencial (IA)</span>
     </div>
     <figcaption>Ropa fresca para el calor de la selva</figcaption>
   </figure>

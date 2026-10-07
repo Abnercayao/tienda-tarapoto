@@ -17,8 +17,8 @@
       "pattern": "^\\./schema/[a-z-]+\\.schema\\.json$"
     },
     "schema_version": {
-      "const": 1,
-      "description": "Versión del contrato (cambia solo si cambia el esquema)."
+      "const": 2,
+      "description": "Versión del contrato (cambia solo si cambia el esquema). v2 desde 2026-10-07."
     },
     "version": {
       "type": "integer",
@@ -272,7 +272,7 @@
         "alt",
         "origen"
       ],
-      "description": "Portada: assets/img/blog/ (o placeholders). ia_local permitido; la web muestra la etiqueta de IA.",
+      "description": "Portada: assets/img/blog/ (o placeholders). ia_local permitido.",
       "properties": {
         "src": {
           "type": "string",
@@ -293,7 +293,7 @@
             "ia_local",
             "placeholder"
           ],
-          "description": "foto = foto real de la tienda; ia_local = generada con IA local (sd-server); placeholder = ilustración provisional."
+          "description": "Metadato interno (la web no lo muestra): foto = foto real; ia_local = generada con IA local (sd-server); placeholder = ilustración provisional."
         },
         "ancho": {
           "type": "integer",

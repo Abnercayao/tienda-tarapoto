@@ -4,7 +4,7 @@
  * CERO dependencias. El MISMO código corre en local y dentro de n8n.
  *
  * (a) Línea de comandos (desde la raíz del repo):
- *       node tools/validar.js data/products.json data/articles.json data/site.json
+ *       node tools/validar.js data/products.json data/articles.json data/site.json data/chat.json
  *     Opciones:
  *       --anterior <carpeta>        compara contra otra copia de data/ (límites de daño)
  *       --ids prd-0001,art-0002,site  ids autorizados en el lote (con --anterior)
@@ -19,7 +19,7 @@
  *       2. Debajo, añade por ejemplo:
  *            const e = $input.first().json;
  *            const r = validar(
- *              { products: e.products, articles: e.articles, site: e.site },   // objetos o texto JSON
+ *              { products: e.products, articles: e.articles, site: e.site, chat: e.chat },   // objetos o texto JSON (los que haya)
  *              { anterior: e.anterior, idsLote: e.idsLote, permitirLimpieza: false, rol: e.rol });
  *            return [{ json: r }];
  *     El bloque no usa require, fs, Buffer ni variables de entorno.
@@ -31,7 +31,8 @@
 'use strict';
 
 // === COPIAR A N8N ===
-const CONTRATO_VERSION = '1.0.0';
+const CONTRATO_VERSION = '2.0.0';
+const SCHEMA_VERSION = 2; // v2 (2026-10-07): frescura, stock_por_color, imagenes[].color, guia_tallas, chat.json; sin avisos de muestra
 const LIMITE_BYTES = 1000000; // cada JSON debe pesar MENOS de 1 MB (límite de la API de contenidos)
 const MAX_BORRADORES_APLICADOS = 100;
 
@@ -50,6 +51,21 @@ const TALLAS_POR_CATEGORIA = {
   accesorios: [].concat(T_UNICA, T_CALZADO, ['S', 'M', 'L'])
 };
 const ORIGENES_IMAGEN = ['foto', 'ia_local', 'placeholder'];
+// v2: stock por color. Fuente de verdad de la disponibilidad: stock = suma de stock_por_color.
+const MAX_STOCK_COLOR = 20;
+const STOCK_COLOR_ASUMIDO = 1; // al crear sin cantidades, cada color empieza con 1 (la vista previa lo avisa)
+// Zonas de "cómo medir" de la guía de tallas (site.guia_tallas.como_medir[].id y tablas[].medidas).
+const ZONAS_MEDIDA = ['pecho', 'busto', 'cintura', 'cadera', 'largo', 'entrepierna', 'estatura', 'cabeza', 'pie'];
+// v2: índice de frescura (1–5 hojitas) por material. TABLA ÚNICA para web y bot (data/schema/frescura-materiales.json
+// se genera desde aquí). Se aplica la PRIMERA fila cuyo patrón coincide con el texto en minúsculas y sin tildes.
+const TABLA_FRESCURA = [
+  { valor: 2, materiales: 'denim, jean, mezclilla, drill grueso, lona, pana', patron: '\\b(denim|jeans?|mezclilla|lona|pana|corduroy)\\b|\\bdrill grues' },
+  { valor: 1, materiales: 'poliéster pesado o grueso, cuero, cuerina, vinil, lana, polar, franela, neopreno', patron: '\\b(cuero|cuerina|ecocuero|vinil|vinilo|charol|lana|polar|franela|fleece|neopreno)\\b|\\bpoliester (pesado|grueso)' },
+  { valor: 5, materiales: 'lino (y lino-algodón), gasa, voile, muselina, fibras vegetales tejidas (palma, paja, rafia, yute)', patron: '\\b(lino|linen|gasa|voile|muselina|bambula|plumetis|rafia|yute|mimbre|junco|toquilla|paja)\\b|fibra de palma|palma tejida' },
+  { valor: 3, materiales: 'algodón-poliéster, dri-fit, telas UV/UPF, microfibra, elastano, drill, gabardina', patron: 'algodon.*poliester|poliester.*algodon|\\b(dri|dry)[ -]?fit\\b|\\buv\\b|\\bupf\\b|microfibra|elastano|lycra|licra|spandex|\\bdrill\\b|gabardina' },
+  { valor: 4, materiales: 'algodón pima, algodón, bambú, viscosa, rayón, modal, lyocell, seda', patron: '\\b(algodon|pima|cotton|bambu|bamboo|viscosa|rayon|modal|lyocell|tencel|seda)\\b' },
+  { valor: 2, materiales: 'poliéster, nylon, acrílico (sin tecnología de frescura)', patron: '\\b(poliester|polyester|nylon|nailon|acrilico|poliamida)\\b' }
+];
 const DIAS = ['lu', 'ma', 'mi', 'ju', 'vi', 'sa', 'do'];
 const REDES = ['instagram', 'facebook', 'tiktok', 'youtube', 'x'];
 const DOMINIOS_REDES = {
@@ -93,8 +109,10 @@ const RE = {
   whatsapp: '^(51\\d{9})?$',
   img_producto: '^assets/img/(products|placeholders)/[a-z0-9]+(-[a-z0-9]+)*\\.(webp|avif|jpg|jpeg|png|svg)$',
   img_sitio: '^assets/img/(blog|lookbook|brand|placeholders)/[a-z0-9]+(-[a-z0-9]+)*\\.(webp|avif|jpg|jpeg|png|svg)$',
-  ref_esquema: '^\\./schema/[a-z-]+\\.schema\\.json$'
+  ref_esquema: '^\\./schema/[a-z-]+\\.schema\\.json$',
+  chat_url: '^(https://[a-z0-9]+(-[a-z0-9]+)*\\.trycloudflare\\.com)?$'
 };
+RE.fecha_o_vacio = '^(' + RE.fecha.slice(1, -1) + ')?$';
 function txt(min, max, desc) {
   const s = { type: 'string' };
   if (min) s.minLength = min;
@@ -104,22 +122,24 @@ function txt(min, max, desc) {
   return s;
 }
 function fechaEsq(desc) { const s = { type: 'string', pattern: RE.fecha }; if (desc) s.description = desc; return s; }
-function imagenEsq(patron, desc) {
-  return {
+function imagenEsq(patron, desc, conColor) {
+  const e = {
     type: 'object', additionalProperties: false, required: ['src', 'alt', 'origen'], description: desc,
     properties: {
       src: { type: 'string', maxLength: 160, pattern: patron, description: 'Ruta RELATIVA dentro del repo; nunca URL externa.' },
       alt: txt(5, 160, 'Texto alternativo en español que describe la imagen.'),
-      origen: { enum: ORIGENES_IMAGEN, description: 'foto = foto real de la tienda; ia_local = generada con IA local (sd-server); placeholder = ilustración provisional.' },
+      origen: { enum: ORIGENES_IMAGEN, description: 'Metadato interno (la web no lo muestra): foto = foto real; ia_local = generada con IA local (sd-server); placeholder = ilustración provisional.' },
       ancho: { type: 'integer', minimum: 1, maximum: 6000 },
       alto: { type: 'integer', minimum: 1, maximum: 6000 }
     }
   };
+  if (conColor) e.properties.color = txt(2, 24, 'v2, opcional: nombre EXACTO de un color de "colores". Al elegir ese color, la web muestra esta foto.');
+  return e;
 }
 function envolturaProps(nombreEsquema) {
   return {
     $schema: { type: 'string', pattern: RE.ref_esquema },
-    schema_version: { const: 1, description: 'Versión del contrato (cambia solo si cambia el esquema).' },
+    schema_version: { const: SCHEMA_VERSION, description: 'Versión del contrato (cambia solo si cambia el esquema). v2 desde 2026-10-07.' },
     version: { type: 'integer', minimum: 1, description: 'Revisión de los datos: WF5 la incrementa en cada commit. La web repinta si cambia.' },
     actualizado: fechaEsq('Fecha ISO 8601 con zona (-05:00) del último cambio publicado.'),
     borradores_aplicados: {
@@ -144,7 +164,7 @@ const ESQUEMAS = {
     $defs: {
       producto: {
         type: 'object', additionalProperties: false,
-        required: ['id', 'slug', 'nombre', 'categoria', 'subcategoria', 'precio', 'tallas', 'stock_por_talla', 'stock', 'colores',
+        required: ['id', 'slug', 'nombre', 'categoria', 'subcategoria', 'precio', 'tallas', 'stock', 'colores',
           'descripcion', 'etiquetas', 'imagenes', 'destacado', 'activo', 'muestra', 'fecha_creacion', 'fecha_actualizacion'],
         properties: {
           id: { type: 'string', pattern: RE.prd, description: 'prd-0001; inmutable; lo asigna el código (máximo + 1), nunca el LLM.' },
@@ -157,18 +177,22 @@ const ESQUEMAS = {
           tallas: { type: 'array', minItems: 1, maxItems: 12, uniqueItems: true, items: { enum: TALLAS } },
           stock_por_talla: {
             type: 'object', propertyNames: { enum: TALLAS }, additionalProperties: { type: 'integer', minimum: 0, maximum: 9999 },
-            description: 'Una clave por cada talla de "tallas" (ni más ni menos).'
+            description: 'Opcional (formato v1). Una clave por cada talla de "tallas". Si existe stock_por_color, solo indica qué tallas hay (0 = agotada en esa talla) y NO se suma.'
           },
-          stock: { type: 'integer', minimum: 0, maximum: 99999, description: 'Suma de stock_por_talla (lo recalcula el código).' },
+          stock_por_color: {
+            type: 'object', propertyNames: txt(2, 24), additionalProperties: { type: 'integer', minimum: 0, maximum: MAX_STOCK_COLOR },
+            description: 'v2, fuente de verdad del stock: una clave por cada nombre EXACTO de "colores" (ni más ni menos), enteros 0 a ' + MAX_STOCK_COLOR + '. 0 = color agotado.'
+          },
+          stock: { type: 'integer', minimum: 0, maximum: 99999, description: 'Total: suma de stock_por_color (v2) o, si no existe, de stock_por_talla (v1). Lo recalcula el código.' },
           colores: { type: 'array', minItems: 1, maxItems: 8, items: { $ref: '#/$defs/color' } },
           material: txt(2, 60),
-          frescura: { type: 'integer', minimum: 1, maximum: 5, description: 'Opcional: índice de frescura (1–5 hojitas).' },
+          frescura: { type: 'integer', minimum: 1, maximum: 5, description: 'Índice de frescura (1–5 hojitas). Opcional: si falta, web y bot lo infieren con frescuraPorMaterial (data/schema/frescura-materiales.json).' },
           descripcion: txt(0, 600),
           etiquetas: { type: 'array', maxItems: 10, uniqueItems: true, items: { type: 'string', minLength: 2, maxLength: 24, pattern: RE.slug } },
           imagenes: { type: 'array', maxItems: 6, items: { $ref: '#/$defs/imagen' } },
           destacado: { type: 'boolean' },
           activo: { type: 'boolean', description: 'false = oculto (borrado suave). Ojo: sigue siendo público en el JSON.' },
-          muestra: { type: 'boolean', description: 'true = producto de demostración (imagen IA permitida, botón "Consultar").' },
+          muestra: { type: 'boolean', description: 'true = producto de referencia de la demo. Solo lo usa /limpiar_muestras; la web lo ignora (todo se puede pedir).' },
           fecha_creacion: fechaEsq(),
           fecha_actualizacion: fechaEsq()
         }
@@ -177,7 +201,7 @@ const ESQUEMAS = {
         type: 'object', additionalProperties: false, required: ['nombre', 'hex'],
         properties: { nombre: txt(2, 24), hex: { type: 'string', pattern: RE.hex } }
       },
-      imagen: imagenEsq(RE.img_producto, 'Imagen de producto: assets/img/products/ o assets/img/placeholders/. origen "ia_local" solo si muestra:true.')
+      imagen: imagenEsq(RE.img_producto, 'Imagen de producto: assets/img/products/ o assets/img/placeholders/. "color" (v2) la asocia a un color.', true)
     }
   },
 
@@ -227,18 +251,18 @@ const ESQUEMAS = {
         type: 'object', additionalProperties: false, required: ['tipo', 'ids'],
         properties: { tipo: { const: 'producto' }, ids: { type: 'array', minItems: 1, maxItems: 4, uniqueItems: true, items: { type: 'string', pattern: RE.prd } } }
       },
-      imagen: imagenEsq(RE.img_sitio, 'Portada: assets/img/blog/ (o placeholders). ia_local permitido; la web muestra la etiqueta de IA.')
+      imagen: imagenEsq(RE.img_sitio, 'Portada: assets/img/blog/ (o placeholders). ia_local permitido.')
     }
   },
 
   site: {
     $schema: 'https://json-schema.org/draft/2020-12/schema',
     title: 'Palmera Brava — data/site.json',
-    description: 'Datos de la tienda, hero, categorías, lookbook y textos de aviso. Generado desde tools/validar.js.',
+    description: 'Datos de la tienda, hero, categorías, lookbook, guía de tallas y plantillas de WhatsApp. Generado desde tools/validar.js.',
     type: 'object', additionalProperties: false,
     required: ENVOLTURA_REQ.concat(['nombre', 'lema', 'whatsapp', 'telefono_visible', 'ciudad', 'region', 'pais', 'direccion', 'horario',
       'envio', 'zonas_reparto', 'metodos_pago', 'redes', 'mapa', 'hero', 'categorias', 'lookbook', 'testimonios',
-      'aviso_muestra', 'aviso_ia', 'mensajes']),
+      'guia_tallas', 'mensajes']),
     properties: Object.assign(envolturaProps('site.json'), {
       nombre: txt(2, 40),
       lema: txt(2, 90),
@@ -318,24 +342,78 @@ const ESQUEMAS = {
         },
         description: 'Solo testimonios REALES y verificados; nunca inventados.'
       },
-      aviso_muestra: txt(5, 120),
-      aviso_ia: txt(5, 80),
+      guia_tallas: {
+        type: 'object', additionalProperties: false, required: ['titulo', 'intro', 'consejo_calor', 'como_medir', 'tablas'],
+        description: 'v2: guía de tallas (modal de la web, abierto desde cada prenda). Medidas del CUERPO en cm salvo que la columna diga otra cosa.',
+        properties: {
+          titulo: txt(3, 60),
+          intro: txt(0, 300),
+          consejo_calor: txt(5, 400, 'Consejo para el calor (tallas holgadas).'),
+          ayuda: txt(0, 200, 'Opcional: texto final (p. ej. "¿Dudas? Escríbenos por WhatsApp").'),
+          como_medir: {
+            type: 'array', minItems: 1, maxItems: ZONAS_MEDIDA.length,
+            items: {
+              type: 'object', additionalProperties: false, required: ['id', 'titulo', 'texto'],
+              properties: { id: { enum: ZONAS_MEDIDA, description: 'La web dibuja esta zona en la ilustración SVG.' }, titulo: txt(2, 40), texto: txt(5, 300) }
+            }
+          },
+          tablas: {
+            type: 'array', minItems: 1, maxItems: 12,
+            items: {
+              type: 'object', additionalProperties: false, required: ['id', 'categoria', 'subcategorias', 'titulo', 'medidas', 'columnas', 'filas'],
+              properties: {
+                id: { type: 'string', minLength: 3, maxLength: 40, pattern: RE.slug },
+                categoria: { enum: CATEGORIAS },
+                subcategorias: { type: 'array', minItems: 1, maxItems: SUBCATEGORIAS.length, uniqueItems: true, items: { enum: SUBCATEGORIAS }, description: 'Subcategorías a las que aplica (ver tablaDeTallas).' },
+                titulo: txt(3, 60),
+                medidas: { type: 'array', maxItems: ZONAS_MEDIDA.length, uniqueItems: true, items: { enum: ZONAS_MEDIDA }, description: 'Zonas de como_medir que explica esta tabla.' },
+                columnas: { type: 'array', minItems: 2, maxItems: 6, items: txt(1, 30) },
+                filas: {
+                  type: 'array', minItems: 1, maxItems: 16, items: { type: 'array', minItems: 2, maxItems: 6, items: txt(1, 30) },
+                  description: 'Cada fila tiene tantas celdas como columnas. La 1.ª celda es la talla como en el producto (UNICA se escribe "Única").'
+                },
+                nota: txt(0, 240)
+              }
+            }
+          }
+        }
+      },
       mensajes: {
-        type: 'object', additionalProperties: false, required: ['pedido', 'consulta_muestra', 'consulta'],
+        type: 'object', additionalProperties: false, required: ['pedido', 'consulta'],
         description: 'Plantillas de WhatsApp. Marcadores: {nombre} {id} {url}.',
-        properties: { pedido: txt(5, 300), consulta_muestra: txt(5, 400), consulta: txt(5, 300) }
+        properties: { pedido: txt(5, 300), consulta: txt(5, 300) }
       }
     }),
     $defs: {
       imagen: imagenEsq(RE.img_sitio, 'Imagen de sitio: assets/img/brand|lookbook|blog|placeholders/. ia_local permitido.')
     }
+  },
+
+  chat: {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    title: 'Palmera Brava — data/chat.json',
+    description: 'v2: dirección pública del chat del agente vendedor (túnel rápido de Cloudflare hacia tools/chat-proxy.py). La escribe el webhook local chat-url de n8n solo si cambia. Generado desde tools/validar.js.',
+    type: 'object', additionalProperties: false,
+    required: ['url', 'activo', 'actualizado'],
+    properties: {
+      $schema: { type: 'string', pattern: RE.ref_esquema },
+      url: { type: 'string', maxLength: 120, pattern: RE.chat_url, description: 'Vacía o https://<subdominio>.trycloudflare.com (sin ruta ni barra final; la web añade /chat).' },
+      activo: { type: 'boolean', description: 'false = la web oculta el chat y muestra "Escríbenos por WhatsApp".' },
+      actualizado: { type: 'string', pattern: RE.fecha_o_vacio, description: 'Vacío o fecha ISO 8601 con zona del último cambio.' }
+    }
   }
+};
+// v2: la web y el bot usan la misma tabla de frescura; se publica como data/schema/frescura-materiales.json.
+const FRESCURA_PUBLICA = {
+  descripcion: 'Índice de frescura (1–5 hojitas) por material. Generado desde tools/validar.js (no editar a mano). Normaliza el texto (minúsculas, sin tildes) y aplica la PRIMERA fila cuyo patrón (RegExp de JavaScript) coincida. Orden: material, nombre, etiquetas. Sin coincidencia = sin índice.',
+  normalizar: 'texto.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase()',
+  tabla: TABLA_FRESCURA
 };
 
 // ---------- Formato de salida del LLM (D4) para Ollama /api/chat "format" ----------
 const OPS_LLM = ['crear', 'actualizar', 'desactivar', 'reactivar', 'stock', 'agregar_imagen'];
-const CAMPOS_LLM_PRODUCTO = ['nombre', 'categoria', 'subcategoria', 'precio', 'precio_oferta', 'tallas', 'stock_tallas', 'stock_modo', 'colores',
-  'material', 'descripcion', 'etiquetas', 'alt_imagen', 'destacado'];
+const CAMPOS_LLM_PRODUCTO = ['nombre', 'categoria', 'subcategoria', 'precio', 'precio_oferta', 'tallas', 'stock_tallas', 'stock_por_color', 'stock_modo', 'colores',
+  'material', 'frescura', 'descripcion', 'etiquetas', 'alt_imagen', 'destacado'];
 const CAMPOS_LLM_ARTICULO = ['titulo', 'resumen', 'bloques', 'productos_relacionados', 'alt_portada'];
 const ESQUEMA_LLM_PRODUCTO = {
   type: 'object',
@@ -356,9 +434,14 @@ const ESQUEMA_LLM_PRODUCTO = {
           type: 'array',
           items: { type: 'object', properties: { talla: { type: 'string', enum: TALLAS }, cantidad: { type: 'integer' } }, required: ['talla', 'cantidad'] }
         },
+        stock_por_color: {
+          type: 'array', description: 'v2: cantidad por color, de 0 a ' + MAX_STOCK_COLOR + '. "10 por color" -> 10 en cada color',
+          items: { type: 'object', properties: { color: { type: 'string' }, cantidad: { type: 'integer' } }, required: ['color', 'cantidad'] }
+        },
         stock_modo: { type: ['string', 'null'], enum: ['fijar', 'sumar', 'restar', null], description: 'fijar = cantidad total nueva; sumar = llegaron N más; restar = se vendieron N' },
         colores: { type: 'array', items: { type: 'string' } },
         material: { type: ['string', 'null'] },
+        frescura: { type: ['integer', 'null'], enum: [1, 2, 3, 4, 5, null], description: 'v2: índice de frescura 1 a 5 hojitas según la tela' },
         descripcion: { type: ['string', 'null'] },
         etiquetas: { type: 'array', items: { type: 'string' } },
         alt_imagen: { type: ['string', 'null'] },
@@ -549,7 +632,7 @@ function validar(docs, opciones) {
   const avi = function (cod, ruta, msg) { avisos.push('[' + cod + '] ' + ruta + ': ' + msg); };
   const datos = {};
   const bytes = {};
-  const NOMBRES = ['products', 'articles', 'site'];
+  const NOMBRES = ['products', 'articles', 'site', 'chat'];
   let recibidos = 0;
 
   for (const nombre of NOMBRES) {
@@ -572,7 +655,7 @@ function validar(docs, opciones) {
     for (const m of eEsq) errores.push('[esquema] ' + m);
     datos[nombre] = doc;
   }
-  if (!recibidos) err('entrada', 'docs', 'no se recibió ningún documento (products, articles o site)');
+  if (!recibidos) err('entrada', 'docs', 'no se recibió ningún documento (products, articles, site o chat)');
 
   const P = datos.products && Array.isArray(datos.products.productos) ? datos.products.productos : null;
   const AR = datos.articles && Array.isArray(datos.articles.articulos) ? datos.articles.articulos : null;
@@ -580,6 +663,7 @@ function validar(docs, opciones) {
   if (P) reglasProductos(P, err, avi);
   if (AR) reglasArticulos(AR, err, avi);
   if (S) reglasSitio(S, err, avi);
+  if (datos.chat) reglasChat(datos.chat, err, avi);
   reglasReferencias(P, AR, S, err, avi);
   if (opciones.anterior) limitesDeDano(datos, opciones, err, avi);
 
@@ -589,6 +673,7 @@ function validar(docs, opciones) {
     productos_activos: P ? P.filter(function (p) { return esObjeto(p) && p.activo === true; }).length : null,
     productos_muestra: P ? P.filter(function (p) { return esObjeto(p) && p.muestra === true; }).length : null,
     articulos: AR ? AR.length : null,
+    chat_activo: datos.chat ? datos.chat.activo === true : null,
     bytes: bytes
   };
   return { ok: errores.length === 0, errores: errores, avisos: avisos, resumen: resumen };
@@ -615,9 +700,12 @@ function revisarImagen(img, ruta, esProducto, muestra, err, avi) {
   const enPlaceholders = img.src.indexOf('assets/img/placeholders/') === 0;
   if (img.origen === 'placeholder' && !enPlaceholders) err('imagen_ruta', ruta, 'origen "placeholder" debe estar en assets/img/placeholders/');
   if (img.origen !== 'placeholder' && enPlaceholders) err('imagen_ruta', ruta, 'una imagen en assets/img/placeholders/ debe tener origen "placeholder"');
-  if (esProducto && img.origen === 'ia_local' && muestra !== true) {
-    err('imagen_origen', ruta, 'origen "ia_local" solo se permite en productos de muestra (muestra:true); un producto real necesita una foto real');
-  }
+  // v2: la web es una demo privada; "ia_local" ya no exige muestra:true (se quitó el código imagen_origen).
+}
+function sumaEnteros(o) {
+  let suma = 0;
+  for (const k of Object.keys(o)) { const v = o[k]; if (!Number.isInteger(v) || v < 0) return null; suma += v; }
+  return suma;
 }
 function revisarUnicos(lista, campo, codigo, rutaBase, err) {
   const visto = {};
@@ -647,14 +735,36 @@ function reglasProductos(P, err, avi) {
     if (permitidas && tallas) for (const t of tallas) {
       if (TALLAS.indexOf(t) >= 0 && permitidas.indexOf(t) < 0) err('talla_categoria', r + '.tallas', 'la talla ' + corto(t) + ' no corresponde a la categoría "' + p.categoria + '" (permitidas: ' + permitidas.join(' ') + ')');
     }
-    if (tallas && esObjeto(p.stock_por_talla)) {
-      const claves = Object.keys(p.stock_por_talla);
+    // Colores: nombres únicos (stock_por_color e imagenes[].color se indexan por nombre).
+    const nombresColor = Array.isArray(p.colores) ? p.colores.map(function (c) { return esObjeto(c) && typeof c.nombre === 'string' ? c.nombre : null; }).filter(Boolean) : null;
+    if (nombresColor) {
+      const norm = nombresColor.map(function (n) { return quitarTildes(n).toLowerCase().trim(); });
+      if (new Set(norm).size !== norm.length) err('color_duplicado', r + '.colores', 'hay nombres de color repetidos (sin contar mayúsculas ni tildes)');
+    }
+    // Regla de stock v2: stock_por_color manda (stock = su suma); stock_por_talla es opcional.
+    const spc = esObjeto(p.stock_por_color) ? p.stock_por_color : null;
+    const spt = esObjeto(p.stock_por_talla) ? p.stock_por_talla : null;
+    if (tallas && spt) {
+      const claves = Object.keys(spt);
       for (const t of tallas) if (claves.indexOf(t) < 0) err('stock', r + '.stock_por_talla', 'falta la talla ' + corto(t));
       for (const k of claves) if (tallas.indexOf(k) < 0) err('stock', r + '.stock_por_talla', 'tiene la talla ' + corto(k) + ', que no está en tallas');
-      let suma = 0, valido = true;
-      for (const k of claves) { const v = p.stock_por_talla[k]; if (Number.isInteger(v) && v >= 0) suma += v; else valido = false; }
-      if (valido && Number.isInteger(p.stock) && suma !== p.stock) err('stock', r + '.stock', 'stock (' + p.stock + ') no coincide con la suma de stock_por_talla (' + suma + ')');
-      if (valido && p.activo === true && suma === 0) avi('agotado', r, 'producto activo sin stock: la web lo mostrará "Agotado"');
+    }
+    if (spc && nombresColor) {
+      const claves = Object.keys(spc);
+      for (const n of nombresColor) if (claves.indexOf(n) < 0) err('stock', r + '.stock_por_color', 'falta el color ' + corto(n) + ' (una clave por cada color de "colores", con el nombre exacto)');
+      for (const k of claves) if (nombresColor.indexOf(k) < 0) err('stock', r + '.stock_por_color', 'tiene el color ' + corto(k) + ', que no está en colores');
+    }
+    if (!spc && !spt) err('stock', r, 'falta stock_por_color (o stock_por_talla en formato v1)');
+    const suma = spc ? sumaEnteros(spc) : spt ? sumaEnteros(spt) : null;
+    const fuente = spc ? 'stock_por_color' : 'stock_por_talla';
+    if (suma !== null && Number.isInteger(p.stock) && suma !== p.stock) err('stock', r + '.stock', 'stock (' + p.stock + ') no coincide con la suma de ' + fuente + ' (' + suma + ')');
+    if (suma !== null && p.activo === true && suma === 0) avi('agotado', r, 'producto activo sin stock: la web lo mostrará "Agotado"');
+    if (spc && spt && suma > 0 && sumaEnteros(spt) === 0) avi('stock', r + '.stock_por_talla', 'todas las tallas están en 0 aunque stock_por_color suma ' + suma);
+    if (!spc && spt) avi('stock_color', r, 'sin stock_por_color (formato v1): la web no puede mostrar la disponibilidad por color');
+    // Frescura: si falta, la web la infiere con la misma tabla (avisa si tampoco se puede inferir).
+    if (p.frescura === undefined && p.activo === true) {
+      const f = inferirFrescura(p);
+      if (f.valor === null) avi('frescura', r, 'sin índice de frescura y el material no está en la tabla: la web no mostrará hojitas');
     }
     const fc = Date.parse(p.fecha_creacion), fa = Date.parse(p.fecha_actualizacion);
     if (typeof p.fecha_creacion === 'string' && isNaN(fc)) err('fecha', r + '.fecha_creacion', 'fecha no válida');
@@ -662,12 +772,17 @@ function reglasProductos(P, err, avi) {
     if (!isNaN(fc) && !isNaN(fa) && fa < fc) err('fecha', r, 'fecha_actualizacion es anterior a fecha_creacion');
     if (!isNaN(fc) && fc > ahora + 86400000) avi('fecha', r + '.fecha_creacion', 'está en el futuro');
     if (Array.isArray(p.imagenes)) {
-      p.imagenes.forEach(function (img, j) { revisarImagen(img, r + '.imagenes[' + j + ']', true, p.muestra, err, avi); });
+      p.imagenes.forEach(function (img, j) {
+        revisarImagen(img, r + '.imagenes[' + j + ']', true, p.muestra, err, avi);
+        if (esObjeto(img) && typeof img.color === 'string' && nombresColor && nombresColor.indexOf(img.color) < 0) {
+          err('imagen_color', r + '.imagenes[' + j + '].color', 'el color ' + corto(img.color) + ' no está en colores (' + nombresColor.join(', ') + ')');
+        }
+      });
       if (p.activo === true && p.imagenes.length === 0) avi('sin_imagen', r, 'producto activo sin imagen: la web usará un marcador');
-    }
-    if (Array.isArray(p.colores)) {
-      const nombres = p.colores.map(function (c) { return esObjeto(c) && typeof c.nombre === 'string' ? quitarTildes(c.nombre).toLowerCase() : null; }).filter(Boolean);
-      if (new Set(nombres).size !== nombres.length) avi('colores', r + '.colores', 'hay nombres de color repetidos');
+      const conColor = p.imagenes.filter(function (img) { return esObjeto(img) && typeof img.color === 'string'; }).map(function (img) { return img.color; });
+      if (conColor.length && nombresColor) nombresColor.forEach(function (n) {
+        if (conColor.indexOf(n) < 0) avi('imagen_color', r, 'el color ' + corto(n) + ' no tiene foto: la web mostrará la foto principal');
+      });
     }
   });
 }
@@ -732,6 +847,30 @@ function reglasSitio(S, err, avi) {
     revisarUnicos(S.lookbook, 'id', 'id_duplicado', 'site.lookbook', err);
     S.lookbook.forEach(function (l, i) { if (esObjeto(l) && esObjeto(l.imagen)) revisarImagen(l.imagen, segmento('site.lookbook', i, l) + '.imagen', false, null, err, avi); });
   }
+  if (esObjeto(S.guia_tallas)) reglasGuiaTallas(S.guia_tallas, err, avi);
+}
+function reglasGuiaTallas(G, err, avi) {
+  const base = 'site.guia_tallas';
+  const zonas = Array.isArray(G.como_medir) ? G.como_medir.map(function (c) { return esObjeto(c) ? c.id : null; }) : [];
+  if (Array.isArray(G.como_medir)) revisarUnicos(G.como_medir, 'id', 'id_duplicado', base + '.como_medir', err);
+  if (!Array.isArray(G.tablas)) return;
+  revisarUnicos(G.tablas, 'id', 'id_duplicado', base + '.tablas', err);
+  G.tablas.forEach(function (t, i) {
+    if (!esObjeto(t)) return;
+    const r = base + '.tablas[' + i + ']';
+    const n = Array.isArray(t.columnas) ? t.columnas.length : 0;
+    if (n && Array.isArray(t.filas)) t.filas.forEach(function (f, j) {
+      if (Array.isArray(f) && f.length !== n) err('guia_tallas', r + '.filas[' + j + ']', 'tiene ' + f.length + ' celdas y la tabla tiene ' + n + ' columnas');
+    });
+    if (Array.isArray(t.medidas)) t.medidas.forEach(function (m) {
+      if (zonas.indexOf(m) < 0) err('guia_tallas', r + '.medidas', 'la medida ' + corto(m) + ' no está explicada en como_medir');
+    });
+  });
+  for (const c of CATEGORIAS) if (!G.tablas.some(function (t) { return esObjeto(t) && t.categoria === c; })) avi('guia_tallas', base, 'la categoría "' + c + '" no tiene tabla de tallas');
+}
+function reglasChat(C, err, avi) {
+  if (C.activo === true && C.url === '') err('chat', 'chat.url', 'activo:true necesita una url https://...trycloudflare.com');
+  if (typeof C.url === 'string' && C.url !== '' && C.actualizado === '') avi('chat', 'chat.actualizado', 'hay url pero no fecha de actualización');
 }
 function reglasReferencias(P, AR, S, err, avi) {
   const citan = (AR && AR.length) || (S && Array.isArray(S.lookbook) && S.lookbook.length);
@@ -768,7 +907,7 @@ function porId(lista) {
 }
 function limitesDeDano(datos, opciones, err, avi) {
   const ant = {};
-  for (const n of ['products', 'articles', 'site']) {
+  for (const n of ['products', 'articles', 'site', 'chat']) {
     let d = opciones.anterior[n];
     if (typeof d === 'string') { try { d = JSON.parse(d.charCodeAt(0) === 0xfeff ? d.slice(1) : d); } catch (e) { err('anterior', n, 'la versión anterior no es JSON válido'); d = null; } }
     if (esObjeto(d)) ant[n] = d;
@@ -818,9 +957,13 @@ function limitesDeDano(datos, opciones, err, avi) {
       const cambia = function (k) { return !igual(a[k], b[k]); };
       if ((cambia('whatsapp') || cambia('telefono_visible')) && rol === 'marketing') err('permiso', 'site.whatsapp', 'el rol marketing no puede cambiar el WhatsApp');
       if (cambia('whatsapp')) avi('whatsapp_cambio', 'site.whatsapp', 'cambia de ' + corto(a.whatsapp) + ' a ' + corto(b.whatsapp) + ': requiere confirmación especial');
-      const deDatos = ['nombre', 'lema', 'ciudad', 'region', 'pais', 'direccion', 'horario', 'envio', 'zonas_reparto', 'metodos_pago', 'redes', 'mapa', 'testimonios', 'mensajes'];
+      const deDatos = ['nombre', 'lema', 'ciudad', 'region', 'pais', 'direccion', 'horario', 'envio', 'zonas_reparto', 'metodos_pago', 'redes', 'mapa', 'testimonios', 'guia_tallas', 'mensajes'];
       if (rol === 'marketing' && deDatos.some(cambia)) err('permiso', 'site', 'el rol marketing solo puede cambiar imágenes del sitio (hero, categorías, lookbook)');
     }
+  }
+  if (ant.chat && datos.chat && !igual(ant.chat, datos.chat)) {
+    if (lote && lote.indexOf('chat') < 0) err('fuera_de_lote', 'chat', 'el cambio toca chat.json, que no está en el lote (añade "chat")');
+    if (rol === 'marketing') err('permiso', 'chat', 'el rol marketing no puede cambiar chat.json');
   }
 }
 
@@ -884,20 +1027,27 @@ function validarOperacion(salida, contexto) {
   const vaciar = function (k) { c[k] = Array.isArray(c[k]) ? [] : null; inferidos.delete(k); };
   if (!esArticulo) {
     // Normalización determinista: cada op solo conserva los campos que le corresponden.
-    const conservar = { desactivar: [], reactivar: [], stock: ['stock_tallas', 'stock_modo'], agregar_imagen: ['alt_imagen'] }[op.op];
+    const conservar = { desactivar: [], reactivar: [], stock: ['stock_tallas', 'stock_por_color', 'stock_modo'], agregar_imagen: ['alt_imagen'] }[op.op];
     if (conservar) for (const k of CAMPOS_LLM_PRODUCTO) if (conservar.indexOf(k) < 0 && !vacio(c[k])) vaciar(k);
     const actual = typeof op.id === 'string' && Array.isArray(lista) ? lista.find(function (x) { return esObjeto(x) && x.id === op.id; }) : null;
     if (op.op === 'actualizar' && actual) {
-      for (const k of ['nombre', 'categoria', 'subcategoria', 'precio', 'precio_oferta', 'tallas', 'material', 'descripcion', 'etiquetas', 'destacado']) {
+      for (const k of ['nombre', 'categoria', 'subcategoria', 'precio', 'precio_oferta', 'tallas', 'material', 'frescura', 'descripcion', 'etiquetas', 'destacado']) {
         if (!vacio(c[k]) && igual(c[k], actual[k])) vaciar(k);
       }
       const nombresColor = function (l) { return (l || []).map(function (x) { return quitarTildes(esObjeto(x) ? x.nombre : x).toLowerCase(); }).sort().join('|'); };
       if (!vacio(c.colores) && nombresColor(c.colores) === nombresColor(actual.colores)) vaciar('colores');
       if (!vacio(c.stock_tallas)) vaciar('stock_tallas');
+      if (!vacio(c.stock_por_color)) vaciar('stock_por_color');
       if (c.stock_modo !== null) vaciar('stock_modo');
+      // v2: si cambia la tela y nadie dijo la frescura, se sugiere con la tabla por material.
+      if (!vacio(c.material) && (c.frescura === null || inferidos.has('frescura'))) {
+        const f = frescuraPorMaterial(c.material);
+        if (f !== null && f !== actual.frescura) { c.frescura = f; inferidos.add('frescura'); avisos.push('[frescura] cambia la tela: se sugiere frescura ' + f + ' (tabla por material)'); }
+        else if (f !== null) vaciar('frescura');
+      }
     }
     if (op.op === 'crear' && c.stock_modo !== null) vaciar('stock_modo');
-    if (op.op === 'stock' && !vacio(c.stock_tallas) && c.stock_modo === null) {
+    if (op.op === 'stock' && (!vacio(c.stock_tallas) || !vacio(c.stock_por_color)) && c.stock_modo === null) {
       c.stock_modo = 'fijar'; avisos.push('[stock] no queda claro si es la cantidad total o lo que llegó: se asume cantidad total');
     }
     if (op.op !== 'crear' && typeof op.id === 'string' && typeof contexto.texto === 'string' && contexto.texto.indexOf(op.id) < 0) {
@@ -920,7 +1070,33 @@ function validarOperacion(salida, contexto) {
     if (Array.isArray(c.stock_tallas)) c.stock_tallas.forEach(function (s) {
       if (!Number.isInteger(s.cantidad) || s.cantidad < 0 || s.cantidad > 9999) errores.push('[stock] cantidad no válida para la talla ' + corto(s.talla));
     });
+    if (Array.isArray(c.stock_por_color)) c.stock_por_color.forEach(function (s) {
+      if (!Number.isInteger(s.cantidad) || s.cantidad < 0 || s.cantidad > MAX_STOCK_COLOR) errores.push('[stock] cantidad no válida para el color ' + corto(s.color) + ': debe ser un entero de 0 a ' + MAX_STOCK_COLOR);
+    });
+    if (op.op === 'crear' && !vacio(c.stock_por_color)) {
+      // Un color que solo aparece en el stock se añade a colores; un color sin cantidad empieza en 0.
+      const claves = c.colores.map(claveColor);
+      c.stock_por_color.forEach(function (s) {
+        if (claves.indexOf(claveColor(s.color)) < 0 && String(s.color || '').trim()) { c.colores.push(s.color); claves.push(claveColor(s.color)); avisos.push('[colores] se añade el color ' + corto(s.color) + ', que aparece en el stock'); }
+      });
+      const conStock = c.stock_por_color.map(function (s) { return claveColor(s.color); });
+      c.colores.forEach(function (n) { if (conStock.indexOf(claveColor(n)) < 0) avisos.push('[stock] el color ' + corto(n) + ' no tiene cantidad: empezará en 0'); });
+    }
+    if (op.op === 'stock' && actual && !vacio(c.stock_por_color)) {
+      aplicarStockColor(actual, c.stock_por_color, c.stock_modo || 'fijar').errores.forEach(function (e) { errores.push(e); });
+    }
     if (op.op === 'crear') {
+      // v2: frescura determinista por material (tabla única); si el dueño la dijo, se respeta.
+      if (c.frescura === null || inferidos.has('frescura')) {
+        const f = inferirFrescura({ material: c.material, nombre: c.nombre, etiquetas: c.etiquetas });
+        if (f.valor !== null) {
+          if (c.frescura !== null && c.frescura !== f.valor) avisos.push('[frescura] se usa la tabla por material (' + f.valor + ') en vez de ' + c.frescura);
+          c.frescura = f.valor; inferidos.add('frescura');
+        } else if (c.frescura !== null) inferidos.add('frescura');
+        else avisos.push('[frescura] no se reconoce la tela: no se pudo sugerir el índice de frescura (puedes decir "frescura 4")');
+      }
+      faltantes.delete('frescura'); faltantes.delete('stock_por_color'); faltantes.delete('stock_tallas');
+      if (vacio(c.stock_por_color) && vacio(c.stock_tallas)) avisos.push('[stock] sin cantidades: cada color empezará con ' + STOCK_COLOR_ASUMIDO + ' (corrígelo con /stock)');
       if (!c.nombre) faltantes.add('nombre');
       if (!c.categoria) faltantes.add('categoria');
       if (!num(c.precio)) faltantes.add('precio');
@@ -931,7 +1107,7 @@ function validarOperacion(salida, contexto) {
       if (!c.colores || !c.colores.length) faltantes.add('colores');
       if (!contexto.hayFoto) avisos.push('[foto] producto sin foto: la web mostrará un marcador hasta que envíes /foto');
     }
-    if (op.op === 'stock' && vacio(c.stock_tallas)) faltantes.add('stock_tallas');
+    if (op.op === 'stock' && vacio(c.stock_tallas) && vacio(c.stock_por_color)) faltantes.add('stock_por_color');
     if (op.op === 'agregar_imagen' && !contexto.hayFoto) faltantes.add('foto');
     if (op.op === 'actualizar' && CAMPOS_LLM_PRODUCTO.every(function (k) { return vacio(c[k]); })) {
       faltantes.add('campos'); avisos.push('[llm] op=actualizar sin ningún campo que cambiar');
@@ -993,6 +1169,69 @@ function colorHex(nombre) {
   const visible = String(nombre || '').trim().slice(0, 24).replace(/[<>]/g, '');
   return { nombre: visible ? visible.charAt(0).toUpperCase() + visible.slice(1) : 'Sin color', hex: hex || '#CCCCCC', conocido: !!hex };
 }
+// ---------- v2: frescura, stock por color y guía de tallas ----------
+// Índice de frescura (1–5) de un texto de material con TABLA_FRESCURA; null si no se reconoce.
+function frescuraPorMaterial(texto) {
+  if (texto === null || texto === undefined) return null;
+  const t = quitarTildes(String(texto)).toLowerCase().replace(/\s+/g, ' ').trim();
+  if (!t) return null;
+  for (const f of TABLA_FRESCURA) if (regex(f.patron).test(t)) return f.valor;
+  return null;
+}
+// Frescura de un producto: la guardada (1–5) o la inferida de material, nombre y etiquetas (en ese orden).
+// Devuelve { valor, fuente: 'dato'|'material'|'nombre'|'etiquetas'|null }.
+function inferirFrescura(p) {
+  if (!esObjeto(p)) return { valor: null, fuente: null };
+  if (Number.isInteger(p.frescura) && p.frescura >= 1 && p.frescura <= 5) return { valor: p.frescura, fuente: 'dato' };
+  const etiquetas = Array.isArray(p.etiquetas) ? p.etiquetas.join(' ').replace(/-/g, ' ') : '';
+  const fuentes = [['material', p.material], ['nombre', p.nombre], ['etiquetas', etiquetas]];
+  for (const par of fuentes) { const v = frescuraPorMaterial(par[1]); if (v !== null) return { valor: v, fuente: par[0] }; }
+  return { valor: null, fuente: null };
+}
+// Clave para comparar nombres de color ("Blanco hueso" = "blanco  hueso" = "BLANCO HUESO").
+function claveColor(s) { return quitarTildes(String(esObjeto(s) ? s.nombre : s === null || s === undefined ? '' : s)).toLowerCase().replace(/\s+/g, ' ').trim(); }
+// Stock total según la regla v2: suma de stock_por_color; si no existe, suma de stock_por_talla (v1); si no, null.
+function stockTotal(p) {
+  if (!esObjeto(p)) return null;
+  if (esObjeto(p.stock_por_color)) return sumaEnteros(p.stock_por_color);
+  if (esObjeto(p.stock_por_talla)) return sumaEnteros(p.stock_por_talla);
+  return null;
+}
+// Aplica cambios de stock por color SIN modificar el producto (para WF5 y "/stock <id> <color> <n>").
+// p: producto (usa colores y stock_por_color); lista: [{color, cantidad}]; modo: 'fijar' | 'sumar' | 'restar'.
+// Devuelve { ok, errores[], stock_por_color (una clave por color, en el orden de colores), stock, cambios[] }.
+function aplicarStockColor(p, lista, modo) {
+  const errores = [], cambios = [];
+  const nombres = (esObjeto(p) && Array.isArray(p.colores) ? p.colores : []).map(function (c) { return esObjeto(c) ? c.nombre : c; }).filter(function (n) { return typeof n === 'string'; });
+  const previo = esObjeto(p) && esObjeto(p.stock_por_color) ? p.stock_por_color : {};
+  const spc = {};
+  nombres.forEach(function (n) { const v = previo[n]; spc[n] = Number.isInteger(v) && v >= 0 ? Math.min(v, MAX_STOCK_COLOR) : 0; });
+  const base = function (k) { return k.split(' ').map(function (w) { return w.replace(/s$/, '').replace(/a$/, 'o'); }).join(' '); }; // blanca(s) = blanco
+  const buscar = function (color) {
+    const k = claveColor(color);
+    if (!k) return null;
+    return nombres.find(function (n) { return claveColor(n) === k; }) || nombres.find(function (n) { return base(claveColor(n)) === base(k); }) || null;
+  };
+  (Array.isArray(lista) ? lista : []).forEach(function (s) {
+    const nombre = buscar(esObjeto(s) ? s.color : null);
+    const q = esObjeto(s) ? s.cantidad : null;
+    if (!nombre) { errores.push('[stock] el producto no tiene el color ' + corto(esObjeto(s) ? s.color : s) + ' (colores: ' + (nombres.join(', ') || 'ninguno') + ')'); return; }
+    if (!Number.isInteger(q) || q < 0 || q > MAX_STOCK_COLOR) { errores.push('[stock] cantidad no válida para ' + nombre + ': debe ser un entero de 0 a ' + MAX_STOCK_COLOR); return; }
+    const antes = spc[nombre];
+    const nuevo = modo === 'sumar' ? antes + q : modo === 'restar' ? antes - q : q;
+    if (nuevo < 0) errores.push('[stock] no hay suficiente stock de ' + nombre + ' (hay ' + antes + ')');
+    else if (nuevo > MAX_STOCK_COLOR) errores.push('[stock] ' + nombre + ' quedaría con ' + nuevo + '; el máximo es ' + MAX_STOCK_COLOR + ' por color');
+    else { spc[nombre] = nuevo; cambios.push(nombre + '=' + nuevo); }
+  });
+  return { ok: errores.length === 0, errores: errores, stock_por_color: spc, stock: sumaEnteros(spc), cambios: cambios };
+}
+// Tabla de la guía de tallas para un producto: misma categoría y subcategoría incluida; si no, la primera de su categoría.
+function tablaDeTallas(guia, p) {
+  const tablas = esObjeto(guia) && Array.isArray(guia.tablas) ? guia.tablas.filter(esObjeto) : [];
+  if (!esObjeto(p)) return null;
+  return tablas.find(function (t) { return t.categoria === p.categoria && Array.isArray(t.subcategorias) && t.subcategorias.indexOf(p.subcategoria) >= 0; }) ||
+    tablas.find(function (t) { return t.categoria === p.categoria; }) || null;
+}
 // Texto plano recortado al máximo del esquema (cuenta caracteres reales, no unidades UTF-16).
 function textoSeguro(s, max) {
   const limpio = String(s === null || s === undefined ? '' : s).replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
@@ -1030,8 +1269,8 @@ OPERACIONES (op)
 - crear: producto nuevo. id = null.
 - actualizar: cambiar datos de un producto que ya existe (precio, nombre, descripción...). id obligatorio, tomado del CATÁLOGO. Pon SOLO los campos que cambian; todos los demás van en null o [].
 - desactivar: ocultar un producto ("ocultar", "ya no hay", "retirar", "agotado para siempre"). reactivar: volver a mostrarlo.
-- desactivar / reactivar / stock / agregar_imagen: todos los campos en null o [], salvo stock_tallas (en stock) y alt_imagen (en agregar_imagen).
-- stock: cambiar cantidades por talla. stock_tallas lleva las cantidades que dice el mensaje y stock_modo dice cómo aplicarlas: "fijar" si dice cuántas hay en total ("quedan 2 de la L", "hay 10"), "sumar" si llegaron más ("llegaron 5 más de la M"), "restar" si se vendieron ("vendí 1 de la S"). En las demás operaciones stock_modo es null.
+- desactivar / reactivar / stock / agregar_imagen: todos los campos en null o [], salvo stock_por_color, stock_tallas y stock_modo (en stock) y alt_imagen (en agregar_imagen).
+- stock: cambiar cantidades. Si el mensaje habla de COLORES ("quedan 2 del blanco", "llegaron 5 más en arena"), usa stock_por_color; si habla de TALLAS ("quedan 2 de la L"), usa stock_tallas. stock_modo dice cómo aplicarlas: "fijar" si dice cuántas hay en total ("quedan 2", "hay 10"), "sumar" si llegaron más ("llegaron 5 más"), "restar" si se vendieron ("vendí 1"). En las demás operaciones stock_modo es null.
 - agregar_imagen: añadir la foto adjunta a un producto existente.
 - No existe borrar definitivamente.
 
@@ -1047,16 +1286,19 @@ Ejemplos: "polo para dama" -> mujeres. "polo de caballero" -> hombres. "vestido 
 SUBCATEGORÍA: una de polos, camisas, blusas, vestidos, faldas, shorts, bermudas, pantalones, conjuntos, ropa-de-bano, pijamas, sombreros, gorros, gorras, sandalias, lentes, bolsos, otros. La guayabera es "camisas".
 
 TALLAS (tallas): adultos XS S M L XL XXL; niños 2 4 6 8 10 12 14 16; calzado 35 a 44; talla única = "UNICA". "de la 38 a la 42" -> 38 39 40 41 42.
-- stock_tallas: una entrada {talla, cantidad} por talla. "3 de cada una" -> cantidad 3 en todas. Si no dice cantidades, [] (no lo pongas en faltantes).
+- stock_tallas: una entrada {talla, cantidad} por talla, solo si el dueño da cantidades POR TALLA. Si no, [] (no lo pongas en faltantes).
+
+STOCK POR COLOR (stock_por_color): una entrada {color, cantidad} por color, con cantidades de 0 a 20. "10 por color" o "10 de cada color" -> cantidad 10 en TODOS los colores. "5 blancos y 3 negros" -> blanco 5, negro 3. Si no dice cantidades, [] (no lo pongas en faltantes).
 
 OTROS CAMPOS
 - colores: nombres en español tal como los dice el dueño o como se ven en la foto ("blanco", "verde palma").
 - material: solo si lo dice o se reconoce con seguridad; si lo deduces, márcalo en campos_inferidos.
+- frescura: índice de frescura de 1 a 5 hojitas según la tela: lino, gasa, lino-algodón 5; algodón, algodón pima, bambú, viscosa, rayón 4; algodón-poliéster, dri-fit, telas UV 3; denim, drill grueso 2; poliéster pesado, cuero 1. Si el dueño no lo dice, dedúcelo de la tela y añade "frescura" a campos_inferidos; si no se sabe la tela, null.
 - descripcion: 1 o 2 frases breves y honestas sobre la prenda para el calor; márcala en campos_inferidos.
 - etiquetas: 2 a 5 palabras en minúsculas sin tildes ("lino", "fresca").
 - alt_imagen: si hay foto, una frase que la describa para personas ciegas; si no, null.
 - destacado: true solo si el dueño lo pide; si no, null.
-- faltantes solo puede incluir: nombre, categoria, subcategoria, precio, precio_oferta, tallas, stock_tallas, stock_modo, colores, material, descripcion, etiquetas, alt_imagen, destacado, id, foto.
+- faltantes solo puede incluir: nombre, categoria, subcategoria, precio, precio_oferta, tallas, stock_tallas, stock_por_color, stock_modo, colores, material, frescura, descripcion, etiquetas, alt_imagen, destacado, id, foto.
 
 CATÁLOGO ACTUAL (id | nombre | categoria | precio):
 {{CATALOGO}}`;
@@ -1105,9 +1347,11 @@ function cuerpoOllama(opciones) {
 // Solo Node (CLI y pruebas). Nada de lo que sigue se copia a n8n.
 // ---------------------------------------------------------------------------
 const API = {
-  CONTRATO_VERSION, LIMITE_BYTES, CATEGORIAS, SUBCATEGORIAS, TALLAS, TALLAS_POR_CATEGORIA, ORIGENES_IMAGEN, ROLES,
+  CONTRATO_VERSION, SCHEMA_VERSION, LIMITE_BYTES, CATEGORIAS, SUBCATEGORIAS, TALLAS, TALLAS_POR_CATEGORIA, ORIGENES_IMAGEN, ROLES,
   PROHIBIDO_MARKETING, ESQUEMAS, ESQUEMA_LLM_PRODUCTO, ESQUEMA_LLM_ARTICULO, OPS_LLM, WHATSAPP_EJEMPLO,
-  validar, validarEsquema, validarOperacion, inferirCategoria, pideCambio, puede, slugificar, siguienteId, colorHex, COLORES, textoSeguro, bloquesDesdeLLM, PROMPT_PRODUCTO, PROMPT_ARTICULO, cuerpoOllama, serializar, bytesUtf8
+  MAX_STOCK_COLOR, STOCK_COLOR_ASUMIDO, ZONAS_MEDIDA, TABLA_FRESCURA, FRESCURA_PUBLICA, RE,
+  validar, validarEsquema, validarOperacion, inferirCategoria, pideCambio, puede, slugificar, siguienteId, colorHex, COLORES, textoSeguro, bloquesDesdeLLM, PROMPT_PRODUCTO, PROMPT_ARTICULO, cuerpoOllama, serializar, bytesUtf8,
+  frescuraPorMaterial, inferirFrescura, claveColor, stockTotal, aplicarStockColor, tablaDeTallas
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 
@@ -1125,7 +1369,7 @@ function cli(argv) {
     else if (a === '--ids') opt.ids = (args.shift() || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
     else if (a === '--rol') opt.rol = args.shift();
     else if (a === '--escribir-esquemas') opt.escribir = true;
-    else if (a === '-h' || a === '--help') { console.log('Uso: node tools/validar.js data/products.json data/articles.json data/site.json [--anterior carpeta] [--ids a,b] [--limpieza] [--rol r] [--json]\n     node tools/validar.js --escribir-esquemas'); return 0; }
+    else if (a === '-h' || a === '--help') { console.log('Uso: node tools/validar.js data/products.json data/articles.json data/site.json data/chat.json [--anterior carpeta] [--ids a,b] [--limpieza] [--rol r] [--json]\n     node tools/validar.js --escribir-esquemas'); return 0; }
     else if (a.indexOf('--') === 0) { console.error('Opción desconocida: ' + a); return 2; }
     else opt.archivos.push(a);
   }
@@ -1134,12 +1378,16 @@ function cli(argv) {
     fs.mkdirSync(dir, { recursive: true });
     const salida = {
       'products.schema.json': ESQUEMAS.products, 'articles.schema.json': ESQUEMAS.articles, 'site.schema.json': ESQUEMAS.site,
+      'chat.schema.json': ESQUEMAS.chat, 'frescura-materiales.json': FRESCURA_PUBLICA,
       'ollama-format-producto.json': ESQUEMA_LLM_PRODUCTO, 'ollama-format-articulo.json': ESQUEMA_LLM_ARTICULO
     };
     for (const f of Object.keys(salida)) { fs.writeFileSync(path.join(dir, f), serializar(salida[f])); console.log('escrito data/schema/' + f); }
     if (!opt.archivos.length) return 0;
   }
-  if (!opt.archivos.length) opt.archivos = ['data/products.json', 'data/articles.json', 'data/site.json'].map(function (f) { return path.join(raiz, f); });
+  if (!opt.archivos.length) {
+    opt.archivos = ['data/products.json', 'data/articles.json', 'data/site.json', 'data/chat.json'].map(function (f) { return path.join(raiz, f); })
+      .filter(function (f) { return path.basename(f) !== 'chat.json' || fs.existsSync(f); });
+  }
   const leer = function (archivo) {
     const txt = fs.readFileSync(archivo, 'utf8');
     return txt;
@@ -1149,7 +1397,8 @@ function cli(argv) {
     if (b.indexOf('product') >= 0) return 'products';
     if (b.indexOf('article') >= 0) return 'articles';
     if (b.indexOf('site') >= 0) return 'site';
-    try { const d = JSON.parse(texto); if (d.productos) return 'products'; if (d.articulos) return 'articles'; if (d.whatsapp !== undefined) return 'site'; } catch (e) { /* se informa al validar */ }
+    if (b.indexOf('chat') >= 0) return 'chat';
+    try { const d = JSON.parse(texto); if (d.productos) return 'products'; if (d.articulos) return 'articles'; if (d.whatsapp !== undefined) return 'site'; if (d.activo !== undefined && d.url !== undefined) return 'chat'; } catch (e) { /* se informa al validar */ }
     return null;
   };
   const docs = {};
@@ -1157,13 +1406,13 @@ function cli(argv) {
     let texto;
     try { texto = leer(f); } catch (e) { console.error('No se puede leer ' + f + ': ' + e.message); return 2; }
     const tipo = clasificar(f, texto);
-    if (!tipo) { console.error('No sé si ' + f + ' es products, articles o site (usa ese nombre de archivo).'); return 2; }
+    if (!tipo) { console.error('No sé si ' + f + ' es products, articles, site o chat (usa ese nombre de archivo).'); return 2; }
     docs[tipo] = texto;
   }
   const opciones = { idsLote: opt.ids, permitirLimpieza: !!opt.limpieza, rol: opt.rol };
   if (opt.anterior) {
     opciones.anterior = {};
-    for (const n of ['products', 'articles', 'site']) {
+    for (const n of ['products', 'articles', 'site', 'chat']) {
       const f = path.resolve(opt.anterior, n + '.json');
       if (fs.existsSync(f)) opciones.anterior[n] = leer(f);
     }
@@ -1187,7 +1436,8 @@ function cli(argv) {
   if (faltan.length) r.avisos.push('[archivo] ' + faltan.length + ' imagen(es) aún no existen en disco: ' + faltan.slice(0, 5).join(', ') + (faltan.length > 5 ? ', ...' : ''));
   if (opt.json) { console.log(JSON.stringify(r, null, 2)); return r.ok ? 0 : 1; }
   const res = r.resumen;
-  console.log('Contrato ' + res.contrato + ' | productos: ' + res.productos + ' (activos ' + res.productos_activos + ', muestra ' + res.productos_muestra + ') | artículos: ' + res.articulos);
+  console.log('Contrato ' + res.contrato + ' | productos: ' + res.productos + ' (activos ' + res.productos_activos + ', muestra ' + res.productos_muestra + ') | artículos: ' + res.articulos +
+    (res.chat_activo !== null ? ' | chat activo: ' + (res.chat_activo ? 'sí' : 'no') : ''));
   console.log('Tamaños (bytes): ' + Object.keys(res.bytes).map(function (k) { return k + '=' + res.bytes[k]; }).join(', '));
   r.errores.forEach(function (e) { console.log('ERROR ' + e); });
   r.avisos.forEach(function (a) { console.log('aviso ' + a); });

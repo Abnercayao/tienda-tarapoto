@@ -1,8 +1,8 @@
 {
   "$schema": "./schema/site.schema.json",
-  "schema_version": 1,
-  "version": 1,
-  "actualizado": "2026-10-06T06:00:00-05:00",
+  "schema_version": 2,
+  "version": 2,
+  "actualizado": "2026-10-07T06:34:49-05:00",
   "borradores_aplicados": [],
   "nombre": "Palmera Brava",
   "lema": "Ropa fresca para el calor de la selva",
@@ -182,11 +182,504 @@
     }
   ],
   "testimonios": [],
-  "aviso_muestra": "Catálogo de muestra · precios referenciales",
-  "aviso_ia": "Imagen referencial (IA)",
+  "guia_tallas": {
+    "titulo": "Guía de tallas",
+    "intro": "Todas las medidas son de tu cuerpo, en centímetros, salvo el largo de la prenda. Mídete con una cinta métrica sobre ropa ligera y compara con la tabla de tu prenda.",
+    "consejo_calor": "Para el calor de Tarapoto te recomendamos un calce holgado: si estás entre dos tallas, elige la mayor. La ropa suelta deja circular el aire y el lino o el algodón se sienten más frescos cuando no se pegan al cuerpo. El lino puede encoger un poco: lávalo con agua fría y sécalo a la sombra.",
+    "ayuda": "¿Dudas con tu talla? Escríbenos por WhatsApp con tus medidas y te ayudamos a elegir.",
+    "como_medir": [
+      {
+        "id": "pecho",
+        "titulo": "Pecho",
+        "texto": "Pasa la cinta por debajo de las axilas, por la parte más ancha del pecho, sin apretar y con la cinta horizontal."
+      },
+      {
+        "id": "busto",
+        "titulo": "Busto",
+        "texto": "Mide alrededor de la parte más alta del busto, con la cinta recta por la espalda y los brazos relajados."
+      },
+      {
+        "id": "cintura",
+        "titulo": "Cintura",
+        "texto": "Rodea la parte más estrecha de tu cintura, por encima del ombligo, sin meter la barriga."
+      },
+      {
+        "id": "cadera",
+        "titulo": "Cadera",
+        "texto": "Con los pies juntos, mide alrededor de la parte más ancha de la cadera y los glúteos."
+      },
+      {
+        "id": "largo",
+        "titulo": "Largo de la prenda",
+        "texto": "Es una medida de la prenda: desde el punto más alto del hombro hasta el borde inferior."
+      },
+      {
+        "id": "estatura",
+        "titulo": "Estatura",
+        "texto": "Para niños: mide de pie, descalzo y con la espalda contra la pared, desde el piso hasta la coronilla."
+      },
+      {
+        "id": "cabeza",
+        "titulo": "Contorno de cabeza",
+        "texto": "Pasa la cinta por la frente, un dedo por encima de las cejas y de las orejas, por la parte más ancha de la cabeza."
+      },
+      {
+        "id": "pie",
+        "titulo": "Largo del pie",
+        "texto": "Apoya el talón contra la pared sobre una hoja, marca la punta del dedo más largo y mide en línea recta. Hazlo por la tarde, cuando el pie está más hinchado."
+      }
+    ],
+    "tablas": [
+      {
+        "id": "hombres-polos-camisas",
+        "categoria": "hombres",
+        "subcategorias": [
+          "polos",
+          "camisas",
+          "conjuntos",
+          "pijamas",
+          "otros"
+        ],
+        "titulo": "Hombres · Polos y camisas",
+        "medidas": [
+          "pecho",
+          "cintura",
+          "largo"
+        ],
+        "columnas": [
+          "Talla",
+          "Pecho (cm)",
+          "Cintura (cm)",
+          "Largo de la prenda (cm)"
+        ],
+        "filas": [
+          [
+            "XS",
+            "82–86",
+            "68–72",
+            "68"
+          ],
+          [
+            "S",
+            "86–92",
+            "72–78",
+            "70"
+          ],
+          [
+            "M",
+            "92–98",
+            "78–84",
+            "72"
+          ],
+          [
+            "L",
+            "98–104",
+            "84–90",
+            "74"
+          ],
+          [
+            "XL",
+            "104–110",
+            "90–96",
+            "76"
+          ],
+          [
+            "XXL",
+            "110–118",
+            "96–104",
+            "78"
+          ]
+        ],
+        "nota": "Camisas y guayaberas de corte recto: si te gusta usarlas por fuera y sueltas, elige tu talla habitual o una más."
+      },
+      {
+        "id": "hombres-shorts-pantalones",
+        "categoria": "hombres",
+        "subcategorias": [
+          "shorts",
+          "bermudas",
+          "pantalones",
+          "ropa-de-bano"
+        ],
+        "titulo": "Hombres · Shorts, bermudas y pantalones",
+        "medidas": [
+          "cintura",
+          "cadera"
+        ],
+        "columnas": [
+          "Talla",
+          "Equivale a",
+          "Cintura (cm)",
+          "Cadera (cm)"
+        ],
+        "filas": [
+          [
+            "XS",
+            "26–28",
+            "68–72",
+            "84–88"
+          ],
+          [
+            "S",
+            "28–30",
+            "72–78",
+            "88–94"
+          ],
+          [
+            "M",
+            "30–32",
+            "78–84",
+            "94–100"
+          ],
+          [
+            "L",
+            "32–34",
+            "84–90",
+            "100–106"
+          ],
+          [
+            "XL",
+            "34–36",
+            "90–96",
+            "106–112"
+          ],
+          [
+            "XXL",
+            "36–38",
+            "96–104",
+            "112–118"
+          ]
+        ],
+        "nota": "Las bermudas con cordón y pretina elástica se ajustan unos 4 cm a la cintura."
+      },
+      {
+        "id": "mujeres-blusas-vestidos",
+        "categoria": "mujeres",
+        "subcategorias": [
+          "blusas",
+          "vestidos",
+          "polos",
+          "camisas",
+          "conjuntos",
+          "pijamas",
+          "ropa-de-bano",
+          "otros"
+        ],
+        "titulo": "Mujeres · Blusas y vestidos",
+        "medidas": [
+          "busto",
+          "cintura",
+          "cadera"
+        ],
+        "columnas": [
+          "Talla",
+          "Busto (cm)",
+          "Cintura (cm)",
+          "Cadera (cm)"
+        ],
+        "filas": [
+          [
+            "XS",
+            "78–82",
+            "60–64",
+            "86–90"
+          ],
+          [
+            "S",
+            "82–86",
+            "64–68",
+            "90–94"
+          ],
+          [
+            "M",
+            "86–92",
+            "68–74",
+            "94–100"
+          ],
+          [
+            "L",
+            "92–98",
+            "74–80",
+            "100–106"
+          ],
+          [
+            "XL",
+            "98–104",
+            "80–86",
+            "106–112"
+          ],
+          [
+            "XXL",
+            "104–110",
+            "86–92",
+            "112–118"
+          ]
+        ],
+        "nota": "En vestidos con falda amplia manda el busto; en blusas sueltas puedes quedarte con tu talla habitual."
+      },
+      {
+        "id": "mujeres-shorts-pantalones",
+        "categoria": "mujeres",
+        "subcategorias": [
+          "shorts",
+          "bermudas",
+          "faldas",
+          "pantalones"
+        ],
+        "titulo": "Mujeres · Shorts, faldas y pantalones",
+        "medidas": [
+          "cintura",
+          "cadera"
+        ],
+        "columnas": [
+          "Talla",
+          "Equivale a",
+          "Cintura (cm)",
+          "Cadera (cm)"
+        ],
+        "filas": [
+          [
+            "XS",
+            "24–26",
+            "60–64",
+            "86–90"
+          ],
+          [
+            "S",
+            "26–28",
+            "64–68",
+            "90–94"
+          ],
+          [
+            "M",
+            "28–30",
+            "68–74",
+            "94–100"
+          ],
+          [
+            "L",
+            "30–32",
+            "74–80",
+            "100–106"
+          ],
+          [
+            "XL",
+            "32–34",
+            "80–86",
+            "106–112"
+          ],
+          [
+            "XXL",
+            "34–36",
+            "86–92",
+            "112–118"
+          ]
+        ],
+        "nota": "Shorts de tiro alto: mide la cintura a la altura del ombligo."
+      },
+      {
+        "id": "ninos-por-edad",
+        "categoria": "ninos",
+        "subcategorias": [
+          "polos",
+          "camisas",
+          "blusas",
+          "vestidos",
+          "faldas",
+          "shorts",
+          "bermudas",
+          "pantalones",
+          "conjuntos",
+          "ropa-de-bano",
+          "pijamas",
+          "gorros",
+          "gorras",
+          "sombreros",
+          "sandalias",
+          "otros"
+        ],
+        "titulo": "Niños y niñas · Por edad",
+        "medidas": [
+          "estatura",
+          "pecho",
+          "cintura"
+        ],
+        "columnas": [
+          "Talla",
+          "Edad",
+          "Estatura (cm)",
+          "Pecho (cm)",
+          "Cintura (cm)"
+        ],
+        "filas": [
+          [
+            "2",
+            "2 años",
+            "86–92",
+            "52–54",
+            "50–52"
+          ],
+          [
+            "4",
+            "3–4 años",
+            "98–104",
+            "54–56",
+            "52–54"
+          ],
+          [
+            "6",
+            "5–6 años",
+            "110–116",
+            "58–60",
+            "54–56"
+          ],
+          [
+            "8",
+            "7–8 años",
+            "122–128",
+            "62–66",
+            "56–58"
+          ],
+          [
+            "10",
+            "9–10 años",
+            "134–140",
+            "66–70",
+            "58–62"
+          ],
+          [
+            "12",
+            "11–12 años",
+            "146–152",
+            "72–76",
+            "62–66"
+          ],
+          [
+            "14",
+            "13–14 años",
+            "158–164",
+            "78–82",
+            "66–70"
+          ],
+          [
+            "16",
+            "15–16 años",
+            "164–170",
+            "82–86",
+            "68–72"
+          ]
+        ],
+        "nota": "La edad es orientativa: guíate por la estatura. Los niños crecen rápido; si está entre dos tallas, elige la mayor. Gorros infantiles: talla única para 50–54 cm de contorno de cabeza."
+      },
+      {
+        "id": "accesorios-sombreros",
+        "categoria": "accesorios",
+        "subcategorias": [
+          "sombreros",
+          "gorros",
+          "gorras"
+        ],
+        "titulo": "Sombreros y gorros · Por contorno de cabeza",
+        "medidas": [
+          "cabeza"
+        ],
+        "columnas": [
+          "Talla",
+          "Contorno de cabeza (cm)"
+        ],
+        "filas": [
+          [
+            "S",
+            "54–55"
+          ],
+          [
+            "M",
+            "56–57"
+          ],
+          [
+            "L",
+            "58–59"
+          ],
+          [
+            "Única",
+            "55–58 (ajustable)"
+          ]
+        ],
+        "nota": "Un sombrero de palma no debe apretar: si estás entre dos tallas, elige la mayor y ajústalo con la cinta interior."
+      },
+      {
+        "id": "accesorios-sandalias",
+        "categoria": "accesorios",
+        "subcategorias": [
+          "sandalias"
+        ],
+        "titulo": "Sandalias · Talla peruana, EU y cm",
+        "medidas": [
+          "pie"
+        ],
+        "columnas": [
+          "Talla (Perú)",
+          "EU",
+          "Largo del pie (cm)"
+        ],
+        "filas": [
+          [
+            "35",
+            "35",
+            "22.5"
+          ],
+          [
+            "36",
+            "36",
+            "23"
+          ],
+          [
+            "37",
+            "37",
+            "23.5"
+          ],
+          [
+            "38",
+            "38",
+            "24.5"
+          ],
+          [
+            "39",
+            "39",
+            "25"
+          ],
+          [
+            "40",
+            "40",
+            "25.5"
+          ],
+          [
+            "41",
+            "41",
+            "26.5"
+          ],
+          [
+            "42",
+            "42",
+            "27"
+          ],
+          [
+            "43",
+            "43",
+            "27.5"
+          ],
+          [
+            "44",
+            "44",
+            "28.5"
+          ]
+        ],
+        "nota": "En nuestra tienda la talla peruana equivale a la numeración europea (EU). En sandalias abiertas, si tu pie mide entre dos tallas, elige la mayor."
+      }
+    ]
+  },
   "mensajes": {
     "pedido": "Hola Palmera Brava, quiero hacer un pedido:",
-    "consulta_muestra": "Hola Palmera Brava, vi en su web la prenda de referencia \"{nombre}\" ({id}). ¿Tienen prendas similares disponibles? Entiendo que la imagen y el precio son referenciales.",
     "consulta": "Hola Palmera Brava, quisiera hacer una consulta."
   }
 }

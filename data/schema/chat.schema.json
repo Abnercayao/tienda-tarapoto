@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Palmera Brava — data/chat.json",
+  "description": "v2: dirección pública del chat del agente vendedor (túnel rápido de Cloudflare hacia tools/chat-proxy.py). La escribe el webhook local chat-url de n8n solo si cambia. Generado desde tools/validar.js.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "url",
+    "activo",
+    "actualizado"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "pattern": "^\\./schema/[a-z-]+\\.schema\\.json$"
+    },
+    "url": {
+      "type": "string",
+      "maxLength": 120,
+      "pattern": "^(https://[a-z0-9]+(-[a-z0-9]+)*\\.trycloudflare\\.com)?$",
+      "description": "Vacía o https://<subdominio>.trycloudflare.com (sin ruta ni barra final; la web añade /chat)."
+    },
+    "activo": {
+      "type": "boolean",
+      "description": "false = la web oculta el chat y muestra \"Escríbenos por WhatsApp\"."
+    },
+    "actualizado": {
+      "type": "string",
+      "pattern": "^(\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])T([01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(\\.\\d{1,3})?(Z|[+-]([01]\\d|2[0-3]):[0-5]\\d))?$",
+      "description": "Vacío o fecha ISO 8601 con zona del último cambio."
+    }
+  }
+}

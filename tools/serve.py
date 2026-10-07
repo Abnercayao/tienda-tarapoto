@@ -65,6 +65,8 @@ class Manejador(http.server.SimpleHTTPRequestHandler):
         self.send_header("Cache-Control", "no-cache")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
+        # Demo privada (contrato v2): que ningún buscador indexe ni siga enlaces, igual que el meta robots.
+        self.send_header("X-Robots-Tag", "noindex, nofollow")
         super().end_headers()
 
     def log_message(self, formato, *args):

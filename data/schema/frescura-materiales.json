@@ -1,0 +1,36 @@
+{
+  "descripcion": "Índice de frescura (1–5 hojitas) por material. Generado desde tools/validar.js (no editar a mano). Normaliza el texto (minúsculas, sin tildes) y aplica la PRIMERA fila cuyo patrón (RegExp de JavaScript) coincida. Orden: material, nombre, etiquetas. Sin coincidencia = sin índice.",
+  "normalizar": "texto.normalize(\"NFD\").replace(/[\\u0300-\\u036f]/g, \"\").toLowerCase()",
+  "tabla": [
+    {
+      "valor": 2,
+      "materiales": "denim, jean, mezclilla, drill grueso, lona, pana",
+      "patron": "\\b(denim|jeans?|mezclilla|lona|pana|corduroy)\\b|\\bdrill grues"
+    },
+    {
+      "valor": 1,
+      "materiales": "poliéster pesado o grueso, cuero, cuerina, vinil, lana, polar, franela, neopreno",
+      "patron": "\\b(cuero|cuerina|ecocuero|vinil|vinilo|charol|lana|polar|franela|fleece|neopreno)\\b|\\bpoliester (pesado|grueso)"
+    },
+    {
+      "valor": 5,
+      "materiales": "lino (y lino-algodón), gasa, voile, muselina, fibras vegetales tejidas (palma, paja, rafia, yute)",
+      "patron": "\\b(lino|linen|gasa|voile|muselina|bambula|plumetis|rafia|yute|mimbre|junco|toquilla|paja)\\b|fibra de palma|palma tejida"
+    },
+    {
+      "valor": 3,
+      "materiales": "algodón-poliéster, dri-fit, telas UV/UPF, microfibra, elastano, drill, gabardina",
+      "patron": "algodon.*poliester|poliester.*algodon|\\b(dri|dry)[ -]?fit\\b|\\buv\\b|\\bupf\\b|microfibra|elastano|lycra|licra|spandex|\\bdrill\\b|gabardina"
+    },
+    {
+      "valor": 4,
+      "materiales": "algodón pima, algodón, bambú, viscosa, rayón, modal, lyocell, seda",
+      "patron": "\\b(algodon|pima|cotton|bambu|bamboo|viscosa|rayon|modal|lyocell|tencel|seda)\\b"
+    },
+    {
+      "valor": 2,
+      "materiales": "poliéster, nylon, acrílico (sin tecnología de frescura)",
+      "patron": "\\b(poliester|polyester|nylon|nailon|acrilico|poliamida)\\b"
+    }
+  ]
+}
