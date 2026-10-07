@@ -1,9 +1,11 @@
 {
   "$schema": "./schema/products.schema.json",
   "schema_version": 1,
-  "version": 1,
-  "actualizado": "2026-10-06T06:00:00-05:00",
-  "borradores_aplicados": [],
+  "version": 2,
+  "actualizado": "2026-10-07T05:48:23-05:00",
+  "borradores_aplicados": [
+    "drf-muxzhknxoc"
+  ],
   "moneda": "PEN",
   "productos": [
     {
@@ -855,6 +857,55 @@
       "muestra": true,
       "fecha_creacion": "2026-08-20T10:00:00-05:00",
       "fecha_actualizacion": "2026-08-20T10:00:00-05:00"
+    },
+    {
+      "id": "prd-0017",
+      "slug": "polo-de-lino-para-hombre",
+      "nombre": "Polo de lino para hombre",
+      "categoria": "hombres",
+      "subcategoria": "polos",
+      "precio": 58.9,
+      "tallas": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "stock_por_talla": {
+        "S": 10,
+        "M": 10,
+        "L": 10,
+        "XL": 10
+      },
+      "stock": 40,
+      "colores": [
+        {
+          "nombre": "Blanco",
+          "hex": "#FFFFFF"
+        }
+      ],
+      "material": "lino",
+      "descripcion": "Polo de lino fresco y ligero para el calor. Ideal para días calurosos.",
+      "etiquetas": [
+        "lino",
+        "fresco",
+        "ligero",
+        "calor"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/polo-de-lino-para-hombre-1-2e73735b.webp",
+          "alt": "Modelo masculino vistiendo un polo blanco con textura vertical, cuello tipo polo y mangas cortas. La tela parece lino o similar, muy fresca para el clima...",
+          "origen": "foto",
+          "ancho": 1011,
+          "alto": 1200
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": false,
+      "fecha_creacion": "2026-10-07T05:48:23-05:00",
+      "fecha_actualizacion": "2026-10-07T05:48:23-05:00"
     }
   ]
 }
