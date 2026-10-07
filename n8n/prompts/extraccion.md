@@ -23,8 +23,8 @@ OPERACIONES (op)
 - crear: producto nuevo. id = null.
 - actualizar: cambiar datos de un producto que ya existe (precio, nombre, descripción...). id obligatorio, tomado del CATÁLOGO. Pon SOLO los campos que cambian; todos los demás van en null o [].
 - desactivar: ocultar un producto ("ocultar", "ya no hay", "retirar", "agotado para siempre"). reactivar: volver a mostrarlo.
-- desactivar / reactivar / stock / agregar_imagen: todos los campos en null o [], salvo stock_tallas (en stock) y alt_imagen (en agregar_imagen).
-- stock: cambiar cantidades por talla. stock_tallas lleva las cantidades que dice el mensaje y stock_modo dice cómo aplicarlas: "fijar" si dice cuántas hay en total ("quedan 2 de la L", "hay 10"), "sumar" si llegaron más ("llegaron 5 más de la M"), "restar" si se vendieron ("vendí 1 de la S"). En las demás operaciones stock_modo es null.
+- desactivar / reactivar / stock / agregar_imagen: todos los campos en null o [], salvo stock_por_color, stock_tallas y stock_modo (en stock) y alt_imagen (en agregar_imagen).
+- stock: cambiar cantidades. Si el mensaje habla de COLORES ("quedan 2 del blanco", "llegaron 5 más en arena"), usa stock_por_color; si habla de TALLAS ("quedan 2 de la L"), usa stock_tallas. stock_modo dice cómo aplicarlas: "fijar" si dice cuántas hay en total ("quedan 2", "hay 10"), "sumar" si llegaron más ("llegaron 5 más"), "restar" si se vendieron ("vendí 1"). En las demás operaciones stock_modo es null.
 - agregar_imagen: añadir la foto adjunta a un producto existente.
 - No existe borrar definitivamente.
 
@@ -40,16 +40,19 @@ Ejemplos: "polo para dama" -> mujeres. "polo de caballero" -> hombres. "vestido 
 SUBCATEGORÍA: una de polos, camisas, blusas, vestidos, faldas, shorts, bermudas, pantalones, conjuntos, ropa-de-bano, pijamas, sombreros, gorros, gorras, sandalias, lentes, bolsos, otros. La guayabera es "camisas".
 
 TALLAS (tallas): adultos XS S M L XL XXL; niños 2 4 6 8 10 12 14 16; calzado 35 a 44; talla única = "UNICA". "de la 38 a la 42" -> 38 39 40 41 42.
-- stock_tallas: una entrada {talla, cantidad} por talla. "3 de cada una" -> cantidad 3 en todas. Si no dice cantidades, [] (no lo pongas en faltantes).
+- stock_tallas: una entrada {talla, cantidad} por talla, solo si el dueño da cantidades POR TALLA. Si no, [] (no lo pongas en faltantes).
+
+STOCK POR COLOR (stock_por_color): una entrada {color, cantidad} por color, con cantidades de 0 a 20. "10 por color" o "10 de cada color" -> cantidad 10 en TODOS los colores. "5 blancos y 3 negros" -> blanco 5, negro 3. Si no dice cantidades, [] (no lo pongas en faltantes).
 
 OTROS CAMPOS
 - colores: nombres en español tal como los dice el dueño o como se ven en la foto ("blanco", "verde palma").
 - material: solo si lo dice o se reconoce con seguridad; si lo deduces, márcalo en campos_inferidos.
+- frescura: índice de frescura de 1 a 5 hojitas según la tela: lino, gasa, lino-algodón 5; algodón, algodón pima, bambú, viscosa, rayón 4; algodón-poliéster, dri-fit, telas UV 3; denim, drill grueso 2; poliéster pesado, cuero 1. Si el dueño no lo dice, dedúcelo de la tela y añade "frescura" a campos_inferidos; si no se sabe la tela, null.
 - descripcion: 1 o 2 frases breves y honestas sobre la prenda para el calor; márcala en campos_inferidos.
 - etiquetas: 2 a 5 palabras en minúsculas sin tildes ("lino", "fresca").
 - alt_imagen: si hay foto, una frase que la describa para personas ciegas; si no, null.
 - destacado: true solo si el dueño lo pide; si no, null.
-- faltantes solo puede incluir: nombre, categoria, subcategoria, precio, precio_oferta, tallas, stock_tallas, stock_modo, colores, material, descripcion, etiquetas, alt_imagen, destacado, id, foto.
+- faltantes solo puede incluir: nombre, categoria, subcategoria, precio, precio_oferta, tallas, stock_tallas, stock_por_color, stock_modo, colores, material, frescura, descripcion, etiquetas, alt_imagen, destacado, id, foto.
 
 CATÁLOGO ACTUAL (id | nombre | categoria | precio):
 {{CATALOGO}}

@@ -7,6 +7,9 @@
  * -> WF5 "Aplicar lote" (aplicador real) sobre data/*.json; WF8 "Pedido" -> WF6 "Preparar"; admin.html llama a las URLs/cabeceras de WF8.
  */
 'use strict';
+// Credencial de un nodo: el repo guarda los workflows limpios (tools/limpiar-workflows.js quita el id, PLAN D14) y
+// n8n/tools/preparar-importacion.js lo vuelve a poner; se acepta sin id o con el id fijo, siempre con el nombre exacto.
+function credOk(c, id, nombre) { return !!c && (c.id === undefined || c.id === id) && c.name === nombre; }
 const fs = require('fs');
 const path = require('path');
 const RAIZ = path.resolve(__dirname, '..', '..');
@@ -321,7 +324,7 @@ async function aplicarEnWF5(fila, imagenes) {
   const ORI = 'http://localhost:8080,http://127.0.0.1:8080';
   caso('WF8 webhooks: POST crear-imagen y GET estado, Header Auth pbCredHeader0001, origins exactos, responseNode',
     post.parameters.httpMethod === 'POST' && post.parameters.path === 'crear-imagen' && get.parameters.httpMethod === 'GET' && get.parameters.path === 'estado' &&
-    [post, get].every(function (n) { return n.parameters.authentication === 'headerAuth' && n.credentials.httpHeaderAuth.id === 'pbCredHeader0001' && n.parameters.options.allowedOrigins === ORI && n.parameters.responseMode === 'responseNode' && n.webhookId; }));
+    [post, get].every(function (n) { return n.parameters.authentication === 'headerAuth' && credOk(n.credentials.httpHeaderAuth, 'pbCredHeader0001', 'Header X-Tienda-Key') && n.parameters.options.allowedOrigins === ORI && n.parameters.responseMode === 'responseNode' && n.webhookId; }));
   caso('WF8: bucle de lock Wait 5 s -> Tomar lock', sale(W8, 'Esperar 5 s')[0].indexOf('Tomar lock') >= 0 && nodo(W8, 'Esperar 5 s').parameters.amount === 5);
   caso('WF8: WF6 -> Liberar lock antes de responder (no hay camino que lo evite)', sale(W8, 'WF6 Imagen')[0].join() === 'Liberar lock' &&
     !camino(W8, 'WF6 Imagen', 'Responder imagen', 'Liberar lock') && !camino(W8, 'WF6 Imagen', 'Responder JSON', 'Liberar lock'));
@@ -336,7 +339,7 @@ async function aplicarEnWF5(fila, imagenes) {
   caso('WF6: Edit Image crop con positionY = recorte y salida WebP', crop.operation === 'crop' && /crop_y/.test(crop.positionY) && crop.positionX === 0 && crop.options.format === 'webp');
   const foto = nodo(W6, 'Enviar foto');
   const btn = foto.parameters.inlineKeyboard.rows.map(function (r) { return r.row.buttons.map(function (b) { return b.text + '=' + b.additionalFields.callback_data.replace(/\{\{.*?\}\}/, 'D'); }); });
-  caso('WF6: sendPhoto con pbCredTelegram01 y botones Hero/Portada/Lookbook/Descartar', foto.credentials.telegramApi.id === 'pbCredTelegram01' && foto.parameters.binaryData === true &&
+  caso('WF6: sendPhoto con pbCredTelegram01 y botones Hero/Portada/Lookbook/Descartar', credOk(foto.credentials.telegramApi, 'pbCredTelegram01', 'Telegram Palmera Brava') && foto.parameters.binaryData === true &&
     JSON.stringify(btn) === JSON.stringify([['Hero==dst:D:hero', 'Portada==dst:D:portada', 'Lookbook==dst:D:look'], ['Descartar==no:D']]), btn);
   caso('WF6: la foto se envía antes de crear el borrador (sin borradores huérfanos)', camino(W6, 'Enviar foto', 'Insertar borrador') && !camino(W6, 'Insertar borrador', 'Enviar foto'));
   caso('WF6: no toma el lock (lo tiene WF2 o WF8)', !W6.nodes.some(function (n) { return n.type === 'n8n-nodes-base.dataTable' && n.parameters.dataTableId && n.parameters.dataTableId.value === 'pb_locks'; }));

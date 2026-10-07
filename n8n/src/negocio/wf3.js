@@ -131,7 +131,7 @@ if (p.modo === 'operacion') {
   if (p.tipo === 'articulo') return salir('La IA local no responde y no puedo redactar el artículo ahora.\nSiguiente paso: vuelve a intentar /articulo en unos minutos.');
   const pl = nbPlantilla(p.texto);
   if (!completar && !pl && pideCambio(p.texto) && !fotosOk.length) {
-    return salir('La IA local no responde. Para cambios usa los comandos: /precio prd-0001 69.90, /stock prd-0001 M 5, /ocultar prd-0001.\nSiguiente paso: usa un comando o inténtalo de nuevo en unos minutos.');
+    return salir('La IA local no responde. Para cambios usa los comandos: /precio prd-0001 69.90, /stock prd-0001 Blanco 5, /frescura prd-0001 5, /ocultar prd-0001.\nSiguiente paso: usa un comando o inténtalo de nuevo en unos minutos.');
   }
   explicito = true;
   r = validarOperacion(pl || nbOpVacia('producto'), ctx);
@@ -141,7 +141,7 @@ if (completar && r && r.operacion) {
   const fusion = nbFusionar(nbOpDeFila(previo), r.operacion, explicito);
   const avisosIA = r.avisos || [];
   r = validarOperacion(fusion, ctx);
-  r.avisos = avisosIA.filter(function (a) { return /^\[(categoria|stock|tallas)\]/.test(a); }).concat(r.avisos);
+  r.avisos = avisosIA.filter(function (a) { return /^\[(categoria|stock|tallas|colores)]/.test(a); }).concat(r.avisos);
 }
 const o = r ? r.operacion : null;
 if (o) {
@@ -159,6 +159,16 @@ if (!o) return salir('No pude entender el mensaje.\nSiguiente paso: escríbelo d
 o.faltantes = nbBloqueantes(o);
 // Si el texto ya dice la categoría (inferirCategoria), no es "sugerida por IA".
 if (o.entidad === 'producto' && o.campos.categoria && inferirCategoria(ctx.texto) === o.campos.categoria) o.campos_inferidos = (o.campos_inferidos || []).filter(function (k) { return k !== 'categoria'; });
+// Igual con la tela y los colores escritos en el mensaje ("Polo de lino blanco y arena"): los dijo el dueño, no la IA.
+if (o.entidad === 'producto' && o.op === 'crear') {
+  const tn = ' ' + claveColor(ctx.texto).replace(/[^a-z0-9ñ]+/g, ' ') + ' ';
+  const dicho = function (v) { const k = claveColor(v).replace(/[^a-z0-9ñ]+/g, ' ').trim(); return !!k && tn.indexOf(' ' + k + ' ') >= 0; };
+  o.campos_inferidos = (o.campos_inferidos || []).filter(function (k) {
+    if (k === 'material') return !dicho(o.campos.material);
+    if (k === 'colores') return !(Array.isArray(o.campos.colores) && o.campos.colores.length && o.campos.colores.every(dicho));
+    return true;
+  });
+}
 if (o.entidad === 'articulo' && o.faltantes.length) {
   return salir('No pude redactar un artículo con ese tema (falta: ' + h(o.faltantes.map(function (f) { return NB_ETIQUETA[f] || f; }).join(', ')) + ').\nSiguiente paso: escribe /articulo seguido de un tema claro, por ejemplo /articulo cómo lavar el lino.');
 }

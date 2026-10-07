@@ -33,7 +33,10 @@ const WORKFLOWS = {
   pbWf05Publicar00: { nombre: 'PB WF5 Publicar', archivo: 'WF5-publicar.json' },
   pbWf06Imagen0000: { nombre: 'PB WF6 Imagen-IA', archivo: 'WF6-imagen-ia.json' },
   pbWf08PanelApi00: { nombre: 'PB WF8 Panel-API', archivo: 'WF8-panel-api.json' },
-  pbWf09Errores000: { nombre: 'PB WF9 Errores', archivo: 'WF9-errores.json' }
+  pbWf09Errores000: { nombre: 'PB WF9 Errores', archivo: 'WF9-errores.json' },
+  // ARQUITECTURA-N8N.md §11 (chat vendedor, v2)
+  pbWf11ChatVend00: { nombre: 'PB WF11 Chat-Vendedor', archivo: 'WF11-chat-vendedor.json' },
+  pbWf12ChatUrl000: { nombre: 'PB WF12 Chat-URL', archivo: 'WF12-chat-url.json' }
 };
 const WF9 = 'pbWf09Errores000';
 const WF1 = 'pbWf01Ingesta000';
@@ -45,7 +48,7 @@ const MAX_TV = {
 };
 const PROHIBIDOS = { readWriteFile: 'en 2.x no llega al volumen montado (ARQUITECTURA §1)' };
 const DISPARADORES = ['scheduleTrigger', 'manualTrigger', 'executeWorkflowTrigger', 'webhook', 'errorTrigger'];
-const TABLAS = ['pb_config', 'pb_locks', 'pb_inbox', 'pb_borradores', 'pb_imagenes'];
+const TABLAS = ['pb_config', 'pb_locks', 'pb_inbox', 'pb_borradores', 'pb_imagenes', 'pb_citas', 'pb_chat_mensajes', 'pb_chat_aprendizaje'];
 const SECRETOS = [
   [/(?<!\d)\d{8,10}:[A-Za-z0-9_-]{30,}/, 'token de bot de Telegram'],
   [/github_pat_[A-Za-z0-9_]{22,}/, 'PAT de GitHub (fine-grained)'],

@@ -54,13 +54,13 @@ const cfg = $('Config').first().json;
 const C = {
   ayuda: 'Qué puedo hacer y ejemplos', lista: 'Productos (opcional: categoría)', ver: 'Ver un producto: /ver prd-0001',
   estado: 'Cola, pausa y último cambio publicado', historial: 'Últimos 5 cambios del bot', precio: 'Cambiar precio: /precio prd-0001 69.90',
-  stock: 'Cambiar stock: /stock prd-0001 M 5', ocultar: 'Ocultar un producto', mostrar: 'Volver a mostrar un producto',
+  stock: 'Stock por color (0 a 20): /stock prd-0001 Blanco 5', frescura: 'Frescura 1 a 5 hojitas: /frescura prd-0001 5', ocultar: 'Ocultar un producto', mostrar: 'Volver a mostrar un producto',
   foto: 'Foto con leyenda /foto prd-0001', articulo: 'Borrador de artículo: /articulo tema', articulo_ocultar: 'Ocultar un artículo',
   imagen: 'Imagen con IA local: /imagen descripción', cancelar: 'Cancelar tus borradores pendientes',
   borrar: 'Eliminar un producto (doble confirmación)', whatsapp: 'Cambiar el WhatsApp de la tienda', limpiar_muestras: 'Quitar los productos de muestra',
   deshacer: 'Deshacer el último cambio del bot', pausa: 'Pausar la publicación', reanudar: 'Reanudar la publicación', ids: 'Ver quién escribió sin estar autorizado'
 };
-const TODOS = ['ayuda', 'lista', 'ver', 'estado', 'historial', 'precio', 'stock', 'ocultar', 'mostrar', 'foto', 'articulo', 'articulo_ocultar', 'imagen', 'cancelar'];
+const TODOS = ['ayuda', 'lista', 'ver', 'estado', 'historial', 'precio', 'stock', 'frescura', 'ocultar', 'mostrar', 'foto', 'articulo', 'articulo_ocultar', 'imagen', 'cancelar'];
 const DUENO = TODOS.concat(['borrar', 'whatsapp', 'limpiar_muestras', 'deshacer', 'pausa', 'reanudar']);
 const ADMIN = DUENO.concat(['ids']);
 const lista = function (rol) { return (rol === 'admin' ? ADMIN : rol === 'dueno' ? DUENO : TODOS).map(function (k) { return { command: k, description: C[k] }; }); };

@@ -242,7 +242,7 @@ const fin = function (resuelto, motivo, resultados) { return [{ json: { paso: 'f
 
 function parseJ(s, d) { if (s === null || s === undefined || s === '') return d; if (typeof s !== 'string') return s; try { return JSON.parse(s); } catch (e) { return d; } }
 function r2(n) { return Math.round(Number(n) * 100) / 100; }
-const ORDEN_PRODUCTO = ['id', 'slug', 'nombre', 'categoria', 'subcategoria', 'precio', 'precio_oferta', 'tallas', 'stock_por_talla', 'stock', 'colores',
+const ORDEN_PRODUCTO = ['id', 'slug', 'nombre', 'categoria', 'subcategoria', 'precio', 'precio_oferta', 'tallas', 'stock_por_talla', 'stock_por_color', 'stock', 'colores',
   'material', 'frescura', 'descripcion', 'etiquetas', 'imagenes', 'destacado', 'activo', 'muestra', 'fecha_creacion', 'fecha_actualizacion'];
 const ORDEN_ARTICULO = ['id', 'slug', 'titulo', 'resumen', 'portada', 'bloques', 'productos_relacionados', 'autor', 'fecha', 'fecha_actualizacion', 'activo', 'muestra'];
 function ordenar(o, orden) {
@@ -266,14 +266,21 @@ function etiquetas(l) {
   return out.slice(0, 10);
 }
 function colores(l) {
+  const vistos = [];
+  // Sin repetidos (claveColor), igual que pbNombresColor() de la vista previa: stock_por_color se indexa por nombre.
   return (Array.isArray(l) ? l : []).slice(0, 8).map(function (x) {
     const k = colorHex(typeof x === 'string' ? x : x && x.nombre);
     const hex = x && typeof x === 'object' && /^#[0-9A-Fa-f]{6}$/.test(x.hex || '') ? x.hex.toUpperCase() : k.hex;
     return { nombre: k.nombre, hex: hex };
-  });
+  }).filter(function (c) { const q = claveColor(c.nombre); if (vistos.indexOf(q) >= 0) return false; vistos.push(q); return true; });
 }
+// v2: frescura 1..5 del borrador o, si no viene, la de la tabla por material (inferirFrescura de validar.js); null = sin índice.
+function frescuraDe(c, base) {
+  if (Number.isInteger(c.frescura) && c.frescura >= 1 && c.frescura <= 5) return c.frescura;
+  return inferirFrescura({ material: base.material, nombre: base.nombre, etiquetas: base.etiquetas }).valor;
+}
+function sinCodigo(errores) { return errores.map(function (e) { return String(e).replace(/^\[[a-z_]+\]\s*/, ''); }).join('; '); }
 function ordenTallas(l) { return TALLAS.filter(function (t) { return l.indexOf(t) >= 0; }); }
-function sumar(spt) { return Object.keys(spt).reduce(function (a, k) { return a + (Number(spt[k]) || 0); }, 0); }
 function nuevaImagen(ctx, carpeta, base, fila, alt, origen) {
   ctx.contador++;
   const tmp = carpeta + base + '-pbimg' + String(ctx.contador).padStart(4, '0') + '.webp';
@@ -457,19 +464,21 @@ function aplicarBorrador(E, b, fotos, ctx) {
     const tallas = ordenTallas(Array.isArray(c.tallas) ? c.tallas : []);
     if (!tallas.length) return falla('faltan las tallas');
     const slug = slugUnico(slugificar(nombre), P);
-    const spt = {};
-    tallas.forEach(function (t) { spt[t] = 0; });
-    const st = Array.isArray(c.stock_tallas) ? c.stock_tallas.filter(function (s) { return s && tallas.indexOf(s.talla) >= 0; }) : [];
-    if (st.length) st.forEach(function (s) { spt[s.talla] = Math.max(0, Math.floor(Number(s.cantidad) || 0)); });
-    else tallas.forEach(function (t) { spt[t] = 1; });                     // "stock asumido" (la vista previa ya lo avisó)
     const p = { id: id, slug: slug, nombre: nombre, categoria: c.categoria, subcategoria: SUBCATEGORIAS.indexOf(c.subcategoria) >= 0 ? c.subcategoria : 'otros', precio: r2(c.precio) };
     if (typeof c.precio_oferta === 'number' && c.precio_oferta > 0) p.precio_oferta = r2(c.precio_oferta);
-    p.tallas = tallas; p.stock_por_talla = spt; p.stock = sumar(spt);
+    p.tallas = tallas;
     p.colores = colores(c.colores);
     if (!p.colores.length) return falla('faltan los colores');
+    // v2 (CONTRATO 0.3): stock_por_color es la fuente de verdad (sin stock_por_talla); lo mismo que mostró la vista previa.
+    const st = Array.isArray(c.stock_tallas) ? c.stock_tallas.filter(function (s) { return s && tallas.indexOf(s.talla) >= 0; }) : [];
+    const si = pbStockInicial(p.colores.map(function (x) { return x.nombre; }), c.stock_por_color, st);
+    if (!si.ok) return falla(sinCodigo(si.errores));
+    p.stock_por_color = si.spc; p.stock = stockTotal(p);
     if (!vacio(c.material)) { const m = textoSeguro(c.material, 60); if (Array.from(m).length >= 2) p.material = m; }
     p.descripcion = typeof c.descripcion === 'string' ? textoSeguro(c.descripcion, 600) : '';
     p.etiquetas = etiquetas(c.etiquetas);
+    const fr = frescuraDe(c, p);
+    if (fr !== null) p.frescura = fr;
     p.imagenes = [];
     fotos.slice(0, 6).forEach(function (f, i) {
       const im = nuevaImagen(ctx, 'assets/img/products/', slug + '-' + (i + 1), f, c.alt_imagen || f.alt || nombre, f.origen === 'ia_local' ? 'ia_local' : 'foto');
@@ -508,10 +517,17 @@ function aplicarBorrador(E, b, fotos, ctx) {
   if (op === 'desactivar' || op === 'reactivar') {
     if (p.activo === (op === 'reactivar')) return falla(op === 'reactivar' ? 'ya estaba visible' : 'ya estaba oculto');
     p.activo = op === 'reactivar';
+  } else if (op === 'stock' && Array.isArray(c.stock_por_color) && c.stock_por_color.length) {
+    // v2: "/stock <id> <color> <n>" y "quedan 2 del blanco": aplicarStockColor() de validar.js (0..20 por color).
+    const r = aplicarStockColor(p, c.stock_por_color, c.stock_modo || 'fijar');
+    if (!r.ok) return falla(sinCodigo(r.errores));
+    p.stock_por_color = r.stock_por_color; p.stock = stockTotal(p);
+    detalle = r.cambios.join(' ');
   } else if (op === 'stock') {
     const modo = c.stock_modo || 'fijar';
     const lista = Array.isArray(c.stock_tallas) ? c.stock_tallas : [];
-    if (!lista.length) return falla('no hay tallas en el cambio de stock');
+    if (!lista.length) return falla('no hay tallas ni colores en el cambio de stock');
+    if (p.stock_por_color && typeof p.stock_por_color === 'object') return falla('el stock se lleva por color: /stock ' + p.id + ' <color> <n>');
     const permitidas = TALLAS_POR_CATEGORIA[p.categoria] || [];
     const partes = [];
     for (const s of lista) {
@@ -531,7 +547,7 @@ function aplicarBorrador(E, b, fotos, ctx) {
     }
     const spt = {};
     p.tallas.forEach(function (t) { spt[t] = Number(p.stock_por_talla[t]) || 0; });
-    p.stock_por_talla = spt; p.stock = sumar(spt);
+    p.stock_por_talla = spt; p.stock = stockTotal(p);
     detalle = partes.join(' ');
   } else if (op === 'agregar_imagen') {
     if (!fotos.length) return falla('no llegó la foto');
@@ -555,12 +571,25 @@ function aplicarBorrador(E, b, fotos, ctx) {
     }
     if (Array.isArray(c.tallas) && c.tallas.length) {
       const nt = ordenTallas(c.tallas);
-      const spt = {};
-      nt.forEach(function (t) { spt[t] = Number(p.stock_por_talla && p.stock_por_talla[t]) || 0; });
-      p.tallas = nt; p.stock_por_talla = spt; p.stock = sumar(spt);
+      p.tallas = nt;
+      // v2: stock_por_talla es opcional; si existe sigue a las tallas (con stock_por_color no se suma: stockTotal).
+      if (p.stock_por_talla && typeof p.stock_por_talla === 'object') {
+        const spt = {};
+        nt.forEach(function (t) { spt[t] = Number(p.stock_por_talla[t]) || 0; });
+        p.stock_por_talla = spt;
+      }
+      p.stock = stockTotal(p);
       cambios.push('tallas ' + nt.join(' '));
     }
-    if (Array.isArray(c.colores) && c.colores.length) { p.colores = colores(c.colores); cambios.push('colores'); }
+    if (Array.isArray(c.colores) && c.colores.length) {
+      p.colores = colores(c.colores);
+      const nombres = p.colores.map(function (x) { return x.nombre; });
+      // Los colores que siguen conservan su stock, los nuevos empiezan en 0 y los quitados desaparecen (CONTRATO 0.3).
+      if (p.stock_por_color && typeof p.stock_por_color === 'object') { p.stock_por_color = pbStockTrasColores(p.stock_por_color, nombres); p.stock = stockTotal(p); }
+      (p.imagenes || []).forEach(function (im) { if (im && typeof im.color === 'string' && nombres.indexOf(im.color) < 0) delete im.color; });
+      cambios.push('colores');
+    }
+    if (Number.isInteger(c.frescura) && c.frescura >= 1 && c.frescura <= 5 && c.frescura !== p.frescura) { p.frescura = c.frescura; cambios.push('frescura ' + c.frescura); }
     if (!vacio(c.material)) { const m = textoSeguro(c.material, 60); if (Array.from(m).length >= 2) { p.material = m; cambios.push('material'); } }
     if (typeof c.descripcion === 'string' && c.descripcion.trim()) { p.descripcion = textoSeguro(c.descripcion, 600); cambios.push('descripcion'); }
     if (Array.isArray(c.etiquetas) && c.etiquetas.length) { p.etiquetas = etiquetas(c.etiquetas); cambios.push('etiquetas'); }

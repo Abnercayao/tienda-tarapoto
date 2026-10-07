@@ -77,8 +77,8 @@ Comunes: `executionOrder:"v1"`, `timezone:"America/Lima"`, `errorWorkflow:"pbWf0
 | id | Nombre | Tipo | Dónde |
 |---|---|---|---|
 | `pbCredTelegram01` | Telegram Palmera Brava | `telegramApi` | nodos Telegram de WF3 (descargar fotos) y WF6 (sendPhoto) |
-| `pbCredGithub0001` | GitHub Palmera Brava | `githubApi` | HTTP Request (`authentication:"predefinedCredentialType"`, `nodeCredentialType:"githubApi"`) en WF3, WF4, WF5 |
-| `pbCredHeader0001` | Header X-Tienda-Key | `httpHeaderAuth` (`name:"X-Tienda-Key"`) | Webhooks de WF8 |
+| `pbCredGithub0001` | GitHub Palmera Brava | `githubApi` | HTTP Request (`authentication:"predefinedCredentialType"`, `nodeCredentialType:"githubApi"`) en WF3, WF4, WF5 y WF12 |
+| `pbCredHeader0001` | Header X-Tienda-Key | `httpHeaderAuth` (`name:"X-Tienda-Key"`) | Webhooks de WF8 y WF12 (`chat-url`) |
 
 En el nodo: `"credentials": {"githubApi": {"id": "pbCredGithub0001", "name": "GitHub Palmera Brava"}}`.
 
@@ -250,3 +250,20 @@ Textos base (HTML escapado; `<…>` = dato):
 | — | Lock ocupado y Edit Image | `update` sin coincidencias + `alwaysOutputData` → `[{}]`; PNG → `image/webp` (`magic WEBP`) |
 
 Pendientes / incierto: calidad WebP real del Edit Image (oculta en UI); `sendPhoto` y `file get` con token real (no probado sin token); tiempos reales de Ollama con fotos; `answerCallbackQuery` tardío si WF1 se atrasa > 15 s.
+
+## 11. Chat vendedor (WF11 + WF12, v2)
+
+Detalle completo, contrato HTTP, reglas y pruebas: `docs/CHAT-VENDEDOR.md`. Generadores `node n8n/src/chat/construir-wf11.js` (código en `n8n/src/chat/wf11.js` + `comun-chat.js`, prompt en `n8n/prompts/vendedor.md`) y `node n8n/src/chat/construir-wf12.js` (código en `n8n/src/chat/wf12.js`).
+
+| WF | id | Nombre en n8n | Disparador | settings extra |
+|---|---|---|---|---|
+| WF11 | `pbWf11ChatVend00` | PB WF11 Chat-Vendedor | Webhook `POST /webhook/chat-tienda` (sin clave; solo 127.0.0.1, lo llama `tools/chat-proxy.py`) | `executionTimeout:300` |
+| WF12 | `pbWf12ChatUrl000` | PB WF12 Chat-URL | Webhook `POST /webhook/chat-url` (**headerAuth** `pbCredHeader0001`; lo llama `tools/iniciar-chat.ps1` desde esta PC) | `executionTimeout:120` |
+
+- **Acceso público** (sin abrir n8n a internet): `tools/iniciar-chat.bat` → `tools/chat-proxy.py` (127.0.0.1:8787; solo `POST`/`OPTIONS /chat` → `/webhook/chat-tienda` y `GET /salud`; CORS, 4 KB, límites por IP) → `cloudflared tunnel --url http://127.0.0.1:8787` (quick tunnel, URL nueva cada vez) → WF12 escribe `data/chat.json` en GitHub. El túnel nunca apunta a 5678.
+- **WF12**: `{url}` validada (`^https://[a-z0-9-]+\.trycloudflare\.com$` + `validar({chat})`) o `{activo:false}`; Contents API `GET` → si `url`/`activo` no cambiaron, **no hay commit**; si cambiaron, `PUT` con `sha` (404 = crear), autor **"Tienda Chat"** (no "Tienda Bot": `/historial` no lo lista), mensaje "chat: actualizar URL del túnel"; nunca force (ruleset). Sin lock `worker` (PUT atómico; un PATCH concurrente de WF5 recibe 422 y reintenta, D5). 409 de GitHub → 409 `{reintentar:true}` (el script reintenta 3 veces). Clave opcional de `pb_config`: `GITHUB_API_URL` (solo `api.github.com` o un simulador local en 127.0.0.1/localhost/host.docker.internal; pruebas). Efecto lateral: si el último commit de `main` es del chat, `/deshacer` no está disponible (solo revierte el HEAD del bot).
+
+- **Tablas propias** (las crea WF11 con `createIfNotExists` en cada llamada; nombres sin subcadenas comunes con las de §4): `pb_citas`, `pb_chat_mensajes`, `pb_chat_aprendizaje` (columnas en `docs/CHAT-VENDEDOR.md`). Claves opcionales de `pb_config`: `CHAT_MODELO` (`llama3.1:8b`), `TELEGRAM_API_URL` (solo pruebas).
+- **Sin lock `worker`**: el chat no espera a la GPU; Ollama se turna entre `qwen3.5:4b` (bot) y `llama3.1:8b` (chat). WF6 descarga ambos antes de sd-server. Timeout del chat 45 s → respaldo con WhatsApp (la web corta a los 60 s).
+- **Patrones nuevos verificados [V]** (n8n 2.40.7 desechable, 2026-10-07): `respondToWebhook` deja pasar el ítem y los nodos siguientes corren DESPUÉS de responder (aprendizaje y aviso no demoran al visitante); `$getWorkflowStaticData('global')` en un Code persiste entre ejecuciones de producción (caché del catálogo 10 min); Telegram 1.2 `sendDocument` con `binaryData` envía multipart con nombre y `text/calendar` (`.ics`); la credencial `telegramApi` respeta `baseUrl` (Telegram simulado en pruebas); Data Table `upsert` con expresiones por ítem; `get` con `orderBy` `DESC` + `limit`.
+- Errores → WF9 (`errorWorkflow`). Las ejecuciones con error guardan mensajes del visitante (igual que A10).

@@ -23,7 +23,7 @@ const W3 = function (op) {
 const uso = function (forma, ejemplo) { return R('Uso: ' + h(forma) + '\nSiguiente paso: escribe, por ejemplo, ' + h(ejemplo) + '.'); };
 const ACCION = {
   start: 'consulta', ayuda: 'consulta', lista: 'consulta', ver: 'consulta', estado: 'consulta', historial: 'consulta',
-  precio: 'actualizar', stock: 'stock', ocultar: 'desactivar', mostrar: 'reactivar', foto: 'agregar_imagen', articulo: 'articulo',
+  precio: 'actualizar', frescura: 'actualizar', stock: 'stock', ocultar: 'desactivar', mostrar: 'reactivar', foto: 'agregar_imagen', articulo: 'articulo',
   articulo_ocultar: 'articulo', imagen: 'imagen', cancelar: 'publicar', borrar: 'borrar', whatsapp: 'whatsapp',
   limpiar_muestras: 'limpiar_muestras', deshacer: 'deshacer', pausa: 'pausa', reanudar: 'reanudar', ids: 'ids'
 };
@@ -74,21 +74,33 @@ if (c === 'precio') {
   return W3({ op: 'actualizar', entidad: 'producto', id: id0, campos: campos });
 }
 if (c === 'stock') {
-  const U = ['/stock prd-0001 M 5 (total), M +2 (llegaron), M -1 (vendido); varias tallas: /stock prd-0001 S 3 M 5', '/stock prd-0001 M 5'];
+  // v2: "/stock <id> <color> <n>" (stock por color, 0 a 20; el color puede tener varias palabras: "Blanco hueso 5").
+  // Si el nombre no es un color del producto se prueba como talla (v1: "/stock prd-0001 M 5"). Lo decide WF3, que tiene el catálogo.
+  const U = ['/stock prd-0001 Blanco 5 (total de ese color, de 0 a 20), Blanco +2 (llegaron), Blanco -1 (vendido); varios colores: /stock prd-0001 Blanco 5 Arena 3', '/stock prd-0001 Blanco 5'];
   const r = args.slice(1);
-  if (!reP.test(id0) || !r.length || r.length % 2) return uso(U[0], U[1]);
-  const st = [];
+  if (!reP.test(id0) || !r.length) return uso(U[0], U[1]);
+  const items = [];
+  let palabras = [];
   let modo = null;
-  for (let i = 0; i < r.length; i += 2) {
-    const talla = nbTalla(r[i]);
-    const m = /^([+-]?)(\d{1,4})$/.exec(r[i + 1].replace('−', '-'));
-    if (!talla || !m || st.some(function (s) { return s.talla === talla; })) return uso(U[0], U[1]);
+  for (const a of r) {
+    const m = /^([+-]?)(\d{1,4})$/.exec(a.replace('−', '-'));
+    if (!m) { palabras.push(a); continue; }
+    const clave = textoSeguro(palabras.join(' '), 24);
+    palabras = [];
+    if (!clave || items.some(function (x) { return claveColor(x.clave) === claveColor(clave); })) return uso(U[0], U[1]);
     const md = m[1] === '+' ? 'sumar' : m[1] === '-' ? 'restar' : 'fijar';
-    if (modo && modo !== md) return R('En un mismo /stock usa solo totales (M 5), solo sumas (M +2) o solo restas (M -1).\nSiguiente paso: envía un /stock por cada tipo de cambio.');
+    if (modo && modo !== md) return R('En un mismo /stock usa solo totales (Blanco 5), solo sumas (Blanco +2) o solo restas (Blanco -1).\nSiguiente paso: envía un /stock por cada tipo de cambio.');
     modo = md;
-    st.push({ talla: talla, cantidad: Number(m[2]) });
+    items.push({ clave: clave, cantidad: Number(m[2]) });
   }
-  return W3({ op: 'stock', entidad: 'producto', id: id0, campos: { stock_tallas: st, stock_modo: modo } });
+  if (palabras.length || !items.length || items.length > 8) return uso(U[0], U[1]);
+  return W3({ op: 'stock', entidad: 'producto', id: id0, campos: { stock_items: items, stock_modo: modo } });
+}
+if (c === 'frescura') {
+  // v2: índice de frescura (1 a 5 hojitas) que se ve en la web.
+  const n = /^[1-5]$/.test(args[1] || '') ? Number(args[1]) : null;
+  if (!reP.test(id0) || n === null || args.length > 2) return uso('/frescura prd-0001 5 (de 1 a 5 hojitas: lino 5, algodón 4, dri-fit 3, denim 2)', '/frescura prd-0001 5');
+  return W3({ op: 'actualizar', entidad: 'producto', id: id0, campos: { frescura: n } });
 }
 if (c === 'ocultar' || c === 'mostrar') {
   if (!reP.test(id0) && !reA.test(id0)) return uso('/' + c + ' prd-0001 (o un artículo: art-0001)', '/' + c + ' prd-0001');
@@ -164,13 +176,22 @@ if (q.cmd === 'ver') {
     const p = P.find(function (x) { return x.id === q.id; });
     if (!p) return [{ json: enviar(t.chat_id, 'No existe ' + h(q.id) + ' en el catálogo publicado.\nSiguiente paso: usa /lista para ver los ids.') }];
     const spt = p.stock_por_talla || {};
-    L = ['<b>' + h(p.id) + ' · ' + h(p.nombre) + '</b>', 'categoría: ' + h(p.categoria) + ' / ' + h(p.subcategoria || 'otros'), 'precio: ' + precio(p),
-      'tallas y stock: ' + h((p.tallas || []).map(function (k) { return k + ' ' + (Number(spt[k]) || 0); }).join(', ')) + ' (total ' + (Number(p.stock) || 0) + ')',
-      'colores: ' + nbValor('colores', p.colores || []), p.material ? 'material: ' + h(p.material) : '',
+    const spc = p.stock_por_color && typeof p.stock_por_color === 'object' ? p.stock_por_color : null;
+    const fr = inferirFrescura(p);
+    const color1 = ((p.colores || [])[0] || {}).nombre || 'Blanco';
+    // v2: con stock_por_color la disponibilidad va por color (0 = agotado) y el stock por talla no se suma.
+    const lineaStock = spc
+      ? ['tallas: ' + h((p.tallas || []).join(' ')),
+        'stock por color: ' + h((p.colores || []).map(function (x) { const q = Number(spc[x.nombre]) || 0; return x.nombre + ' ' + q + (q === 0 ? ' (agotado)' : ''); }).join(', ')) + ' (total ' + (Number(p.stock) || 0) + ')']
+      : ['tallas y stock: ' + h((p.tallas || []).map(function (k) { return k + ' ' + (Number(spt[k]) || 0); }).join(', ')) + ' (total ' + (Number(p.stock) || 0) + ')',
+        'colores: ' + nbValor('colores', p.colores || [])];
+    L = ['<b>' + h(p.id) + ' · ' + h(p.nombre) + '</b>', 'categoría: ' + h(p.categoria) + ' / ' + h(p.subcategoria || 'otros'), 'precio: ' + precio(p)].concat(lineaStock, [
+      p.material ? 'material: ' + h(p.material) : '',
+      'frescura: ' + nbHojitas(fr.valor) + (fr.valor !== null && fr.fuente !== 'dato' ? ' (calculada por la tela)' : ''),
       'visible en la web: ' + (p.activo === false ? 'no' : 'sí') + ' · muestra: ' + (p.muestra ? 'sí' : 'no') + ' · destacado: ' + (p.destacado ? 'sí' : 'no'),
       'fotos: ' + (p.imagenes || []).length + ((p.imagenes || []).some(function (i) { return i.origen === 'ia_local'; }) ? ' (alguna generada con IA)' : ''),
-      p.descripcion ? 'descripción: ' + h(textoSeguro(p.descripcion, 300)) : ''].filter(Boolean);
-    sig = 'Siguiente paso: para cambiarlo usa /precio ' + p.id + ' 69.90, /stock ' + p.id + ' M 5 o /' + (p.activo === false ? 'mostrar ' : 'ocultar ') + p.id + '.';
+      p.descripcion ? 'descripción: ' + h(textoSeguro(p.descripcion, 300)) : '']).filter(Boolean);
+    sig = 'Siguiente paso: para cambiarlo usa /precio ' + p.id + ' 69.90, /stock ' + p.id + ' ' + h(spc ? color1 + ' 5' : 'M 5') + ', /frescura ' + p.id + ' 5 o /' + (p.activo === false ? 'mostrar ' : 'ocultar ') + p.id + '.';
   } else {
     const a = A.find(function (x) { return x.id === q.id; });
     if (!a) return [{ json: enviar(t.chat_id, 'No existe ' + h(q.id) + ' entre los artículos publicados.\nSiguiente paso: usa /lista articulos para ver los ids.') }];

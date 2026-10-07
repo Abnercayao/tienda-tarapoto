@@ -3,23 +3,38 @@
 // (usa validarOperacion, puede, textoSeguro, TALLAS..., h, enviar, censurar). Prefijo "nb" para no chocar con ellos.
 const NB_ETIQUETA = {
   nombre: 'nombre', categoria: 'categoría', subcategoria: 'subcategoría', precio: 'precio', precio_oferta: 'precio de oferta',
-  tallas: 'tallas', stock_tallas: 'stock por talla', stock_modo: 'modo de stock', colores: 'colores', material: 'material',
-  descripcion: 'descripción', etiquetas: 'etiquetas', alt_imagen: 'descripción de la foto', destacado: 'destacado',
+  tallas: 'tallas', stock_tallas: 'stock por talla', stock_por_color: 'stock por color', stock_modo: 'modo de stock', colores: 'colores',
+  material: 'material', frescura: 'frescura', descripcion: 'descripción', etiquetas: 'etiquetas', alt_imagen: 'descripción de la foto', destacado: 'destacado',
   id: 'id del producto', foto: 'la foto', campos: 'qué quieres cambiar', titulo: 'título', resumen: 'resumen', bloques: 'contenido',
   productos_relacionados: 'productos relacionados', alt_portada: 'descripción de la portada', tema: 'tema'
 };
 const NB_EJEMPLO = {
   nombre: 'nombre Polo de lino', categoria: 'categoría hombres', precio: 'precio 59.90', tallas: 'tallas S M L', colores: 'colores azul, blanco',
-  id: 'prd-0003', stock_tallas: 'M 5, L 3', foto: 'envía la foto', campos: 'precio 59.90', titulo: 'título del artículo'
+  id: 'prd-0003', stock_tallas: 'M 5, L 3', stock_por_color: 'blanco 5, arena 3 (o 10 por color)', foto: 'envía la foto',
+  campos: 'precio 59.90', titulo: 'título del artículo'
 };
 const NB_DOBLE = ['eliminar', 'limpiar_muestras', 'deshacer', 'whatsapp'];
 // Solo estos faltantes bloquean el botón Publicar (el LLM suele listar también opcionales como material o descripción).
 const NB_REQUERIDOS = {
-  producto: { crear: ['nombre', 'categoria', 'precio', 'tallas', 'colores'], actualizar: ['id', 'campos'], stock: ['id', 'stock_tallas'],
+  producto: { crear: ['nombre', 'categoria', 'precio', 'tallas', 'colores'], actualizar: ['id', 'campos'], stock: ['id', 'stock_por_color', 'stock_tallas'],
     agregar_imagen: ['id', 'foto'], desactivar: ['id'], reactivar: ['id'] },
   articulo: { crear: ['titulo', 'bloques', 'tema'], actualizar: ['id', 'campos'], desactivar: ['id'], reactivar: ['id'] }
 };
-const NB_PLANTILLA = 'nombre: \ncategoria: hombres / mujeres / ninos / accesorios\nprecio: \ntallas: \ncolores: ';
+const NB_PLANTILLA = 'nombre: \ncategoria: hombres / mujeres / ninos / accesorios\nprecio: \ntallas: \ncolores: \nstock por color: \nmaterial: ';
+// v2: hojitas de frescura ("5/5 hojitas") y stock por color ("Blanco 10, Arena 3") para la vista previa y /ver.
+function nbHojitas(n) { return Number.isInteger(n) && n >= 1 && n <= 5 ? n + '/5 hojitas' : '—'; }
+function nbStockColores(v) {
+  if (Array.isArray(v)) return v.map(function (x) { return textoSeguro(x && x.color, 24) + ' ' + (x && x.cantidad); }).join(', ');
+  return v && typeof v === 'object' ? Object.keys(v).map(function (k) { return k + ' ' + v[k]; }).join(', ') : '';
+}
+// Nombre EXACTO del color del producto p que corresponde a lo que escribió el dueño ("blanca" = "Blanco"), o null.
+function nbColorDe(p, texto) {
+  const nombres = (p && Array.isArray(p.colores) ? p.colores : []).map(function (c) { return c && typeof c === 'object' ? c.nombre : c; }).filter(Boolean);
+  const k = claveColor(texto);
+  if (!k) return null;
+  const base = function (x) { return x.split(' ').map(function (w) { return w.replace(/s$/, '').replace(/a$/, 'o'); }).join(' '); };
+  return nombres.find(function (n) { return claveColor(n) === k; }) || nombres.find(function (n) { return base(claveColor(n)) === base(k); }) || null;
+}
 function nbJSON(s, d) { if (s === null || s === undefined || s === '') return d; if (typeof s !== 'string') return s; try { return JSON.parse(s); } catch (e) { return d; } }
 function nbVacio(v) { return v === null || v === undefined || v === '' || (Array.isArray(v) && !v.length); }
 function nbEjecutado(nombre) { try { return $(nombre).isExecuted === true; } catch (e) { return false; } }
@@ -38,6 +53,8 @@ function nbValor(k, v) {
   if (k === 'precio' || k === 'precio_oferta') s = Number(v) === 0 ? 'sin oferta' : nbSoles(v);
   else if (k === 'tallas') s = v.join(' ');
   else if (k === 'stock_tallas') s = v.map(function (x) { return x.talla + ': ' + x.cantidad; }).join(', ');
+  else if (k === 'stock_por_color') s = nbStockColores(v);
+  else if (k === 'frescura') s = nbHojitas(v);
   else if (k === 'colores') s = v.map(function (c) { return c && typeof c === 'object' ? c.nombre : c; }).join(', ');
   else if (k === 'etiquetas' || k === 'productos_relacionados') s = v.join(', ');
   else if (k === 'destacado') s = v ? 'sí' : 'no';
@@ -91,7 +108,7 @@ function nbEvaluarIA(r, c, cat, primero) {
 }
 function nbOpVacia(tipo) {
   const campos = {};
-  (tipo === 'articulo' ? CAMPOS_LLM_ARTICULO : CAMPOS_LLM_PRODUCTO).forEach(function (k) { campos[k] = ['tallas', 'stock_tallas', 'colores', 'etiquetas', 'bloques', 'productos_relacionados'].indexOf(k) >= 0 ? [] : null; });
+  (tipo === 'articulo' ? CAMPOS_LLM_ARTICULO : CAMPOS_LLM_PRODUCTO).forEach(function (k) { campos[k] = ['tallas', 'stock_tallas', 'stock_por_color', 'colores', 'etiquetas', 'bloques', 'productos_relacionados'].indexOf(k) >= 0 ? [] : null; });
   return { op: 'crear', entidad: tipo === 'articulo' ? 'articulo' : 'producto', id: null, campos: campos, campos_inferidos: [], faltantes: [] };
 }
 function nbNumero(s) {
@@ -131,7 +148,21 @@ function nbPlantilla(texto) {
     else if (k === 'colores' || k === 'color') { const l = v.split(/,|\s+y\s+|\//).map(function (x) { return textoSeguro(x, 24); }).filter(Boolean).slice(0, 8); if (l.length) { c.colores = l; n++; } }
     else if (k === 'material' || k === 'tela') { c.material = textoSeguro(v, 60); n++; }
     else if (k === 'descripcion') { c.descripcion = textoSeguro(v, 600); n++; }
+    else if (k === 'frescura') { const f = parseInt(v, 10); if (f >= 1 && f <= 5) { c.frescura = f; n++; } }
+    else if (k === 'stock por color' || k === 'stock') {
+      // "10 por color" / "10 de cada color" / "10" -> la misma cantidad en todos los colores; "blanco 5, arena 3" -> por color.
+      const cada = /^(\d{1,2})(?:\s+(?:por|de cada|cada)\s+colou?r)?$/i.exec(v);
+      if (cada) { c.stock_por_color = [{ color: '*', cantidad: Number(cada[1]) }]; n++; return; }
+      const pares = [];
+      v.split(/,|;|\s+y\s+/).forEach(function (x) { const m = /^\s*(.+?)\s*[:=]?\s*(\d{1,2})\s*$/.exec(x); if (m) pares.push({ color: textoSeguro(m[1], 24), cantidad: Number(m[2]) }); });
+      if (pares.length) { c.stock_por_color = pares; n++; }
+    }
   });
+  // "10 por color": se expande con los colores (que pueden venir en una línea posterior).
+  if (c.stock_por_color.length === 1 && c.stock_por_color[0].color === '*') {
+    const q = c.stock_por_color[0].cantidad;
+    c.stock_por_color = c.colores.map(function (x) { return { color: x, cantidad: q }; });
+  }
   return n ? op : null;
 }
 // Completar un borrador: lo que el dueño dice ahora pisa lo anterior; lo que la IA deduce de nuevo NO pisa lo que ya había.
@@ -174,6 +205,12 @@ function nbPostChequeo(op, cat) {
     if (op.op === 'reactivar' && p.activo !== false) err.push(op.id + ' ya está visible');
     if (op.op === 'stock') {
       const perm = TALLAS_POR_CATEGORIA[p.categoria] || [];
+      // v2 (CONTRATO 0.3): con stock_por_color la disponibilidad se lleva por color; el stock por talla no se suma.
+      if (!nbVacio(c.stock_tallas) && p.stock_por_color && typeof p.stock_por_color === 'object') {
+        const col = (p.colores || []).map(function (x) { return x.nombre; });
+        err.push(op.id + ' lleva el stock por color (' + col.join(', ') + '): usa /stock ' + op.id + ' ' + (col[0] || 'Blanco') + ' 5');
+        return err;
+      }
       (c.stock_tallas || []).forEach(function (s) {
         if ((p.tallas || []).indexOf(s.talla) < 0 && perm.indexOf(s.talla) < 0) err.push('la talla ' + s.talla + ' no corresponde a ' + p.categoria);
         const actual = Number(p.stock_por_talla && p.stock_por_talla[s.talla]) || 0;
@@ -201,10 +238,31 @@ function nbEvaluarOperacion(o, cat, texto, nFotos) {
   const ent = String(o.entidad || 'producto');
   const c = Object.assign({}, o.campos || {});
   const P = cat.productos, A = cat.articulos, S = cat.sitio;
+  if (op === 'stock' && Array.isArray(c.stock_items)) {
+    // "/stock <id> <color|talla> <n> ...": cada nombre que coincide con un color del producto va a stock_por_color;
+    // si no, se prueba como talla (compatibilidad v1). Lo decide WF3 porque WF4 no tiene el catálogo.
+    const p = P.find(function (x) { return x.id === o.id; });
+    if (!p) return res(false, ['el producto ' + textoSeguro(o.id || '?', 20) + ' no existe']);
+    const porColor = [], porTalla = [];
+    for (const it of c.stock_items) {
+      const color = nbColorDe(p, it && it.clave);
+      const talla = color ? null : nbTalla(it && it.clave);
+      if (color) porColor.push({ color: color, cantidad: Number(it.cantidad) });
+      else if (talla) porTalla.push({ talla: talla, cantidad: Number(it.cantidad) });
+      else return res(false, [p.id + ' no tiene el color ' + textoSeguro(it && it.clave, 24) + ' (colores: ' + (p.colores || []).map(function (x) { return x.nombre; }).join(', ') + ')']);
+    }
+    if (porColor.length && porTalla.length) return res(false, ['en un mismo /stock usa solo colores o solo tallas']);
+    delete c.stock_items;
+    c.stock_por_color = porColor; c.stock_tallas = porTalla;
+  }
   if (OPS_LLM.indexOf(op) >= 0 && (ent === 'producto' || ent === 'articulo')) {
     const v = validarOperacion({ op: op, entidad: ent, id: o.id || null, campos: c, campos_inferidos: [], faltantes: [] },
       { texto: String(texto || '') + ' ' + (o.id || ''), productos: P, articulos: A, hayFoto: nFotos > 0 });
     v.avisos = v.avisos.filter(function (a) { return !/^\[(id_inferido|op_corregida)\]/.test(a); });
+    // Un comando que no cambia nada (p. ej. /frescura con el mismo valor): respuesta directa, sin borrador.
+    if (v.ok && op === 'actualizar' && v.faltantes.indexOf('campos') >= 0 && v.faltantes.indexOf('id') < 0) {
+      return res(false, [], null, [], 'No hay nada que cambiar: ' + h(o.id) + ' ya tiene esos datos.\nSiguiente paso: revisa el producto con /ver ' + h(o.id) + '.');
+    }
     return v;
   }
   if (op === 'eliminar') {
@@ -257,10 +315,16 @@ function nbVistaPrevia(x) {
     stock: 'cambiar stock', agregar_imagen: 'agregar foto', eliminar: 'ELIMINAR', limpiar_muestras: 'QUITAR PRODUCTOS DE MUESTRA', whatsapp: 'cambiar WhatsApp', deshacer: 'DESHACER el último cambio' })[o.op] || o.op;
   const nombre = prod ? prod.nombre : art ? art.titulo : '';
   L.push('<b>Borrador ' + h(x.draft_id) + '</b>: ' + h(titulo) + (o.id && o.op !== 'deshacer' && o.entidad !== 'sitio' ? ' ' + h(o.id) : '') + (nombre ? ' · ' + h(textoSeguro(nombre, 60)) : ''));
-  const ORDEN_P = ['nombre', 'categoria', 'subcategoria', 'precio', 'precio_oferta', 'tallas', 'stock_tallas', 'colores', 'material', 'descripcion', 'etiquetas', 'destacado'];
+  const ORDEN_P = ['nombre', 'categoria', 'subcategoria', 'precio', 'precio_oferta', 'tallas', 'stock_tallas', 'colores', 'material', 'frescura', 'descripcion', 'etiquetas', 'destacado'];
   if (o.entidad === 'producto' && o.op === 'crear') {
     ORDEN_P.forEach(function (k) { if (!nbVacio(c[k])) L.push(NB_ETIQUETA[k] + ': ' + nbValor(k, c[k]) + ia(k)); });
-    if (nbVacio(c.stock_tallas) && !nbVacio(c.tallas)) L.push('stock: 1 por talla (asumido; ajústalo luego con /stock)');
+    if (nbVacio(c.frescura)) L.push('frescura: — (no reconocí la tela; puedes decir "frescura 4")');
+    if (!nbVacio(c.colores)) {
+      // Lo mismo que publicará WF5 (pbStockInicial de comun.js).
+      const si = pbStockInicial(pbNombresColor(c.colores), c.stock_por_color, c.stock_tallas);
+      L.push('stock por color: ' + h(nbStockColores(si.spc)) + ' (total ' + si.total + ')' +
+        (si.modo === 'asumido' ? ' — asumido, ajústalo luego con /stock' : si.modo === 'repartido' ? ' — repartido del stock por talla' : '') + ia('stock_por_color'));
+    }
     L.push('fotos: ' + (x.nFotos ? x.nFotos : 'ninguna (la web mostrará un marcador; agrégala luego con /foto)'));
     resumen = textoSeguro((c.nombre || 'producto nuevo') + (typeof c.precio === 'number' ? ' ' + nbSoles(c.precio) : ''), 300);
   } else if (o.entidad === 'producto' && o.op === 'actualizar' && prod) {
@@ -269,9 +333,26 @@ function nbVistaPrevia(x) {
       if (nbVacio(c[k]) && !(k === 'precio_oferta' && c[k] === 0)) return;
       const antes = k === 'precio_oferta' && prod.precio_oferta === undefined ? 'sin oferta' : nbValor(k, prod[k]);
       L.push(NB_ETIQUETA[k] + ': ' + antes + ' → ' + nbValor(k, c[k]) + ia(k));
-      cambios.push(k === 'precio' || k === 'precio_oferta' ? NB_ETIQUETA[k] + ' ' + (c[k] === 0 ? 'sin oferta' : Number(c[k]).toFixed(2)) : NB_ETIQUETA[k]);
+      cambios.push(k === 'precio' || k === 'precio_oferta' ? NB_ETIQUETA[k] + ' ' + (c[k] === 0 ? 'sin oferta' : Number(c[k]).toFixed(2)) : k === 'frescura' ? 'frescura ' + c[k] : NB_ETIQUETA[k]);
     });
+    if (!nbVacio(c.colores)) {
+      const spc = pbStockTrasColores(prod.stock_por_color, pbNombresColor(c.colores));
+      L.push('stock por color: ' + h(nbStockColores(spc)) + ' (los colores nuevos empiezan en 0; ajústalos con /stock)');
+    }
     resumen = textoSeguro(prod.nombre + ': ' + cambios.join(', '), 300);
+  } else if (o.op === 'stock' && prod && !nbVacio(c.stock_por_color)) {
+    // v2: stock por color (0 a 20), con aplicarStockColor() de validar.js: lo mismo que hará WF5.
+    const modo = c.stock_modo || 'fijar';
+    const r = aplicarStockColor(prod, c.stock_por_color, modo);
+    const antes = prod.stock_por_color && typeof prod.stock_por_color === 'object' ? prod.stock_por_color : {};
+    const signo = modo === 'sumar' ? '+' : modo === 'restar' ? '−' : '';
+    c.stock_por_color.forEach(function (s) {
+      const nombre = nbColorDe(prod, s.color) || s.color;
+      const a = Number(antes[nombre]) || 0;
+      L.push('stock ' + h(nombre) + ': ' + a + ' → ' + r.stock_por_color[nombre] + (signo ? ' (' + signo + s.cantidad + ')' : '') + (r.stock_por_color[nombre] === 0 ? ' · agotado' : ''));
+    });
+    L.push('stock total: ' + (Number(prod.stock) || 0) + ' → ' + r.stock);
+    resumen = textoSeguro(prod.nombre + ': stock ' + c.stock_por_color.map(function (s) { return (nbColorDe(prod, s.color) || s.color) + ' ' + (modo === 'sumar' ? '+' : modo === 'restar' ? '-' : '') + s.cantidad; }).join(', '), 300);
   } else if (o.op === 'stock' && prod) {
     const modo = c.stock_modo || 'fijar';
     (c.stock_tallas || []).forEach(function (s) {
@@ -347,7 +428,8 @@ function nbAyuda(rol, nombre, saludo) {
   if (saludo) L.push('Hola' + (nombre ? ' ' + h(textoSeguro(nombre, 40)) : '') + ', soy el bot privado de Palmera Brava. Tu rol: ' + h(rol) + '.');
   L.push('<b>Producto nuevo</b>: envía una foto (o varias) con una leyenda como "Polo de lino para hombre, 59.90, tallas S M L, azul". Preparo un borrador y tú tocas Publicar.');
   L.push('<b>Consultas</b>: /lista [hombres|mujeres|ninos|accesorios|articulos|ocultos], /ver prd-0001, /estado, /historial');
-  L.push('<b>Cambios</b> (siempre con borrador y botón Publicar): /precio prd-0001 69.90 [oferta 59.90 | sin oferta], /stock prd-0001 M 5 L +2 S -1, /ocultar prd-0001, /mostrar prd-0001, /foto prd-0001 (como leyenda de una foto), /cancelar');
+  L.push('<b>Cambios</b> (siempre con borrador y botón Publicar): /precio prd-0001 69.90 [oferta 59.90 | sin oferta], /stock prd-0001 Blanco 5 (stock por color, de 0 a 20; Blanco +2 si llegaron, Blanco -1 si vendiste; varios: Blanco 5 Arena 3), /frescura prd-0001 5 (de 1 a 5 hojitas), /ocultar prd-0001, /mostrar prd-0001, /foto prd-0001 (como leyenda de una foto), /cancelar');
+  L.push('<b>Producto nuevo con stock</b>: "Polo de lino blanco y arena, 59.90, tallas S M L, 10 por color". La frescura se sugiere por la tela (lino 5, algodón 4, dri-fit 3, denim 2).');
   L.push('<b>Contenido</b>: /articulo tema, /articulo_ocultar art-0001, /imagen [art-0001|look-1] descripción');
   if (rol === 'admin' || rol === 'dueno') L.push('<b>Delicado</b> (doble confirmación): /borrar prd-0001, /whatsapp 51987654321, /limpiar_muestras, /deshacer, /pausa, /reanudar');
   if (rol === 'admin') L.push('<b>Admin</b>: /ids (quién escribió sin estar autorizado)');

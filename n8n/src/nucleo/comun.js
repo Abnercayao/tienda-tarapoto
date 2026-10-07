@@ -64,4 +64,46 @@ function admins(cfg) {
   return a.length ? a : (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'dueno'; });
 }
 function isoLima(ms) { const d = new Date((ms === undefined ? Date.now() : ms) - 5 * 3600000); return d.toISOString().slice(0, 19) + '-05:00'; }
+// v2 (CONTRATO 0.3): stock inicial por color de un producto NUEVO. Lo usan la vista previa (WF3) y "Aplicar lote" (WF5),
+// así lo que el dueño aprueba es lo que se publica. Requiere el bloque de validar.js (aplicarStockColor, MAX_STOCK_COLOR,
+// STOCK_COLOR_ASUMIDO). nombres = nombres finales de colores; porColor = [{color, cantidad}]; porTalla = [{talla, cantidad}].
+//   1) hay cantidades por color -> esas ("10 por color"); un color sin cantidad empieza en 0.
+//   2) solo hay cantidades por talla -> el total se reparte entre los colores (máx. MAX_STOCK_COLOR cada uno).
+//   3) nada -> STOCK_COLOR_ASUMIDO por color (la vista previa lo avisa: "corrígelo con /stock").
+// Devuelve { ok, errores[], spc: {nombre: n}, total, modo: 'color'|'repartido'|'asumido' }.
+function pbStockInicial(nombres, porColor, porTalla) {
+  const n = (Array.isArray(nombres) ? nombres : []).filter(function (x) { return typeof x === 'string' && x; });
+  const spc = {};
+  if (Array.isArray(porColor) && porColor.length) {
+    const r = aplicarStockColor({ colores: n }, porColor, 'fijar');
+    return { ok: r.ok, errores: r.errores, spc: r.stock_por_color, total: r.stock, modo: 'color' };
+  }
+  const total = (Array.isArray(porTalla) ? porTalla : []).reduce(function (s, x) { const q = Math.floor(Number(x && x.cantidad)); return s + (q > 0 ? q : 0); }, 0);
+  const modo = total > 0 && n.length ? 'repartido' : 'asumido';
+  n.forEach(function (nombre, i) {
+    spc[nombre] = modo === 'repartido' ? Math.min(MAX_STOCK_COLOR, Math.floor(total / n.length) + (i < total % n.length ? 1 : 0)) : STOCK_COLOR_ASUMIDO;
+  });
+  return { ok: true, errores: [], spc: spc, total: Object.keys(spc).reduce(function (s, k) { return s + spc[k]; }, 0), modo: modo };
+}
+// Al cambiar los colores de un producto: los que siguen conservan su cantidad (mismo color sin contar mayúsculas ni tildes),
+// los nuevos empiezan en 0 y los quitados desaparecen. previo = stock_por_color actual; nombres = colores nuevos.
+function pbStockTrasColores(previo, nombres) {
+  const ant = previo && typeof previo === 'object' && !Array.isArray(previo) ? previo : {};
+  const out = {};
+  (nombres || []).forEach(function (n) {
+    const k = Object.keys(ant).find(function (x) { return claveColor(x) === claveColor(n); });
+    out[n] = k !== undefined && Number.isInteger(ant[k]) && ant[k] >= 0 ? Math.min(ant[k], MAX_STOCK_COLOR) : 0;
+  });
+  return out;
+}
+// Nombres de color finales (como los guarda WF5): colorHex() de validar.js, sin repetidos (claveColor).
+function pbNombresColor(lista) {
+  const out = [], vistos = [];
+  (Array.isArray(lista) ? lista : []).slice(0, 8).forEach(function (x) {
+    const nombre = colorHex(x && typeof x === 'object' ? x.nombre : x).nombre;
+    const k = claveColor(nombre);
+    if (vistos.indexOf(k) < 0) { vistos.push(k); out.push(nombre); }
+  });
+  return out;
+}
 // --- fin comun.js ---
