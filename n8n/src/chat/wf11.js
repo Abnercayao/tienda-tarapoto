@@ -130,6 +130,8 @@ const mN = sinTildes(v.mensaje).toLowerCase();
 if (['interes_servicio', 'otro', 'consulta_producto'].indexOf(intencion) >= 0 && !negativo(v.mensaje) && !/\bsin (reuni|cita)|\bno (quiero|deseo|necesito|busco) (una |ninguna )?(reuni|cita)/.test(mN) &&
   (/\b(agend\w*|reuni\w*|citas?|conversar con abner|hablar con abner)\b/.test(mN) || /@/.test(v.mensaje))) intencion = 'agendar';
 let respuesta = limpiarRespuesta(llm.respuesta);
+// Los códigos internos (prd-0028) no se muestran al visitante aunque el modelo los copie del catálogo.
+respuesta = respuesta.replace(/\s*\(\s*(c[oó]digo:?\s*)?prd-\d{4,6}\s*\)/gi, '').replace(/\b(c[oó]digo:?\s*)?prd-\d{4,6}\b\s*/gi, '').replace(/\s+([,.;:!?])/g, '$1').replace(/\s{2,}/g, ' ').trim() || respuesta;
 // "No tengo esa información": siempre ofrecer el WhatsApp de la tienda.
 if (/\bno (tengo|cuento con) (esa |esta |mas )?informacion|\bno (lo )?se\b|\bno puedo ayudarte con eso/.test(sinTildes(respuesta).toLowerCase()) && !/wa\.me|whatsapp/i.test(respuesta)) {
   respuesta = unir(respuesta, 'Puedes confirmarlo por WhatsApp: ' + p.whatsapp);
