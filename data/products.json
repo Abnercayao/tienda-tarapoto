@@ -1,10 +1,11 @@
 {
   "$schema": "./schema/products.schema.json",
   "schema_version": 3,
-  "version": 4,
-  "actualizado": "2026-10-07T10:00:00-05:00",
+  "version": 5,
+  "actualizado": "2026-10-08T18:26:33-05:00",
   "borradores_aplicados": [
-    "drf-muxzhknxoc"
+    "drf-muxzhknxoc",
+    "drf-mv05zsguvl"
   ],
   "moneda": "PEN",
   "productos": [
@@ -2433,6 +2434,45 @@
       "muestra": true,
       "fecha_creacion": "2026-10-07T09:00:00-05:00",
       "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
+    },
+    {
+      "id": "prd-0038",
+      "slug": "vestido-emily",
+      "nombre": "Vestido Emily",
+      "categoria": "mujeres",
+      "subcategoria": "vestidos",
+      "precio": 60,
+      "tallas": [
+        "XS",
+        "S",
+        "M"
+      ],
+      "colores": [
+        {
+          "nombre": "Verde",
+          "hex": "#2E7D4F"
+        }
+      ],
+      "stock_por_color": {
+        "Verde": 1
+      },
+      "stock": 1,
+      "descripcion": "",
+      "etiquetas": [],
+      "imagenes": [
+        {
+          "src": "assets/img/products/vestido-emily-1-f9ef7551.webp",
+          "alt": "Mujer con cabello recogido en moño alto usando un vestido de una sola pieza de color verde oliva. El vestido tiene mangas cortas asimétricas y un corte...",
+          "origen": "foto",
+          "ancho": 675,
+          "alto": 1200
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": false,
+      "fecha_creacion": "2026-10-08T18:26:33-05:00",
+      "fecha_actualizacion": "2026-10-08T18:26:33-05:00"
     }
   ]
 }
