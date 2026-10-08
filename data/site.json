@@ -51,14 +51,14 @@
     "imagenes": [
       {
         "src": "assets/img/brand/hero-old-money.webp",
-        "alt": "Polo de punto calado crema con pantalón de lino plisado beige en un modelo adulto, encuadre sin rostro, frente a una pared colonial con sombras de palmera",
+        "alt": "Polo de punto calado crema con pantalón de lino plisado beige en un modelo adulto, frente a una pared colonial con sombras de palmera",
         "origen": "ia_local",
         "ancho": 1344,
         "alto": 768
       },
       {
         "src": "assets/img/brand/hero-1.webp",
-        "alt": "Camisa de lino arena y vestido terracota en modelos adultos, encuadre sin rostro, frente a una pared cálida con sombras de palmera",
+        "alt": "Camisa de lino arena y vestido terracota en modelos adultos, frente a una pared cálida con sombras de palmera",
         "origen": "ia_local",
         "ancho": 1344,
         "alto": 768
@@ -81,7 +81,7 @@
       "descripcion": "Camisas de lino, polos, pantalones, shorts y calzado; también la línea old money.",
       "imagen": {
         "src": "assets/img/brand/cat-hombres.webp",
-        "alt": "Guayabera blanca en un modelo adulto, encuadre de hombros a cintura sin rostro",
+        "alt": "Guayabera blanca en un modelo adulto",
         "origen": "ia_local",
         "ancho": 768,
         "alto": 1024
@@ -126,7 +126,7 @@
       "descripcion": "Vestidos, blusas, pantalones, faldas y sandalias ligeras; también la línea old money.",
       "imagen": {
         "src": "assets/img/brand/cat-mujeres.webp",
-        "alt": "Vestido de lino en una modelo adulta, encuadre desde los hombros sin rostro",
+        "alt": "Vestido de lino en una modelo adulta",
         "origen": "ia_local",
         "ancho": 768,
         "alto": 1024
@@ -287,7 +287,7 @@
       "descripcion": "Blusa de gasa, short de lino y bolso de yute.",
       "imagen": {
         "src": "assets/img/lookbook/look-1.webp",
-        "alt": "Modelo adulta con blusa blanca de gasa, short verde de lino y bolso de yute en un mercado, encuadre sin rostro",
+        "alt": "Modelo adulta con blusa blanca de gasa, short verde de lino y bolso de yute en un mercado",
         "origen": "ia_local",
         "ancho": 768,
         "alto": 1024
@@ -304,7 +304,7 @@
       "descripcion": "Camisa de lino, bermuda y sandalias de cuero.",
       "imagen": {
         "src": "assets/img/lookbook/look-2.webp",
-        "alt": "Modelo adulto con camisa de lino arena, bermuda beige y sandalias de cuero junto a una laguna, encuadre de hombros a pies sin rostro",
+        "alt": "Modelo adulto con camisa de lino arena, bermuda beige y sandalias de cuero junto a una laguna",
         "origen": "ia_local",
         "ancho": 768,
         "alto": 1024
@@ -321,7 +321,7 @@
       "descripcion": "Vestido midi de lino terracota.",
       "imagen": {
         "src": "assets/img/lookbook/look-3.webp",
-        "alt": "Modelo adulta con vestido midi de lino terracota al atardecer, encuadre sin rostro",
+        "alt": "Modelo adulta con vestido midi de lino terracota al atardecer",
         "origen": "ia_local",
         "ancho": 768,
         "alto": 1024
