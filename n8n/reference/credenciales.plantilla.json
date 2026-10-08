@@ -16,5 +16,11 @@
     "name": "Header X-Tienda-Key",
     "type": "httpHeaderAuth",
     "data": { "name": "X-Tienda-Key", "value": "PEGAR_EN_LA_UI_DE_N8N" }
+  },
+  {
+    "id": "pbCredMercPago01",
+    "name": "Mercado Pago Prueba",
+    "type": "httpHeaderAuth",
+    "data": { "name": "Authorization", "value": "Bearer PEGAR_ACCESS_TOKEN_DE_PRUEBA" }
   }
 ]

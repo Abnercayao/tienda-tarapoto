@@ -1,9 +1,9 @@
 # Imágenes con IA local — Palmera Brava
 
-Las 47 imágenes del sitio se generaron **en este PC, sin servicios en la nube**:
+Las 101 imágenes del sitio se generaron **en este PC, sin servicios en la nube**:
 
-- 34 de producto: 16 de la primera tanda y **18 variantes por color**, añadidas el 2026-10-07.
-- 6 de marca: 2 hero y 4 de categoría.
+- 86 de producto: 16 de la primera tanda, **18 variantes por color** y, en la **v3**, **52 de los 20 productos nuevos** (`prd-0018` a `prd-0037`, con la línea old money). Ver [Lote v3](#lote-v3-línea-old-money-y-nuevas-subcategorías).
+- 8 de marca: 3 hero (`hero-old-money`, `hero-1`, `hero-2`), 4 de categoría y `col-old-money` (colección old money).
 - 4 del lookbook y 3 del blog.
 
 Se usó el motor de Open Generative AI (`sd-server` de stable-diffusion.cpp) con **Z-Image Turbo Q4_K** sobre una **RTX 5060 Ti de 8 GB**, por CUDA.
@@ -53,9 +53,51 @@ La columna **s gen.** cuenta los segundos de petición a sd-server medidos el 20
 - Sin recorte (768×1024): ≈ 13 s.
 - La primera imagen tarda más (24 s) porque el modelo se carga en caliente.
 
+## Lote v3: línea old money y nuevas subcategorías
+
+El 2026-10-07 se generaron **54 imágenes** (≈ 4,2 MB) para la v3:
+
+- **52 de producto**, una por color de `prd-0018` a `prd-0037` (5 productos por categoría). Aquí no hay foto `-1`: la primera foto ya es `prd-XXXX-<primer-color>.webp`. Seeds: `100 + n` para el primer color (`118`…`137`) y `10000 + 100·n + k` para los demás.
+- **`brand/hero-old-money.webp`** (1344×768, seed 205): torso de un adulto, sin rostro, con el polo de punto calado crema (`prd-0019`, el producto destacado del hero), pantalón de lino plisado beige y cinturón trenzado camel, frente a una pared encalada con contraventana. Se pide a 1344×1024 y se recortan 256 px de arriba. `data/site.json` ya la usa como primera imagen de `hero.imagenes` (el archivo se llama `hero-old-money`, con guion, igual que en el JSON).
+- **`brand/col-old-money.webp`** (768×1024): flat lay del conjunto old money (polo, pantalón azul marino, lentes carey, cinturón y mocasines).
+
+Tiempos: ≈ 13–14 s por imagen de 768×1024, ≈ 16–17 s con recorte (768×1216) y 26 s el hero (1344×1024). VRAM pico 5,8–6,3 GB. Tras el QA, `--force` reproduce byte a byte las imágenes con ajuste (comprobado en 5).
+
+**QA.** Se revisaron las 54 una por una, y cada producto con todos sus colores a la vez. Las dudas (plantillas, etiquetas de cuello) se ampliaron al 200–300 % con el GraphicsMagick de un **contenedor desechable** (ver [Cómo regenerar](#cómo-regenerar)). **18 no pasaron** y se regeneraron; sus seeds y textos están en `AJUSTES_QA`:
+
+| Imagen | Seed | Ajuste | Motivo |
+|---|---|---|---|
+| `prd-0021-camel` | 121 → 60121 | Sin camisa en la escena; paleta neutra; ante "caramel"; plantillas lisas | Etiqueta con letras en el cuello de la camisa, letras en la plantilla y franja verde. Con 40121 y 80121 el ante salía arena. |
+| `prd-0021-azul-marino` | 12101 → 72101 | Igual que el camel | Etiqueta en la camisa (12101, 32101); sellos tenues en las plantillas (52101, 92101). |
+| `prd-0024-champan` | 124 → 40124 | Paleta neutra; blusa de un solo color | Franjas y bloques azul y verde oliva en las mangas (124, 20124). |
+| `prd-0024-blanco-hueso` | 12401 → 32401 | Puños lisos | Marca negra con forma de número en el puño. |
+| `prd-0026-camel` | 126 → 80126 | Paleta neutra; un solo cuero camel; plantillas lisas | Salía beige con parches azul, verde y naranja (126, 20126); hebillas (40126); letras en la plantilla (60126). |
+| `prd-0026-negro` | 12602 → 32602 | Todo negro, plantilla incluida | Plantilla verde oliva y tiras que tiraban a azul. |
+| `prd-0028-blanco-hueso` | 128 → 40128 | Conjunto del mismo color; camisa abotonada hasta arriba | Mancha turquesa, bermuda naranja (no era conjunto) y etiqueta con letras en el cuello (128, 20128, 60128). |
+| `prd-0033-carey` | 133 → 20133 | Acetato con puente de ojo de cerradura; lunas lisas | Posible marca grabada en la luna. |
+| `prd-0033-negro` | 13301 → 33301 | Igual que el carey, en negro | Puente metálico: no coincidía con la montura del carey. |
+| `prd-0034-camel` | 134 → 60134 | Paleta neutra; trenzado hasta la hebilla, sin agujeros | Trenzado bicolor camel y azul (134, 20134); agujeros en la punta (40134, 80134), y la ficha dice que no tiene. |
+| `prd-0034-cacao` | 13401 → 33401 | Trenzado hasta la hebilla | Servilleta con estampado azul y naranja; agujeros en la punta. |
+| `prd-0034-azul-marino` | 13402 → 33402 | Trenzado hasta la hebilla | Agujeros en la punta; coherencia con los otros dos colores. |
+| `prd-0035-natural` | 135 → 40135 | Paleta neutra; rafia lisa | Franjas azul, terracota y verde que la ficha no tiene (135, 20135). |
+| `prd-0035-crema` | 13501 → 33501 | Rafia crema lisa, asas crema | Franjas de colores y mismo tono que el natural. |
+| `prd-0036-beige` | 136 → 20136 | Gorra lisa | Etiqueta blanca asomando por el lateral. |
+| `prd-0037-natural` | 137 → 20137 | Cinta lisa azul marino | Cinta con estampado de camuflaje. |
+| `prd-0037-blanco-hueso` | 13701 → 33701 | Cinta lisa azul marino | Cinta a rayas con etiqueta roja; debe coincidir con el natural. |
+| `brand/col-old-money` | 305 → 40305 | Polo abotonado con el cuello cerrado | Etiqueta con letras en el cuello del polo (305, 20305) y marcas en las plantillas. |
+
+**Lección del lote:** el sufijo "quiet luxury" del JSON pide una paleta "cream, warm beige, navy blue and olive green with touches of terracotta". En productos de **un solo color**, el modelo pintaba esos colores **en el producto** (franjas, parches, trenzados bicolores). El ajuste `sustituir` cambia esa frase por `PALETA_NEUTRA` ("warm neutrals… with the product as the only colored object"). Para nuevos productos old money de un color, conviene usar la paleta neutra desde el JSON.
+
+Aceptadas con observaciones menores:
+
+- `prd-0019-crema` tiene un punto más cerrado que el azul marino (calado). Ambos son polos de punto con tapeta; el hero muestra el crema.
+- `prd-0020-azul-marino` va sin basta vuelta; el beige y el blanco hueso la tienen. El prompt no la pide.
+- `prd-0028` (los dos colores) y `col-old-money` conservan una etiqueta interior de cuello diminuta, lisa o con trazos ilegibles. Se probaron 3 seeds más del celeste sin mejora, así que se dejó el original (12801).
+- `prd-0029-mango` tiene una pretina marcada que los otros dos colores no tienen.
+
 ## Reglas de contenido (control de calidad)
 
-Se revisaron una por una las 47 imágenes finales. Las 18 variantes se compararon **lado a lado con la foto original** del producto. En las que muestran personas, se amplió la franja superior (220 px) a tamaño real.
+Se revisaron una por una las 47 imágenes finales de la v2 (las 54 de la v3, en [su sección](#lote-v3-línea-old-money-y-nuevas-subcategorías)). Las 18 variantes se compararon **lado a lado con la foto original** del producto. En las que muestran personas, se amplió la franja superior (220 px) a tamaño real.
 
 | Regla | Cómo se cumple |
 |---|---|
@@ -65,13 +107,15 @@ Se revisaron una por una las 47 imágenes finales. Las 18 variantes se compararo
 | Prenda coherente con el producto, su `alt` y **las otras fotos del producto** | Se revisaron el color pedido, el tipo de prenda, el corte y la escena frente a `data/*.json` y frente a la foto `-1`. |
 | Sin texto, logos ni marcas de agua | Solo quedan etiquetas lisas diminutas en algunos cuellos (`hero-2`, `cat-ninos`), sin letras legibles. Se descartaron las sandalias con letras grabadas en la plantilla. |
 | Sin manos ni cuerpos deformes evidentes | Revisado. |
-| Peso ≤ 250 KB | Máximo: 158 KB. Total de las 47: ≈ 3,8 MB. Todas son WebP q80 con el tamaño exacto de `size`. |
+| Peso ≤ 250 KB | Máximo: 158 KB. Total de las 101: ≈ 7,9 MB (v3: máx. 152 KB). Todas son WebP q80 con el tamaño exacto de `size`. |
 
 ### Ajustes del control de calidad
 
-Estas 11 imágenes no pasaron el QA con la seed del JSON y se regeneraron. Los ajustes están en `AJUSTES_QA`, dentro de `tools/generar-imagenes.mjs`. Así, `--force` reproduce exactamente las imágenes aprobadas. En las 4 variantes se comprobó byte a byte.
+Estas 11 imágenes de la v2 no pasaron el QA con la seed del JSON y se regeneraron (las 18 de la v3 están en [su tabla](#lote-v3-línea-old-money-y-nuevas-subcategorías)). Los ajustes están en `AJUSTES_QA`, dentro de `tools/generar-imagenes.mjs`. Así, `--force` reproduce exactamente las imágenes aprobadas. En las 4 variantes se comprobó byte a byte.
 
 Cada ajuste solo se aplica si la entrada del JSON conserva su seed original. Si alguien pasa estas seeds y textos a `image-prompts.json`, manda el JSON y el ajuste queda inactivo.
+
+Un ajuste puede llevar `extra` (texto al final), `prompt` (prompt entero nuevo) y/o `sustituir` (`[[texto, reemplazo], …]` sobre el prompt del JSON). Si un texto de `sustituir` ya no aparece en el prompt, el script se detiene con un error en vez de generar otra cosa.
 
 | Imagen | Seed | Ajuste | Motivo |
 |---|---|---|---|
@@ -131,13 +175,18 @@ Requisitos:
   - En Git Bash, `cmd.exe /c …` falla: MSYS convierte `/c` en `C:/` y se abre un `cmd` interactivo.
   - Para comprobar que responde: `http://127.0.0.1:1234/sdcpp/v1/capabilities`.
   - Para apagarlo: `tools\detener-sd-server.bat`.
-- **El contenedor `n8n` encendido.** Su GraphicsMagick hace el recorte por tubería (`docker exec -i n8n gm convert png:- … webp:-`); no se escribe en su volumen ni se cambia su configuración.
+- **Un contenedor con GraphicsMagick** para recortar las imágenes con personas, por tubería (`docker exec -i <contenedor> gm convert png:- … webp:-`). Por defecto usa `n8n`, solo en lectura: no escribe en su volumen ni cambia su configuración. **Recomendado:** no tocar el n8n real y usar uno desechable:
+  ```powershell
+  docker run -d --rm --name pb-gm-desechable --entrypoint sleep docker.n8n.io/n8nio/n8n:2.40.7 1800
+  node tools\generar-imagenes.mjs --container pb-gm-desechable ...
+  docker rm -f pb-gm-desechable
+  ```
 - **Ollama no hace falta.** Si está encendido, el script descarga sus modelos de la VRAM.
 
 ```powershell
 node tools\generar-imagenes.mjs --list            # estado: KB, seed y [ajuste QA]
 node tools\generar-imagenes.mjs                   # genera solo las que faltan
-node tools\generar-imagenes.mjs --force           # regenera las 47 (≈ 12 min), idénticas a las actuales
+node tools\generar-imagenes.mjs --force           # regenera las 101 (≈ 25 min), idénticas a las actuales
 node tools\generar-imagenes.mjs --dry-run --force # qué pediría, sin llamar a sd-server
 ```
 
@@ -188,7 +237,7 @@ Detalles técnicos:
 ## Pendientes y observaciones para otros equipos
 
 - **`data/*.json` e `image-prompts.json`:**
-  - Conviene pasar las 11 seeds y textos de `AJUSTES_QA` a `image-prompts.json`. Al hacerlo, los ajustes se desactivan solos.
+  - Conviene pasar las 29 seeds y textos de `AJUSTES_QA` (11 de la v2 y 18 de la v3) a `image-prompts.json`. Al hacerlo, los ajustes se desactivan solos. En los que usan `sustituir`, hay que aplicar el reemplazo al prompt.
   - En `look-1` hay que reemplazar el prompt entero, no solo añadir texto.
 - **Textos `alt` algo inexactos:**
   - `lookbook/look-4` dice "gorro legionario", pero la imagen muestra un gorro tipo pescador con cordón y sin cubrenuca.

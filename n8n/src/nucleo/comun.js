@@ -63,6 +63,24 @@ function admins(cfg) {
   const a = (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'admin'; });
   return a.length ? a : (cfg.AUTORIZADOS || []).filter(function (x) { return x.rol === 'dueno'; });
 }
+// v3: menú de comandos de Telegram por rol (setMyCommands). Lo usan WF0 (Setup) y WF16 (/autorizar le publica el menú a la persona).
+const PB_COMANDOS = {
+  ayuda: 'Qué puedo hacer y ejemplos', lista: 'Productos (opcional: categoría)', ver: 'Ver un producto: /ver prd-0001',
+  estado: 'Cola, pausa y último cambio publicado', historial: 'Últimos 5 cambios del bot', precio: 'Cambiar precio: /precio prd-0001 69.90',
+  stock: 'Stock por color (0 a 20): /stock prd-0001 Blanco 5', frescura: 'Frescura 1 a 5 hojitas: /frescura prd-0001 5', ocultar: 'Ocultar un producto', mostrar: 'Volver a mostrar un producto',
+  foto: 'Foto con leyenda /foto prd-0001', articulo: 'Borrador de artículo: /articulo tema', articulo_ocultar: 'Ocultar un artículo',
+  imagen: 'Imagen con IA local: /imagen descripción', cancelar: 'Cancelar tus borradores pendientes',
+  envios: 'Opciones de envío, costos y tiempos', pedidos: 'Pedidos abiertos (por pagar, pagados, en preparación)', pedido: 'Ver un pedido: /pedido PB-000101',
+  preparando: 'Pedido en preparación: /preparando PB-000101', enviar: 'Despachado: /enviar PB-000101 shalom 12345678-ABCD', recojo: 'Llegó a la agencia: /recojo PB-000101',
+  entregado: 'Entregado: /entregado PB-000101', cancelar_pedido: 'Cancelar un pedido (con confirmación)',
+  desconocidos: 'Quién escribió /start sin estar autorizado', autorizar: 'Dar acceso: /autorizar 123456789 dueno|marketing', desautorizar: 'Quitar acceso: /desautorizar 123456789',
+  borrar: 'Eliminar un producto (doble confirmación)', whatsapp: 'Cambiar el WhatsApp de la tienda', limpiar_muestras: 'Quitar los productos de muestra',
+  deshacer: 'Deshacer el último cambio del bot', pausa: 'Pausar la publicación', reanudar: 'Reanudar la publicación', ids: 'Ver quién escribió sin estar autorizado'
+};
+const PB_CMD_MARKETING = ['ayuda', 'lista', 'ver', 'estado', 'historial', 'precio', 'stock', 'frescura', 'ocultar', 'mostrar', 'foto', 'articulo', 'articulo_ocultar', 'imagen', 'cancelar', 'envios', 'pedidos', 'pedido'];
+const PB_CMD_DUENO = PB_CMD_MARKETING.concat(['preparando', 'enviar', 'recojo', 'entregado', 'cancelar_pedido', 'desconocidos', 'autorizar', 'desautorizar', 'borrar', 'whatsapp', 'limpiar_muestras', 'deshacer', 'pausa', 'reanudar']);
+const PB_CMD_ADMIN = PB_CMD_DUENO.concat(['ids']);
+function comandosDeRol(rol) { return (rol === 'admin' ? PB_CMD_ADMIN : rol === 'dueno' ? PB_CMD_DUENO : PB_CMD_MARKETING).map(function (k) { return { command: k, description: PB_COMANDOS[k] }; }); }
 function isoLima(ms) { const d = new Date((ms === undefined ? Date.now() : ms) - 5 * 3600000); return d.toISOString().slice(0, 19) + '-05:00'; }
 // v2 (CONTRATO 0.3): stock inicial por color de un producto NUEVO. Lo usan la vista previa (WF3) y "Aplicar lote" (WF5),
 // así lo que el dueño aprueba es lo que se publica. Requiere el bloque de validar.js (aplicarStockColor, MAX_STOCK_COLOR,

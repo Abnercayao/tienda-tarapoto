@@ -9,7 +9,8 @@
  *   4. el bloque "COPIAR A N8N" funciona aislado (sin require/module), como en un nodo Code;
  *   5. data/schema/*.json está sincronizado con tools/validar.js;
  *   6. las ayudas del LLM (categoría, permisos, operación) se comportan como dice docs/CONTRATO.md;
- *   9. contrato v2: frescura, stock_por_color, imagenes[].color, guia_tallas, chat.json.
+ *   9. contrato v2: frescura, stock_por_color, imagenes[].color, guia_tallas, chat.json;
+ *  10. contrato v3: taxonomía (subcategorías por categoría y colecciones), envíos, Mercado Pago (prueba) y pedidos PB-000000.
  */
 'use strict';
 const fs = require('fs');
@@ -51,12 +52,12 @@ function debeRechazar(docs, opciones, codigo, fragmento) {
 console.log('1) Muestras');
 caso('las muestras de data/ pasan sin errores', () => {
   const r = debePasar(copia(), {});
-  afirmar(r.resumen.productos === 17 && r.resumen.productos_muestra === 16, 'deben ser 16 productos de muestra + prd-0017 (real, creado por el bot)');
+  afirmar(r.resumen.productos === 37 && r.resumen.productos_muestra === 36, 'deben ser 36 productos de muestra (16 v2 + 20 v3) + prd-0017 (real, creado por el bot)');
   afirmar(r.resumen.articulos === 3, 'deben ser 3 artículos');
   afirmar(r.resumen.chat_activo === false, 'chat.json empieza inactivo');
   const porCat = {};
   BASE.products.productos.filter((p) => p.muestra).forEach((p) => { porCat[p.categoria] = (porCat[p.categoria] || 0) + 1; });
-  afirmar(V.CATEGORIAS.every((c) => porCat[c] === 4), '4 productos de muestra por categoría: ' + JSON.stringify(porCat));
+  afirmar(V.CATEGORIAS.every((c) => porCat[c] === 9), '9 productos de muestra por categoría (4 v2 + 5 v3): ' + JSON.stringify(porCat));
   afirmar(BASE.site.whatsapp === '51995542938', 'site.whatsapp debe ser el número real');
 });
 caso('las muestras también pasan como texto JSON (como llegan de la API de GitHub)', () => {
@@ -86,11 +87,11 @@ caso('F1-10 (v2) ia_local en un producto real ya se permite: la web es una demo 
 caso('F1-11 referencia rota (artículo cita un producto que no existe)', () => {
   const d = copia(); d.articles.articulos[0].productos_relacionados.push('prd-0099'); debeRechazar(d, {}, 'referencia', 'prd-0099');
 });
-caso('F1-12 borrado masivo (16 a 10 productos)', () => {
+caso('F1-12 borrado masivo (6 productos de una vez)', () => {
   const d = copia(); d.products.productos = d.products.productos.filter((p) => ['prd-0008', 'prd-0011', 'prd-0014', 'prd-0002', 'prd-0003', 'prd-0010'].indexOf(p.id) < 0);
   // quitamos también las referencias para que el único motivo sea el borrado masivo
   d.articles.articulos.forEach((a) => { a.productos_relacionados = a.productos_relacionados.filter((id) => prd(d, id)); a.bloques.forEach((b) => { if (b.ids) b.ids = b.ids.filter((id) => prd(d, id)); }); });
-  const r = debeRechazar(d, { anterior: copia() }, 'borrado_masivo', 'de 17 a 11');
+  const r = debeRechazar(d, { anterior: copia() }, 'borrado_masivo', 'de 37 a 31');
   afirmar(!r.errores.some((e) => e.indexOf('[referencia]') === 0), 'no debía haber errores de referencia');
 });
 caso('F1-13 JSON de más de 1 MB', () => {
@@ -178,11 +179,12 @@ caso('el dueño sí puede cambiar el WhatsApp (queda aviso de confirmación espe
   const r = debePasar(d, { anterior: copia(), idsLote: ['site'], rol: 'dueno' });
   afirmar(r.avisos.some((a) => a.indexOf('[whatsapp_cambio]') === 0), 'debía avisar del cambio de WhatsApp');
 });
-caso('/limpiar_muestras legítimo: quita las 16 muestras (deja prd-0017, real) y limpia las referencias', () => {
+caso('/limpiar_muestras legítimo: quita las 36 muestras (deja prd-0017, real) y limpia las referencias', () => {
   const d = copia(); const ids = d.products.productos.filter((p) => p.muestra).map((p) => p.id);
   d.products.productos = d.products.productos.filter((p) => !p.muestra);
   d.articles.articulos.forEach((a) => { a.productos_relacionados = []; a.bloques = a.bloques.filter((b) => b.tipo !== 'producto'); });
   d.site.lookbook.forEach((l) => { l.productos = []; });
+  delete d.site.hero.producto_destacado; delete d.site.hero.etiqueta_destacado; // v3: la portada tampoco puede citar una muestra borrada
   debeRechazar(d, { anterior: copia(), idsLote: ids.concat(['art-0001', 'art-0002', 'art-0003', 'site']) }, 'borrado_masivo');
   debePasar(d, { anterior: copia(), idsLote: ids.concat(['art-0001', 'art-0002', 'art-0003', 'site']), permitirLimpieza: true, rol: 'dueno' });
 });
@@ -200,9 +202,9 @@ caso('un producto real no puede volver a ser muestra, ni cambiar su fecha_creaci
 });
 caso('un producto real con foto propia pasa (y sin imagen solo deja aviso)', () => {
   const d = copia(); const nuevo = JSON.parse(JSON.stringify(prd(d, 'prd-0014')));
-  Object.assign(nuevo, { id: 'prd-0018', slug: 'polo-real-de-prueba', nombre: 'Polo real de prueba', muestra: false, imagenes: [{ src: 'assets/img/products/polo-real-de-prueba-1-0a1b2c3d.webp', alt: 'Foto real del polo de prueba', origen: 'foto', ancho: 1200, alto: 1500 }] });
+  Object.assign(nuevo, { id: 'prd-0038', slug: 'polo-real-de-prueba', nombre: 'Polo real de prueba', muestra: false, imagenes: [{ src: 'assets/img/products/polo-real-de-prueba-1-0a1b2c3d.webp', alt: 'Foto real del polo de prueba', origen: 'foto', ancho: 1200, alto: 1500 }] });
   d.products.productos.push(nuevo);
-  debePasar(d, { anterior: copia(), idsLote: ['prd-0018'], rol: 'marketing' });
+  debePasar(d, { anterior: copia(), idsLote: ['prd-0038'], rol: 'marketing' });
   nuevo.imagenes = [];
   const r = debePasar(d, {});
   afirmar(r.avisos.some((a) => a.indexOf('[sin_imagen]') === 0), 'debía avisar sin_imagen');
@@ -230,7 +232,7 @@ caso('el bloque corre sin require/module/process y valida', () => {
 
 console.log('5) Esquemas publicados sincronizados');
 caso('data/schema/*.json coincide con tools/validar.js', () => {
-  const pares = { 'products.schema.json': V.ESQUEMAS.products, 'articles.schema.json': V.ESQUEMAS.articles, 'site.schema.json': V.ESQUEMAS.site, 'chat.schema.json': V.ESQUEMAS.chat,
+  const pares = { 'products.schema.json': V.ESQUEMAS.products, 'articles.schema.json': V.ESQUEMAS.articles, 'site.schema.json': V.ESQUEMAS.site, 'chat.schema.json': V.ESQUEMAS.chat, 'pedido.schema.json': V.ESQUEMAS.pedido,
     'frescura-materiales.json': V.FRESCURA_PUBLICA, 'ollama-format-producto.json': V.ESQUEMA_LLM_PRODUCTO, 'ollama-format-articulo.json': V.ESQUEMA_LLM_ARTICULO };
   for (const f of Object.keys(pares)) {
     const disco = fs.readFileSync(path.join(RAIZ, 'data', 'schema', f), 'utf8').replace(/\r\n/g, '\n');
@@ -332,6 +334,7 @@ caso('hay un prompt por cada imagen de data/, con el mismo tamaño y reglas de p
   BASE.site.hero.imagenes.forEach((i) => usados.push(i));
   BASE.site.categorias.forEach((c) => usados.push(c.imagen));
   BASE.site.lookbook.forEach((l) => usados.push(l.imagen));
+  (BASE.site.colecciones || []).forEach((c) => { if (c.imagen) usados.push(c.imagen); });
   const porPath = {};
   L.forEach((x) => { afirmar(!porPath[x.path], 'ruta repetida ' + x.path); porPath[x.path] = x; });
   for (const i of usados) {
@@ -509,6 +512,218 @@ caso('v2: el bloque COPIAR A N8N incluye las ayudas nuevas', () => {
   const ctx = { DOCS: copia() };
   const salida = vm.runInNewContext(bloque + '\n[validar({ chat: DOCS.chat, site: DOCS.site }, {}), frescuraPorMaterial("Lino 100%"), aplicarStockColor(DOCS.products.productos[0], [{ color: "Arena", cantidad: 1 }], "fijar").stock, TABLA_FRESCURA.length, MAX_STOCK_COLOR];', ctx, { timeout: 5000 });
   afirmar(salida[0].ok && salida[1] === 5 && salida[2] === 1 + BASE.products.productos[0].stock_por_color['Blanco hueso'] && salida[3] >= 5 && salida[4] === 20, 'ayudas v2 en el bloque: ' + JSON.stringify(salida[0].errores));
+});
+
+console.log('10) Contrato v3 (taxonomía, envíos, Mercado Pago en prueba y pedidos)');
+const S3 = BASE.site, P3 = BASE.products.productos;
+const FECHA3 = '2026-10-07T12:00:00-05:00';
+// Pedido de referencia: polo old money (portada) + lentes carey, Shalom a Lima.
+const SOLICITUD = () => ({
+  cliente: { nombre: 'Ana Ríos Paredes', correo: 'Ana.Rios@Ejemplo.pe ', telefono: '+51 987 654 321', dni: '45678912' },
+  envio: { opcion: 'shalom', departamento: 'lima', provincia: 'Lima', distrito: 'Miraflores', agencia_destino: 'Shalom Av. Petit Thouars' },
+  items: [{ id: 'prd-0019', color: 'crema', talla: 'm', cantidad: 1, precio: 1 }, { id: 'prd-0033', color: 'Carey', talla: 'única', cantidad: 1 }],
+  total_visto: 219.8, origen: 'web'
+});
+const crear = (sol, extra) => V.crearPedido(sol, Object.assign({ productos: P3, site: S3, numero: 'PB-000123', fecha: FECHA3 }, extra || {}));
+const pedidoOk = () => { const r = crear(SOLICITUD()); afirmar(r.ok, 'el pedido de referencia debía crearse: ' + r.errores.join(' | ')); return r.pedido; };
+const tieneError = (r, cod, frag) => r.errores.some((e) => e.indexOf('[' + cod + ']') === 0 && (!frag || e.indexOf(frag) >= 0));
+
+caso('v3: datos (20 productos nuevos, taxonomía, old money en portada, 38°, Vale, sin motocarro)', () => {
+  const nuevos = P3.filter((p) => /^prd-00(1[89]|2\d|3[0-7])$/.test(p.id));
+  afirmar(nuevos.length === 20, '20 productos prd-0018..prd-0037 (hay ' + nuevos.length + ')');
+  V.CATEGORIAS.forEach((c) => afirmar(nuevos.filter((p) => p.categoria === c).length === 5, '5 nuevos en ' + c));
+  P3.forEach((p) => afirmar(V.SUBCATEGORIAS_POR_CATEGORIA[p.categoria].indexOf(p.subcategoria) >= 0, p.id + ': subcategoría fuera de la taxonomía'));
+  const om = P3.filter((p) => p.etiquetas.indexOf('old-money') >= 0);
+  afirmar(om.length >= 10 && om.every((p) => p.categoria !== 'ninos'), 'línea old money (adultos y accesorios): ' + om.length);
+  const hero = prd(BASE, S3.hero.producto_destacado);
+  afirmar(hero && hero.activo && hero.etiquetas.indexOf('old-money') >= 0, 'la portada muestra un producto old money activo');
+  afirmar(S3.temperatura_promedio === '38°' && S3.asistente.nombre === 'Vale' && S3.asistente.acciones[0] === 'Hacer seguimiento de mi pedido', '38°, Vale y chip de seguimiento');
+  const texto = JSON.stringify(BASE);
+  afirmar(!/motocarro/i.test(texto) && !/Valeria/.test(texto), 'quedan "motocarro" o "Valeria" en data/');
+  afirmar(S3.envios.cobertura === 'Todo el Perú' && ['shalom', 'olva', 'bus', 'local'].every((id) => V.opcionEnvio(S3, id)), 'envíos a todo el Perú con las 4 opciones');
+  const r = V.validar(copia(), {});
+  afirmar(!r.avisos.some((a) => /^\[(menu|menu_vacio|taxonomia|envios)\]/.test(a)), 'avisos de menú o envíos: ' + r.avisos.join(' | '));
+  S3.categorias.forEach((c) => afirmar(c.subcategorias.length >= 5, c.id + ': al menos 5 entradas en el menú'));
+  afirmar(S3.categorias.find((c) => c.id === 'hombres').subcategorias.map((e) => e.id).join(' ') === 'camisas polos pantalones shorts calzado old-money', 'menú de Hombres');
+});
+caso('v3: subcategoría inexistente o de otra categoría se rechaza (productos y menú)', () => {
+  const d = copia(); prd(d, 'prd-0018').subcategoria = 'zapatos-de-tacon'; debeRechazar(d, {}, 'esquema', '.subcategoria');
+  const d2 = copia(); prd(d2, 'prd-0018').subcategoria = 'vestidos'; debeRechazar(d2, {}, 'subcategoria', 'prd-0018');
+  const d3 = copia(); prd(d3, 'prd-0013').subcategoria = 'bermudas'; debeRechazar(d3, {}, 'esquema', '.subcategoria');
+  const d4 = copia(); d4.site.categorias[0].subcategorias.push({ id: 'cinturones', nombre: 'Cinturones', orden: 9 }); debeRechazar(d4, {}, 'taxonomia', 'cinturones');
+  const d5 = copia(); d5.site.categorias[0].subcategorias.find((e) => e.etiqueta).etiqueta = 'otra'; debeRechazar(d5, {}, 'taxonomia', 'etiqueta');
+  const d6 = copia(); d6.site.colecciones[0].id = 'polos'; debeRechazar(d6, {}, 'taxonomia', 'choca');
+  const d7 = copia(); d7.site.colecciones[0].categorias = ['hombres']; debeRechazar(d7, {}, 'taxonomia', 'no incluye');
+  const d8 = copia(); d8.site.hero.producto_destacado = 'prd-0999'; debeRechazar(d8, {}, 'referencia', 'prd-0999');
+  const d9 = copia(); delete d9.site.categorias[1].subcategorias; debeRechazar(d9, {}, 'esquema', 'subcategorias');
+  const d10 = copia(); d10.site.temperatura_promedio = '38 grados'; debeRechazar(d10, {}, 'esquema', 'temperatura_promedio');
+});
+caso('v3: normalizarSubcategoria y validarOperacion corrigen la subcategoría', () => {
+  const t = { 'hombres|bermudas': 'shorts', 'hombres|zapatillas': 'calzado', 'hombres|sandalias': 'calzado', 'accesorios|gorras': 'sombreros', 'accesorios|gorros': 'sombreros',
+    'ninos|sombreros': 'gorros', 'ninos|bermudas': 'shorts', 'mujeres|Ropa de baño': 'ropa-de-bano', 'hombres|vestidos': 'otros', 'accesorios|cinturon': 'cinturones', 'xx|polos': null };
+  Object.keys(t).forEach((k) => { const [c, s] = k.split('|'); afirmar(V.normalizarSubcategoria(c, s) === t[k], k + ' dio ' + V.normalizarSubcategoria(c, s)); });
+  const vacios = { nombre: null, categoria: null, subcategoria: null, precio: null, precio_oferta: null, tallas: [], stock_tallas: [], stock_por_color: [], stock_modo: null, colores: [], material: null, frescura: null, descripcion: null, etiquetas: [], alt_imagen: null, destacado: null };
+  const mk = (op, id, campos) => ({ op, entidad: 'producto', id, campos: Object.assign({}, vacios, campos), campos_inferidos: [], faltantes: [] });
+  const r = V.validarOperacion(mk('crear', null, { nombre: 'Sandalias de cuero para hombre', categoria: 'hombres', subcategoria: 'sandalias', precio: 99, tallas: ['40'], colores: ['negro'] }), { texto: 'sandalias de cuero para hombre talla 40 a 99', productos: P3, hayFoto: true });
+  afirmar(r.ok && r.operacion.campos.subcategoria === 'calzado' && r.avisos.some((a) => a.indexOf('[subcategoria]') === 0), 'crear: sandalias de hombre -> calzado');
+  const r2 = V.validarOperacion(mk('actualizar', 'prd-0014', { categoria: 'ninos' }), { texto: 'cambia el prd-0014 a niños', productos: P3 });
+  afirmar(r2.operacion.campos.subcategoria === 'gorros', 'cambiar de categoría ajusta la subcategoría: ' + r2.operacion.campos.subcategoria);
+  afirmar(V.ESQUEMA_LLM_PRODUCTO.properties.campos.properties.subcategoria.enum.indexOf('calzado') >= 0 && V.PROMPT_PRODUCTO.indexOf('cinturones') > 0, 'format y prompt del LLM con la taxonomía v3');
+});
+caso('v3: zonas y opciones de envío (cotizarEnvio, opcionesDeEnvio, textoOpcionesEnvio)', () => {
+  const c = V.cotizarEnvio(S3, 'shalom', 'Lima', 'Miraflores', 100);
+  afirmar(c.ok && c.zona === 'lima' && c.costo === 15 && /2–3 días/.test(c.tiempo_estimado), 'Shalom a Lima: ' + JSON.stringify(c));
+  afirmar(V.cotizarEnvio(S3, 'local', 'san martin', 'morales', 50).costo === 7 && V.zonaEnvio(S3, 'San Martín', 'La Banda de Shilcayo') === 'tarapoto', 'entrega local en Morales y La Banda');
+  afirmar(V.zonaEnvio(S3, 'San Martín', 'Moyobamba') === 'selva' && V.zonaEnvio(S3, 'Cusco', 'Cusco') === 'sierra' && V.zonaEnvio(S3, 'Narnia', 'x') === null, 'zonas por departamento');
+  afirmar(!V.cotizarEnvio(S3, 'local', 'Lima', 'Miraflores', 50).ok && !V.cotizarEnvio(S3, 'bus', 'San Martín', 'Tarapoto', 50).ok, 'local no llega a Lima; bus no reparte en Tarapoto');
+  afirmar(V.cotizarEnvio(S3, 'olva', 'Piura', 'Piura', 299).costo === 0 && V.cotizarEnvio(S3, 'olva', 'Piura', 'Piura', 298.99).costo === 22, 'envío gratis desde S/ 299');
+  afirmar(V.opcionesDeEnvio(S3, 'San Martín', 'Tarapoto', 10).map((o) => o.opcion).join(',') === 'shalom,olva,local', 'opciones en Tarapoto');
+  afirmar(V.opcionesDeEnvio(S3, 'Loreto', 'Iquitos', 10).length === 3, 'opciones a Iquitos');
+  const txt = V.textoOpcionesEnvio(S3, 'lima');
+  afirmar(/Shalom: S\/ 15\.00, 2–3 días hábiles/.test(txt) && /Olva Courier/.test(txt) && /Agencia de bus/.test(txt) && !/Entrega local/.test(txt) && /gratis desde S\/ 299\.00/.test(txt), 'texto para Lima:\n' + txt);
+  afirmar(/Entrega local en Tarapoto: S\/ 7\.00, el mismo día/.test(V.textoOpcionesEnvio(S3)), 'texto general con tiempo promedio');
+  const d = copia(); d.site.envios.zonas[0].departamentos = ['Lima']; debeRechazar(d, {}, 'envios', 'Callao');
+  const d2 = copia(); d2.site.envios.opciones.find((o) => o.id === 'local').tiempos.lima = '2 días'; debeRechazar(d2, {}, 'envios', 'entrega local');
+  const d3 = copia(); d3.site.envios.opciones[0].tiempos.marte = '1 año'; debeRechazar(d3, {}, 'esquema', 'marte');
+  const d4 = copia(); d4.site.envios.opciones[0].costo_desde = 15.555; debeRechazar(d4, {}, 'precio', 'costo_desde');
+});
+caso('v3: pedido válido (crearPedido recalcula con el catálogo y validarPedido lo acepta)', () => {
+  const r = crear(SOLICITUD());
+  afirmar(r.ok, r.errores.join(' | '));
+  const p = r.pedido;
+  afirmar(p.numero === 'PB-000123' && p.estado === 'pendiente_pago' && p.pago.estado === 'pendiente' && p.seguimiento === null, 'estado inicial');
+  afirmar(p.items[0].precio_unit === 129.9 && p.items[0].color === 'Crema' && p.items[0].talla === 'M' && p.items[1].talla === 'UNICA' && p.items[1].precio_unit === 74.9, 'precios del catálogo, color y talla normalizados');
+  afirmar(p.subtotal === 204.8 && p.envio_costo === 15 && p.total === 219.8 && p.envio.costo === 15 && p.envio.zona === 'lima', 'totales: ' + p.subtotal + ' + ' + p.envio_costo + ' = ' + p.total);
+  afirmar(p.cliente.correo === 'ana.rios@ejemplo.pe' && p.cliente.telefono === '51987654321' && p.historial.length === 1, 'correo en minúsculas y celular 51 + 9 dígitos');
+  afirmar(!r.avisos.some((a) => a.indexOf('[total_web]') === 0), 'el total visto coincide');
+  const v = V.validarPedido(p, { productos: P3, site: S3, verificarStock: true });
+  afirmar(v.ok && v.resumen.numero === 'PB-000123', 'validarPedido: ' + v.errores.join(' | '));
+  afirmar(V.validarPedido(JSON.stringify(p), {}).ok, 'también sin catálogo ni site y como texto JSON');
+  const tmp = fs.mkdtempSync(path.join(require('os').tmpdir(), 'pb-')); const f = path.join(tmp, 'pedido.json');
+  fs.writeFileSync(f, JSON.stringify(p));
+  const cli = spawnSync(process.execPath, [path.join(__dirname, 'validar.js'), '--pedido', f], { cwd: RAIZ, encoding: 'utf8' });
+  p.total = 1; fs.writeFileSync(f, JSON.stringify(p));
+  const cli2 = spawnSync(process.execPath, [path.join(__dirname, 'validar.js'), '--pedido', f], { cwd: RAIZ, encoding: 'utf8' });
+  fs.rmSync(tmp, { recursive: true, force: true });
+  afirmar(cli.status === 0 && cli2.status === 1 && cli2.stdout.indexOf('[total]') >= 0, 'CLI --pedido: ' + cli.stdout + cli2.stdout);
+  const local = crear(Object.assign(SOLICITUD(), { envio: { opcion: 'local', departamento: 'San Martín', provincia: 'San Martín', distrito: 'Tarapoto', direccion: 'Jr. Lamas 123', referencia: 'Frente a la plaza' } }));
+  afirmar(local.ok && local.pedido.envio_costo === 7 && local.pedido.envio.zona === 'tarapoto' && /mismo día/.test(local.pedido.envio.tiempo_estimado), 'entrega local');
+});
+caso('v3: total manipulado se rechaza (y el navegador no puede fijar precios)', () => {
+  const p = pedidoOk();
+  const a = JSON.parse(JSON.stringify(p)); a.total = 10; afirmar(tieneError(V.validarPedido(a, { productos: P3, site: S3 }), 'total', 'pedido.total'), 'total distinto de subtotal + envío');
+  const b = JSON.parse(JSON.stringify(p)); b.items[0].precio_unit = 9.9; b.subtotal = 84.8; b.total = 99.8;
+  const rb = V.validarPedido(b, { productos: P3, site: S3 });
+  afirmar(tieneError(rb, 'precio', 'items[0].precio_unit') && !tieneError(rb, 'total'), 'precio unitario rebajado con sumas coherentes: ' + rb.errores.join(' | '));
+  const c = JSON.parse(JSON.stringify(p)); c.envio_costo = 0; c.envio.costo = 0; c.total = 204.8; afirmar(tieneError(V.validarPedido(c, { productos: P3, site: S3 }), 'total', 'tarifa'), 'envío gratis inventado');
+  const d = JSON.parse(JSON.stringify(p)); d.subtotal = 200; d.total = 215; afirmar(tieneError(V.validarPedido(d, {}), 'total', 'subtotal'), 'subtotal distinto de la suma, incluso sin catálogo');
+  const sol = SOLICITUD(); sol.total_visto = 9.9; sol.items[0].precio_unit = 1;
+  const r = crear(sol);
+  afirmar(r.ok && r.pedido.total === 219.8 && r.avisos.some((x) => x.indexOf('[total_web]') === 0), 'crearPedido ignora los precios del navegador y avisa');
+});
+caso('v3: stock insuficiente se rechaza (por color, sumando tallas)', () => {
+  const s1 = SOLICITUD(); s1.items = [{ id: 'prd-0018', color: 'Crema', talla: 'M', cantidad: 10 }];
+  const r1 = crear(s1); afirmar(!r1.ok && tieneError(r1, 'stock', 'quedan 9'), 'más que el stock del color: ' + r1.errores.join(' | '));
+  const s2 = SOLICITUD(); s2.items = [{ id: 'prd-0018', color: 'Verde oliva', talla: 'L', cantidad: 1 }];
+  afirmar(tieneError(crear(s2), 'stock', 'quedan 0'), 'color agotado');
+  const s3 = SOLICITUD(); s3.items = [{ id: 'prd-0021', color: 'Cacao', talla: '41', cantidad: 1 }, { id: 'prd-0021', color: 'Cacao', talla: '42', cantidad: 2 }];
+  afirmar(tieneError(crear(s3), 'stock', 'pides 3, quedan 2'), 'dos tallas del mismo color superan el stock');
+  const s4 = SOLICITUD(); s4.items = [{ id: 'prd-0018', color: 'Rojo', talla: 'M', cantidad: 1 }, { id: 'prd-0018', color: 'Crema', talla: 'XXL', cantidad: 1 }, { id: 'prd-0999', color: 'Crema', talla: 'M', cantidad: 1 }, { id: 'prd-0019', color: 'Crema', talla: 'M', cantidad: 11 }];
+  const r4 = crear(s4);
+  afirmar(tieneError(r4, 'color') && tieneError(r4, 'talla') && tieneError(r4, 'producto') && tieneError(r4, 'cantidad'), 'color, talla, producto y cantidad: ' + r4.errores.join(' | '));
+  const st = V.stockTrasPedido(P3, pedidoOk());
+  afirmar(st.ok && st.cambios.find((c) => c.id === 'prd-0019').stock_por_color.Crema === prd(BASE, 'prd-0019').stock_por_color.Crema - 1, 'stockTrasPedido resta por color');
+});
+caso('v3: opción de envío inexistente o que no llega se rechaza', () => {
+  const s1 = SOLICITUD(); s1.envio.opcion = 'dhl'; afirmar(tieneError(crear(s1), 'envio', 'dhl'), 'opción inexistente al crear');
+  const p = pedidoOk(); const a = JSON.parse(JSON.stringify(p)); a.envio.opcion = 'dhl';
+  afirmar(tieneError(V.validarPedido(a, { site: S3 }), 'esquema', 'envio.opcion'), 'opción inexistente en un pedido');
+  const s2 = SOLICITUD(); s2.envio = { opcion: 'local', departamento: 'Lima', provincia: 'Lima', distrito: 'Miraflores', direccion: 'Av. Larco 345' };
+  afirmar(tieneError(crear(s2), 'envio', 'no llega'), 'entrega local a Lima');
+  const s3 = SOLICITUD(); const site = JSON.parse(JSON.stringify(S3)); site.envios.opciones.find((o) => o.id === 'shalom').activa = false;
+  afirmar(tieneError(V.crearPedido(s3, { productos: P3, site: site, numero: 'PB-000124' }), 'envio', 'no está activa'), 'opción desactivada');
+  const s4 = SOLICITUD(); delete s4.envio.agencia_destino; delete s4.cliente.dni;
+  const r4 = crear(s4); afirmar(tieneError(r4, 'envio', 'agencia_destino') && tieneError(r4, 'dni'), 'recojo en agencia pide agencia y DNI');
+  const s5 = SOLICITUD(); s5.envio.departamento = 'Lima Metropolitana'; afirmar(tieneError(crear(s5), 'envio', 'departamento'), 'departamento inválido');
+  const s6 = SOLICITUD(); s6.envio = { opcion: 'olva', departamento: 'Piura', provincia: 'Piura', distrito: 'Piura' }; afirmar(tieneError(crear(s6), 'envio', 'direccion'), 'olva a domicilio pide dirección');
+});
+caso('v3: correo, celular y DNI inválidos se rechazan', () => {
+  for (const c of ['ana@', 'ana.rios', 'ana rios@x.pe', '', 'a@b.c']) { const s = SOLICITUD(); s.cliente.correo = c; afirmar(tieneError(crear(s), 'correo'), 'correo ' + JSON.stringify(c)); }
+  const s2 = SOLICITUD(); s2.cliente.telefono = '01 4567890'; afirmar(tieneError(crear(s2), 'telefono'), 'teléfono fijo');
+  const s3 = SOLICITUD(); s3.cliente.dni = '1234'; afirmar(tieneError(crear(s3), 'dni'), 'DNI de 4 dígitos');
+  const p = pedidoOk(); p.cliente.correo = 'Ana.Rios@ejemplo.pe'; afirmar(tieneError(V.validarPedido(p, {}), 'correo', 'minúsculas'), 'correo guardado sin normalizar');
+  afirmar(V.mismoCorreo(' ANA.rios@ejemplo.pe', 'ana.rios@ejemplo.pe') && !V.mismoCorreo('', ''), 'mismoCorreo para el seguimiento');
+  const s4 = SOLICITUD(); s4.cliente.nombre = '<b>Ana</b>'; const r4 = crear(s4); afirmar(r4.ok && r4.pedido.cliente.nombre === 'bAna/b', 'texto plano sin signos menor/mayor que');
+  afirmar(!crear(SOLICITUD(), { numero: 'PB-12' }).ok, 'número de pedido con formato inválido');
+});
+caso('v3: estados, historial y pago de Mercado Pago (aplicarPagoMP idempotente)', () => {
+  const p0 = pedidoOk();
+  const t0 = V.transicionPedido(p0, 'pagado', { fecha: FECHA3 }, S3); afirmar(!t0.ok && tieneError(t0, 'pago'), 'no se marca pagado sin pago aprobado');
+  afirmar(!V.transicionPedido(p0, 'enviado', { fecha: FECHA3, codigo: '12345678-AB1C' }, S3).ok, 'pendiente -> enviado no se permite');
+  const mp = { id: 1325467890, status: 'approved', status_detail: 'accredited', external_reference: 'PB-000123', currency_id: 'PEN', transaction_amount: 219.8 };
+  const a1 = V.aplicarPagoMP(p0, mp, { fecha: '2026-10-07T12:05:00-05:00', site: S3 });
+  afirmar(a1.ok && a1.cambio && a1.notificar === 'pagado' && a1.pedido.estado === 'pagado' && a1.pedido.pago.estado === 'aprobado' && a1.pedido.pago.payment_id === '1325467890' && a1.pedido.historial.length === 2, 'aprobado -> pagado: ' + JSON.stringify(a1.errores));
+  afirmar(p0.estado === 'pendiente_pago', 'no modifica el original');
+  const a2 = V.aplicarPagoMP(a1.pedido, mp, { fecha: '2026-10-07T12:06:00-05:00', site: S3 });
+  afirmar(a2.ok && !a2.cambio && a2.notificar === null && a2.pedido.historial.length === 2, 'aviso repetido no duplica el historial');
+  afirmar(!V.aplicarPagoMP(p0, Object.assign({}, mp, { transaction_amount: 1 })).ok && !V.aplicarPagoMP(p0, Object.assign({}, mp, { external_reference: 'PB-000999' })).ok && !V.aplicarPagoMP(p0, Object.assign({}, mp, { currency_id: 'USD' })).ok, 'monto, referencia o moneda distintos');
+  const rech = V.aplicarPagoMP(p0, Object.assign({}, mp, { status: 'rejected', status_detail: 'cc_rejected_insufficient_amount' }), { fecha: FECHA3 });
+  afirmar(rech.ok && rech.pedido.estado === 'pendiente_pago' && rech.pedido.pago.estado === 'rechazado' && rech.notificar === 'rechazado', 'rechazado: sigue pendiente y se puede reintentar');
+  const tarde = V.aplicarPagoMP(a1.pedido, Object.assign({}, mp, { status: 'rejected' }), { fecha: FECHA3 });
+  afirmar(tarde.ok && !tarde.cambio && tarde.pedido.pago.estado === 'aprobado', 'un rechazo tardío no pisa un pago aprobado');
+  const t1 = V.transicionPedido(a1.pedido, 'preparando', { fecha: '2026-10-07T13:00:00-05:00' }, S3);
+  const mal = V.transicionPedido(t1.pedido, 'enviado', { fecha: '2026-10-07T14:00:00-05:00', agencia: 'shalom', codigo: 'abc' }, S3);
+  afirmar(!mal.ok && tieneError(mal, 'seguimiento', 'formato de shalom'), 'código de Shalom inválido');
+  const t2 = V.transicionPedido(t1.pedido, 'enviado', { fecha: '2026-10-07T14:00:00-05:00', agencia: 'shalom', codigo: '12345678-AB1C' }, S3);
+  afirmar(t2.ok && t2.pedido.seguimiento.codigo === '12345678-AB1C' && t2.pedido.seguimiento.url === 'https://shalom.com.pe/rastrea' && /Enviado con Shalom/.test(t2.pedido.historial[3].nota), 'enviado con Shalom');
+  const t3 = V.transicionPedido(t2.pedido, 'listo_recojo', { fecha: '2026-10-08T10:00:00-05:00' }, S3);
+  const t4 = V.transicionPedido(t3.pedido, 'entregado', { fecha: '2026-10-08T17:00:00-05:00' }, S3);
+  afirmar(t3.ok && t4.ok && t4.pedido.historial.map((h) => h.estado).join('>') === 'pendiente_pago>pagado>preparando>enviado>listo_recojo>entregado', 'historial completo');
+  const fin = V.validarPedido(t4.pedido, { productos: P3, site: S3 }); afirmar(fin.ok, 'pedido entregado válido: ' + fin.errores.join(' | '));
+  afirmar(tieneError(V.transicionPedido(t4.pedido, 'preparando', {}, S3), 'transicion', 'estado final'), 'entregado es final');
+  const olva = V.validarCodigoSeguimiento('olva', '26-0123456', S3); afirmar(olva.ok && olva.url === 'https://tracking.olvacourier.com/?q=26-0123456', 'rastreo de Olva con el código');
+  afirmar(V.validarCodigoSeguimiento('bus', 'Movil Bus:0012345', S3).ok && V.validarCodigoSeguimiento('local', '', S3).ok && !V.validarCodigoSeguimiento('dhl', 'x', S3).ok, 'bus, local y agencia desconocida');
+  const can = V.transicionPedido(a1.pedido, 'cancelado', { fecha: FECHA3 }, S3); afirmar(can.ok && can.avisos.some((x) => x.indexOf('[reembolso]') === 0), 'cancelar un pedido pagado avisa del reembolso');
+  const roto = JSON.parse(JSON.stringify(t2.pedido)); roto.seguimiento = null; afirmar(tieneError(V.validarPedido(roto, {}), 'seguimiento'), 'enviado sin seguimiento');
+  const roto2 = JSON.parse(JSON.stringify(t2.pedido)); roto2.historial.splice(1, 1); afirmar(tieneError(V.validarPedido(roto2, {}), 'historial', 'no se puede pasar'), 'historial con un salto');
+  const roto3 = JSON.parse(JSON.stringify(a1.pedido)); roto3.pago.estado = 'pendiente'; afirmar(tieneError(V.validarPedido(roto3, {}), 'pago'), 'pagado sin pago aprobado');
+  afirmar(V.mapearPagoMP('in_process').pago_estado === 'en_proceso' && V.mapearPagoMP('refunded').estado_pedido === 'cancelado' && V.mapearPagoMP('???').pago_estado === 'pendiente', 'mapearPagoMP');
+});
+caso('v3: vista pública sin datos personales, preferencia de Mercado Pago y fila de pb_pedidos', () => {
+  const p = pedidoOk();
+  const vp = V.vistaPublicaPedido(p, S3); const txt = JSON.stringify(vp);
+  afirmar(vp.cliente.nombre === 'Ana' && vp.estado_texto === 'Pendiente de pago' && vp.envio.opcion_nombre === 'Shalom' && vp.total === 219.8, 'campos públicos');
+  afirmar(txt.indexOf('ejemplo.pe') < 0 && txt.indexOf('987654321') < 0 && txt.indexOf('45678912') < 0 && txt.indexOf('Petit') < 0 && txt.indexOf('Paredes') < 0, 'sin correo, celular, DNI, dirección ni apellidos');
+  const pref = V.preferenciaMercadoPago(p, { notificationUrl: 'https://abc-def.trycloudflare.com/webhook/mp-notificacion?source_news=webhooks', vence: '2026-10-08T23:59:59-05:00', nombreEnvio: 'Shalom' });
+  const suma = pref.items.reduce((s, it) => s + Math.round(it.unit_price * 100) * it.quantity, 0);
+  afirmar(suma === 21980 && pref.items.length === 3 && pref.items[2].id === 'ENVIO-SHALOM' && pref.items.every((it) => it.currency_id === 'PEN'), 'los ítems suman el total (envío como ítem)');
+  afirmar(pref.external_reference === 'PB-000123' && pref.back_urls.success === 'https://abnercayao.github.io/tienda-tarapoto/?mp=ok&pedido=PB-000123' && pref.auto_return === 'approved' && pref.expires === true, 'referencia y vuelta sin #');
+  afirmar(pref.payer.email === undefined && pref.payer.name === 'Ana' && /trycloudflare/.test(pref.notification_url), 'sin correo del cliente en modo prueba');
+  afirmar(V.preferenciaMercadoPago(p, { notificationUrl: 'http://127.0.0.1:5678/x' }).notification_url === undefined, 'notification_url solo https');
+  const fila = V.filaPedido(p);
+  afirmar(V.COLUMNAS_PB_PEDIDOS.map((c) => c.nombre).join(',') === Object.keys(fila).join(',') && fila.correo === 'ana.rios@ejemplo.pe' && fila.total === 219.8, 'fila con las columnas de pb_pedidos');
+  afirmar(JSON.stringify(V.pedidoDesdeFila(fila)) === JSON.stringify(p) && V.pedidoDesdeFila({ pedido_json: '{' }) === null, 'ida y vuelta');
+  afirmar(V.siguienteNumeroPedido('') === 'PB-000101' && V.siguienteNumeroPedido('PB-000123') === 'PB-000124' && V.siguienteNumeroPedido('PB-000005') === 'PB-000101' && V.siguienteNumeroPedido('basura') === 'PB-000101', 'numeración');
+  afirmar(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d-05:00$/.test(V.fechaLima()) && V.fechaLima(Date.UTC(2026, 9, 7, 17, 0, 0)) === '2026-10-07T12:00:00-05:00', 'fechaLima');
+});
+caso('v3: roles para pedidos y usuarios, secretos de Mercado Pago y modo de pago', () => {
+  afirmar(V.puede('dueno', 'pedidos') && V.puede('admin', 'usuarios') && !V.puede('marketing', 'pedidos') && !V.puede('marketing', 'usuarios'), 'pedidos y usuarios: admin y dueño');
+  afirmar(V.puedeAsignarRol('dueno', 'marketing') && V.puedeAsignarRol('admin', 'dueno') && !V.puedeAsignarRol('dueno', 'admin') && !V.puedeAsignarRol('marketing', 'marketing') && !V.puedeAsignarRol('admin', 'admin'), 'puedeAsignarRol');
+  const tok = 'APP_USR-' + '1234567890123456' + '-100726-' + '0123456789abcdef0123456789abcdef' + '-123456789';
+  const d = copia(); d.site.pagos.mercadopago.nota = 'token ' + tok; debeRechazar(d, {}, 'secreto', 'site');
+  const d2 = copia(); d2.site.pagos.mercadopago.public_key = tok; debeRechazar(d2, {}, 'esquema', 'public_key');
+  const d3 = copia(); d3.site.pagos.mercadopago.public_key = 'APP_USR-0a1b2c3d-1111-2222-3333-444455556666'; debePasar(d3, {});
+  const d4 = copia(); d4.site.pagos.mercadopago.modo = 'produccion'; const r4 = debePasar(d4, {}); afirmar(r4.avisos.some((a) => a.indexOf('[pagos]') === 0), 'aviso de producción');
+  const d5 = copia(); d5.site.envios.gratis_desde = 199; debeRechazar(d5, { anterior: copia(), idsLote: ['site'], rol: 'marketing' }, 'permiso', 'site');
+  const p = pedidoOk(); p.historial[0].nota = 'clave ' + tok; afirmar(tieneError(V.validarPedido(p, {}), 'secreto'), 'un pedido con forma de token se rechaza');
+});
+caso('v3: el bloque COPIAR A N8N incluye pedidos, envíos y Mercado Pago', () => {
+  const fuente = fs.readFileSync(path.join(__dirname, 'validar.js'), 'utf8').replace(/\r\n/g, '\n');
+  const bloque = fuente.slice(fuente.indexOf('\n// === COPIAR A N8N ===\n'), fuente.indexOf('\n// === FIN COPIAR A N8N ===\n'));
+  const ctx = { DOCS: copia(), SOL: SOLICITUD() };
+  const salida = vm.runInNewContext(bloque + '\nconst c = crearPedido(SOL, { productos: DOCS.products.productos, site: DOCS.site, numero: siguienteNumeroPedido("PB-000122"), fecha: "2026-10-07T12:00:00-05:00" });\n' +
+    '[c.ok, c.pedido && c.pedido.total, validarPedido(c.pedido, { productos: DOCS.products.productos, site: DOCS.site }).ok, preferenciaMercadoPago(c.pedido, {}).external_reference, textoOpcionesEnvio(DOCS.site, "selva").length > 50, normalizarSubcategoria("hombres", "bermudas")];', ctx, { timeout: 5000 });
+  afirmar(salida[0] === true && salida[1] === 219.8 && salida[2] === true && salida[3] === 'PB-000123' && salida[4] && salida[5] === 'shorts', 'funciones v3 en el bloque: ' + JSON.stringify(salida));
 });
 
 console.log('\n' + pasan + ' pruebas OK, ' + fallan + ' fallidas.');

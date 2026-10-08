@@ -37,7 +37,7 @@ return [{ json: cfg }];
 const cfg = $('Config').first().json;
 const sd = $getWorkflowStaticData('global');
 const ahora = Date.now();
-if (sd.catalogo && sd.catalogo.v === 2 && ahora - Number(sd.catalogo.ts) < CHAT.CACHE_MS) return [{ json: Object.assign({}, sd.catalogo, { fuente: 'cache' }) }];
+if (sd.catalogo && sd.catalogo.v === 4 && ahora - Number(sd.catalogo.ts) < CHAT.CACHE_MS) return [{ json: Object.assign({}, sd.catalogo, { fuente: 'cache' }) }];
 const base = String(cfg.SITIO_URL || '').replace(/\/?$/, '/');
 const traer = async function (f) {
   const r = await this.helpers.httpRequest({ method: 'GET', url: base + 'data/' + f + '?v=' + Math.floor(ahora / CHAT.CACHE_MS), json: true, timeout: 8000 });
@@ -47,10 +47,10 @@ let prod = null, site = null, error = '';
 try { const r = await Promise.all([traer('products.json'), traer('site.json')]); prod = r[0]; site = r[1]; } catch (e) { error = String((e && e.message) || e).slice(0, 200); }
 if (!prod || !Array.isArray(prod.productos)) {
   if (sd.catalogo) return [{ json: Object.assign({}, sd.catalogo, { fuente: 'cache-vieja', error: error || 'products.json inválido' }) }];
-  return [{ json: { v: 2, ts: 0, precios: [], fuente: 'sin-datos', error: error || 'products.json inválido', n: 0, ids: {}, whatsapp: CHAT.WHATSAPP, tienda: tiendaTexto(null, base),
+  return [{ json: { v: 4, ts: 0, precios: [], fuente: 'sin-datos', error: error || 'products.json inválido', n: 0, ids: {}, whatsapp: CHAT.WHATSAPP, tienda: tiendaTexto(null, base),
     catalogo: '(El catálogo no se pudo cargar ahora: no menciones productos ni precios; invita a ver la web o a escribir por WhatsApp.)' } }];
 }
-sd.catalogo = Object.assign({ v: 2, ts: ahora }, compactarCatalogo(prod, site, base));
+sd.catalogo = Object.assign({ v: 4, ts: ahora }, compactarCatalogo(prod, site, base));
 return [{ json: Object.assign({}, sd.catalogo, { fuente: 'web' }) }];
 
 //// Preparar
@@ -76,6 +76,15 @@ const hist = filas('Historial').sort(function (a, b) { return a.id - b.id; });
 const ultimo = hist.slice().reverse().find(function (r) { return r.rol === 'asistente'; });
 const estado = leerEstado(ultimo && ultimo.cita_json);
 const turno = hist.reduce(function (m, r) { return Math.max(m, Number(r.turno) || 0); }, 0) + 1;
+// v3: seguimiento de pedido SIN IA (WF15): "Hacer seguimiento de mi pedido", "¿dónde está mi pedido?", "PB-000123"… o la respuesta a
+// "dame tu número y correo". Número y correo se toman de este mensaje y de los 3 anteriores del visitante.
+const enSeguimiento = !!(ultimo && ultimo.intencion === 'seguimiento');
+if (pideSeguimiento(v.mensaje) || (enSeguimiento && (numeroPedidoDe(v.mensaje) || correoDe(v.mensaje)))) {
+  let numero = '', correo = '';
+  (enSeguimiento ? hist.filter(function (r) { return r.rol === 'usuario'; }).slice(-3).map(function (r) { return String(r.texto || ''); }) : []).concat([v.mensaje])
+    .forEach(function (t) { numero = numeroPedidoDe(t) || numero; correo = correoDe(t) || correo; });
+  return [{ json: { llamar_ia: false, seguimiento: true, consultar: !!(numero && correo), numero: numero, correo: correo, ip_hash: v.ip_hash, sesion: v.sesion, turno: turno, whatsapp: wa, estado: estado } }];
+}
 const ocupados = filas('Citas').filter(function (c) { return c.estado === 'confirmada'; }).map(function (c) { return { inicio_ms: Number(c.inicio_ms), fin_ms: Number(c.fin_ms), fecha: c.fecha, hora: c.hora }; });
 const hasta = ahora + CHAT.DIAS_CALENDARIO * 86400000;
 const ocTexto = ocupados.filter(function (o) { return o.inicio_ms > ahora && o.inicio_ms < hasta; }).sort(function (a, b) { return a.inicio_ms - b.inicio_ms; })
@@ -95,6 +104,7 @@ const cuerpo = { model: cfg.CHAT_MODELO, messages: mensajes, stream: false, form
 return [{ json: { llamar_ia: true, cuerpo: cuerpo, estado: estado, turno: turno, ocupados: ocupados, notas: notas.n, catalogo_fuente: cat.fuente, whatsapp: wa } }];
 
 //// Interpretar
+// @incluir validar.js
 // @incluir comun-chat
 // Respuesta del modelo -> reglas deterministas. La cita SOLO se agenda si: datos completos y válidos (correo, teléfono peruano,
 // Lun–Sáb 9:00–20:00 hora de Perú, bloque de 30 min, >= 1 h de anticipación, sin choque) + el resumen fijo ya se mostró con
@@ -114,7 +124,7 @@ if (!llm || typeof llm.respuesta !== 'string' || !limpiarRespuesta(llm.respuesta
   const e = r.error ? (typeof r.error === 'string' ? r.error : r.error.message || JSON.stringify(r.error)) : contenido ? 'JSON inválido del modelo' : 'sin respuesta del modelo';
   return [{ json: Object.assign(base, { respuesta: respaldo, error: 'ia: ' + String(e).replace(/\s+/g, ' ').slice(0, 180), aprender: false }) }];
 }
-let intencion = ['consulta_producto', 'interes_servicio', 'agendar', 'confirmar_cita', 'otro'].indexOf(llm.intencion) >= 0 ? llm.intencion : 'otro';
+let intencion = ['consulta_producto', 'seguimiento', 'interes_servicio', 'agendar', 'confirmar_cita', 'otro'].indexOf(llm.intencion) >= 0 ? llm.intencion : 'otro';
 // Si el visitante pide la reunión con sus palabras (o deja su correo), es "agendar" aunque el modelo diga otra cosa.
 const mN = sinTildes(v.mensaje).toLowerCase();
 if (['interes_servicio', 'otro', 'consulta_producto'].indexOf(intencion) >= 0 && !negativo(v.mensaje) && !/\bsin (reuni|cita)|\bno (quiero|deseo|necesito|busco) (una |ninguna )?(reuni|cita)/.test(mN) &&
@@ -124,11 +134,22 @@ let respuesta = limpiarRespuesta(llm.respuesta);
 if (/\bno (tengo|cuento con) (esa |esta |mas )?informacion|\bno (lo )?se\b|\bno puedo ayudarte con eso/.test(sinTildes(respuesta).toLowerCase()) && !/wa\.me|whatsapp/i.test(respuesta)) {
   respuesta = unir(respuesta, 'Puedes confirmarlo por WhatsApp: ' + p.whatsapp);
 }
+// v3: envíos -> texto FIJO con las opciones reales de site.envios (costo desde y tiempo de la zona; opcionesDeEnvio de validar.js).
+// El modelo a veces inventa plazos. Solo fuera de la conversación de la cita.
+const catJ = $('Catálogo').first().json || {};
+if (preguntaEnvio(v.mensaje) && catJ.envios && ['agendar', 'confirmar_cita'].indexOf(intencion) < 0 && est.estado !== 'recogiendo' && est.estado !== 'por_confirmar') {
+  const envTxt = textoEnvio(catJ.envios, v.mensaje);
+  if (envTxt) {
+    respuesta = envTxt;
+    if (/\b(pag(o|a|ar|amos|an)|tarjeta|yape|mercado ?pago|efectivo)\b/.test(sinTildes(v.mensaje).toLowerCase())) respuesta = unir(respuesta, 'Pagas con Mercado Pago (tarjeta de crédito o débito) al finalizar la compra en la web.');
+    intencion = 'consulta_producto';
+  }
+}
 // Honestidad: si preguntan si es un bot o una persona, la respuesta debe decir que es una asistente virtual con IA.
-if (preguntaSiEsBot(v.mensaje) && !mencionaIA(respuesta)) respuesta = 'Soy Valeria, la asistente virtual con inteligencia artificial de Palmera Brava. ' + respuesta;
-// Sin presentaciones repetidas (la web ya saludó): se quita un "Soy Valeria…" inicial si no preguntaron quién es.
+if (preguntaSiEsBot(v.mensaje) && !mencionaIA(respuesta)) respuesta = 'Soy Vale, la asistente virtual con inteligencia artificial de Palmera Brava. ' + respuesta;
+// Sin presentaciones repetidas (la web ya saludó): se quita un "Soy Vale…" inicial si no preguntaron quién es.
 if (!preguntaSiEsBot(v.mensaje)) {
-  const sinIntro = respuesta.replace(/^(¡?hola[^.!?]{0,20}[.!?,]\s*)?soy valeria\b[^.!?]*[.!?]\s*/i, '');
+  const sinIntro = respuesta.replace(/^(¡?hola[^.!?]{0,20}[.!?,]\s*)?soy vale(ria)?\b[^.!?]*[.!?]\s*/i, '');
   if (sinIntro.length >= 15) respuesta = sinIntro.charAt(0).toUpperCase() + sinIntro.slice(1);
 }
 // Preguntó el precio de una prenda y la respuesta no lo da: se añade el precio exacto del catálogo.
@@ -138,6 +159,10 @@ if (preguntaPrecio(v.mensaje) && !/S\/ ?\d/.test(respuesta)) {
 }
 const salida = function (o) { return [{ json: Object.assign(base, { intencion: intencion, respuesta: respuesta, error: '' }, o || {}) }]; };
 if (pareceInyeccion(v.mensaje)) return salida({ intencion: 'otro', respuesta: RESPUESTA_INYECCION });
+// v3: la IA cree que pregunta por un pedido ya hecho -> se piden número y correo (la web muestra el formulario del chat).
+if (intencion === 'seguimiento' && est.estado !== 'recogiendo' && est.estado !== 'por_confirmar') {
+  return salida({ accion: 'formulario_seguimiento', respuesta: 'Claro, te ayudo con el seguimiento. Escríbeme el número de tu pedido (empieza con PB-, por ejemplo PB-000123) y el correo con el que compraste.' });
+}
 if (est.estado === 'agendada') return salida();
 // Datos: lo nuevo del modelo sobre lo ya recogido; correo y teléfono escritos por el visitante mandan sobre el modelo.
 // Anti-invención: correo, teléfono y textos solo se aceptan si aparecen en lo que escribió el visitante.
@@ -262,6 +287,7 @@ const it = $('Confirmar cita').isExecuted ? $('Confirmar cita').first().json : $
 const agendada = estado.estado === 'agendada' && !!estado.cita_id && it.agendar === true;
 const cuerpo = { respuesta: asis.texto, escribiendo_ms: escribiendoMs(asis.texto) };
 if (agendada) cuerpo.cita = { agendada: true, fecha: estado.datos.fecha, hora: estado.datos.hora, modalidad: estado.datos.modalidad };
+if (it.accion === 'formulario_seguimiento') cuerpo.accion = 'formulario_seguimiento';
 return [{ json: { status: 200, cuerpo: cuerpo, agendada: agendada, aprender: it.aprender === true || agendada } }];
 
 //// Pedir aprendizaje
@@ -272,7 +298,7 @@ const v = $('Validar').first().json;
 const cfg = $('Config').first().json;
 const filas = $('Filas chat').all().map(function (i) { return i.json; });
 const hist = $('Historial').all().map(function (i) { return i.json; }).filter(function (j) { return j && j.id !== undefined; }).sort(function (a, b) { return a.id - b.id; });
-const conversacion = hist.concat(filas).map(function (r) { return (r.rol === 'usuario' ? 'Visitante: ' : 'Valeria: ') + Array.from(String(r.texto || '')).slice(0, 500).join(''); }).join('\n');
+const conversacion = hist.concat(filas).map(function (r) { return (r.rol === 'usuario' ? 'Visitante: ' : 'Vale: ') + Array.from(String(r.texto || '')).slice(0, 500).join(''); }).join('\n');
 // Notas que ya existen: si la idea es la misma, el modelo debe copiar el texto exacto (así sube la frecuencia en vez de duplicar).
 const previas = $('Aprendizaje').all().map(function (i) { return i.json; }).filter(function (j) { return j && j.id !== undefined && j.activo !== false && typeof j.texto === 'string'; })
   .slice(0, 30).map(function (j) { return '- (' + j.tipo + ') ' + limpio(j.texto, 160); }).join('\n');
@@ -360,3 +386,36 @@ const ics = $input.all().map(function (i) { return i.json; });
 const okM = msj.filter(function (j) { return j && j.ok === true; }).length;
 const okI = ics.filter(function (j) { return j && !j.error && (j.ok === true || j.message_id !== undefined || (j.result && j.result.message_id !== undefined) || j.document !== undefined); }).length;
 return [{ json: { cita_id: c.cita_id, aviso_telegram: 'mensaje ' + okM + '/' + msj.length + ', ics ' + okI + '/' + ics.length, resumen: ap.resumen } }];
+
+//// Respuesta seguimiento
+// @incluir comun-chat
+// v3: seguimiento sin IA. Con número y correo -> resultado de WF15 (vista pública, sin datos personales); si falta algo, se pide
+// (y la web muestra su formulario dentro del chat: accion "formulario_seguimiento").
+const p = $('Preparar').first().json;
+const v = $('Validar').first().json;
+let texto, accion = '', pedido = null;
+if ($('WF15 Seguimiento').isExecuted) {
+  const r = $('WF15 Seguimiento').first().json || {};
+  if (r.error !== undefined && r.ok === undefined) texto = 'Ahora mismo no puedo revisar tu pedido. Intenta en unos minutos o escríbenos por WhatsApp: ' + p.whatsapp;
+  else texto = textoSeguimiento(r);
+  if (r.ok && r.pedido) pedido = r.pedido; else if (r.motivo !== 'limite') accion = 'formulario_seguimiento';
+} else if (p.numero && !p.correo) { texto = 'Gracias. ¿Con qué correo hiciste la compra del pedido ' + p.numero + '?'; accion = 'formulario_seguimiento'; }
+else if (!p.numero && p.correo) { texto = '¿Cuál es el número de tu pedido? Empieza con PB-, por ejemplo PB-000123 (lo ves en la confirmación de compra y en "Mi cuenta").'; accion = 'formulario_seguimiento'; }
+else { texto = 'Claro, te ayudo con el seguimiento. Escríbeme el número de tu pedido (empieza con PB-, por ejemplo PB-000123) y el correo con el que compraste.'; accion = 'formulario_seguimiento'; }
+const comun = { sesion: v.sesion, ip_hash: v.ip_hash, turno: p.turno, intencion: 'seguimiento' };
+return [{ json: { texto: texto, accion: accion, pedido: pedido, filas: [
+  Object.assign({}, comun, { rol: 'usuario', texto: v.mensaje, fecha_ms: v.ahora, cita_json: '', pagina: JSON.stringify(v.pagina || {}), error: '', ms_ia: 0 }),
+  Object.assign({}, comun, { rol: 'asistente', texto: texto, fecha_ms: Date.now(), cita_json: JSON.stringify(p.estado || leerEstado(null)), pagina: '', error: '', ms_ia: 0 })
+] } }];
+
+//// Filas seguimiento
+return $('Respuesta seguimiento').first().json.filas.map(function (f) { return { json: f }; });
+
+//// Cuerpo seguimiento
+// @incluir comun-chat
+// {respuesta, escribiendo_ms, accion?, pedido?} para la web (pedido = vista pública de WF15, para la tarjeta de estado del chat).
+const r = $('Respuesta seguimiento').first().json;
+const cuerpo = { respuesta: r.texto, escribiendo_ms: escribiendoMs(r.texto) };
+if (r.accion) cuerpo.accion = r.accion;
+if (r.pedido) cuerpo.pedido = r.pedido;
+return [{ json: { status: 200, cuerpo: cuerpo, agendada: false, aprender: false } }];

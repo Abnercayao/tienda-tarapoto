@@ -60,7 +60,7 @@ Esta especificación está lista para pasarla a un equipo de implementación. To
   - Palmeras, por "Ciudad de las Palmeras".
   - Cataratas Ahuashiyacu y Huacamaillo y la Laguna Azul (en el agua, los bordes ondulados).
   - El cacao de San Martín (el marrón).
-  - El motocarro (icono de reparto local).
+  - El camión de envíos (icono de "Envíos a todo el Perú").
   - El sol fuerte de 24 a 33 °C.
 
 ### Nombres provisionales
@@ -160,7 +160,7 @@ Contrastes calculados (mínimo AA: 4.5 para texto, 3 para UI):
 - Stickers rotados (-6°) para "Nuevo", "-20 %" y "Muestra".
 - Separadores de sección con **borde ondulado SVG**, como río o cascada.
 - Textura de grano SVG al 3 % sobre el fondo arena.
-- Icono de **motocarro** para el reparto en Tarapoto, Morales y La Banda de Shilcayo.
+- Icono de **envíos** ("Envíos a todo el Perú": Shalom, Olva Courier, agencia de bus y entrega local en Tarapoto, Morales y La Banda de Shilcayo).
 - Evitar: degradados morados, una sola tipografía Inter y un hero de stock con "Shop now".
 
 ### Microinteracciones
@@ -169,7 +169,7 @@ Todas se desactivan con `prefers-reduced-motion: reduce`.
 
 - **Aparición al hacer scroll:** IntersectionObserver añade `.is-visible` (opacidad de 0 a 1 y desplazamiento de 16 px a 0, 600 ms, `--ease-out`), con escalonado `--i` de 60 ms.
   - Mejora progresiva: en el hero, parallax de hojas con `animation-timeline: view()` dentro de `@supports`. Funciona en Chrome/Edge 115+ y Safari 26+. En Firefox estable sigue detrás de un flag y se ve estático.
-- **Marquee:** "Telas frescas · Envío en motocarro · Pide por WhatsApp · Tallas para toda la familia". Se anima con `translateX(-50%)` sobre contenido duplicado con `aria-hidden`, se pausa con hover/focus y tiene un botón de pausa.
+- **Marquee:** "Telas frescas · Envíos a todo el Perú · Pide por WhatsApp · Tallas para toda la familia". Se anima con `translateX(-50%)` sobre contenido duplicado con `aria-hidden`, se pausa con hover/focus y tiene un botón de pausa.
 - **Tarjeta de producto:**
   - Al pasar el cursor, cambio con fundido a la segunda imagen, elevación de 4 px y `--shadow-2`. El botón "Vista rápida" sube desde abajo.
   - En pantallas táctiles el botón queda siempre visible.
@@ -187,13 +187,13 @@ Todas se desactivan con `prefers-reduced-motion: reduce`.
 |---|---|---|---|
 | 0 | Barra de anuncio | "Envío gratis en Tarapoto desde S/ 120" (texto de ejemplo), con botón para cerrar | site.json |
 | 1 | Header fijo | Logo, menú (Hombres, Mujeres, Niños, Accesorios, Novedades, Lookbook, Contacto), buscar, tema, bolsa con contador. En móvil, menú lateral con `<dialog>` | — |
-| 2 | Hero `#inicio` | H1 "Ropa fresca para el calor de la selva". Botones: "Ver catálogo" (mango) y "Pedir por WhatsApp". Collage de 3 fotos con marco de arco, hojas SVG y sticker "¿32 °C? Te tenemos cubierto". Imagen principal con `fetchpriority="high"` | site.json + destacados |
+| 2 | Hero `#inicio` | H1 "Ropa fresca para el calor de la selva". Botones: "Ver catálogo" (mango) y "Pedir por WhatsApp". Collage de 3 fotos con marco de arco, hojas SVG y sticker "¿38°? Te tenemos cubierto". Imagen principal con `fetchpriority="high"` | site.json + destacados |
 | 3 | Marquee | Banda de mensajes | site.json |
 | 4 | Categorías `#categorias` | 4 tarjetas con imagen y contador calculado. Al hacer clic se aplica el filtro y se baja a `#catalogo` | products.json |
 | 5 | Novedades y destacados | Carrusel horizontal con scroll-snap y botones anterior/siguiente | `nuevo` / `destacado` |
 | 6 | Catálogo `#catalogo` | Búsqueda (ignora tildes), filtros de categoría, subcategoría, talla, color, precio (rangos o mínimo y máximo), "solo ofertas" y orden (destacados, nuevos, precio ↑ y ↓). Chips de filtros activos, contador con `aria-live`, grilla de 2, 3 o 4 columnas y botón "Cargar más" de 12 en 12 (sin scroll infinito). Estado vacío con botón de WhatsApp. Filtros sincronizados con la URL (`?cat=mujeres&talla=M&q=vestido`) | products.json |
 | 7 | Vista rápida | `<dialog>` modal con enlace `#p/<slug>`. Galería con scroll-snap, tallas (radio), colores con nombre visible, cantidad, frescura, material, precio/oferta. Botones "Agregar a la bolsa" y "Pedir por WhatsApp". Si `stock=0` aparece "Agotado" y el pedido se desactiva | products.json |
-| 8 | Beneficios `#beneficios` | Telas frescas (lino/algodón), entrega en motocarro, cambios (política por confirmar), medios de pago (por confirmar con el dueño, p. ej. Yape/Plin/efectivo) | site.json |
+| 8 | Beneficios `#beneficios` | Telas frescas (lino/algodón), envíos a todo el Perú, cambios (política por confirmar), medios de pago (por confirmar con el dueño, p. ej. Yape/Plin/efectivo) | site.json |
 | 9 | Lookbook `#lookbook` | Galería editorial con puntos que enlazan a productos ("comprar el look") | site.json.lookbook |
 | 10 | Novedades/Blog `#blog` | Las 3 últimas publicaciones, que llevan a `articulo.html?slug=` | articles.json |
 | 11 | Testimonios | **Solo reales** (`verificado:true`). Si no hay ninguno, la sección se oculta. Nunca se publican reseñas inventadas como reales ni `AggregateRating` falso | site.json |

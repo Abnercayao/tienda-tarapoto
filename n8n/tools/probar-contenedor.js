@@ -201,9 +201,11 @@ async function principal() {
   docker(['cp', path.join(RAIZ, 'n8n', 'reference', 'credenciales.plantilla.json'), CONT + ':/tmp/imp/cred.json']);
   docker(['exec', '-u', 'root', CONT, 'chown', '-R', 'node:node', '/tmp/imp']);
   const rc = n8n(['import:credentials', '--input=/tmp/imp/cred.json']);
-  caso('import:credentials (plantilla, 3)', /imported 3 credentials/i.test(rc), rc);
+  const nCred = JSON.parse(fs.readFileSync(path.join(RAIZ, 'n8n', 'reference', 'credenciales.plantilla.json'), 'utf8')).length;
+  caso('import:credentials (plantilla, ' + nCred + ')', new RegExp('imported ' + nCred + ' credentials', 'i').test(rc), rc);
   const rw = n8n(['import:workflow', '--separate', '--input=/tmp/imp/wf']);
-  caso('import:workflow de los 9 workflows', /imported 9 workflows/i.test(rw), rw);
+  const nWf = fs.readdirSync(DIR_WF).filter(function (x) { return /\.json$/.test(x); }).length;
+  caso('import:workflow de los ' + nWf + ' workflows de n8n/workflows', new RegExp('imported ' + nWf + ' workflows', 'i').test(rw), rw);
   const rt = n8n(['import:workflow', '--separate', '--input=/tmp/imp/test']);
   caso('import:workflow de 4 workflows de prueba', /imported 4 workflows/i.test(rt), rt);
   const lista = n8n(['list:workflow']);
@@ -222,10 +224,10 @@ async function principal() {
   const s1 = await http('GET', '/webhook/t-setup', undefined, {}, 60000);
   caso('WF0 sin token: termina en "Falta token" (listo:false)', s1.status === 200 && s1.json && s1.json.listo === false, s1.texto);
   let d = await dump();
-  caso('WF0 creó pb_config con 17 claves y pb_locks con "worker"', d.n_config === 17 && (d.locks || []).length === 1 && d.locks[0].nombre === 'worker' && d.locks[0].hasta === 0, { n: d.n_config, locks: d.locks });
+  caso('WF0 creó pb_config con 22 claves y pb_locks con "worker"', d.n_config === 22 && (d.locks || []).length === 1 && d.locks[0].nombre === 'worker' && d.locks[0].hasta === 0, { n: d.n_config, locks: d.locks });
   const s2 = await http('GET', '/webhook/t-setup', undefined, {}, 60000);
   d = await dump();
-  caso('WF0 2.ª corrida idempotente (sin claves ni locks duplicados)', s2.status === 200 && d.n_config === 17 && d.locks.length === 1, { n: d.n_config, locks: d.locks.length });
+  caso('WF0 2.ª corrida idempotente (sin claves ni locks duplicados)', s2.status === 200 && d.n_config === 22 && d.locks.length === 1, { n: d.n_config, locks: d.locks.length });
 
   // 4) Config de prueba: token falso, 4 autorizados (uno con id 0 = inactivo)
   const AUT = [{ id: 111, rol: 'admin', nombre: 'Admin prueba' }, { id: 222, rol: 'marketing', nombre: 'Mkt prueba' }, { id: 333, rol: 'dueno', nombre: 'Dueno prueba' }, { id: 0, rol: 'dueno', nombre: 'Inactivo' }];

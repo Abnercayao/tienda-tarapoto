@@ -316,6 +316,8 @@ function quitarReferencias(E, quitados, out, ctx) {
     l.productos = (l.productos || []).filter(function (id) { return !q.has(id); });
     if (l.productos.length !== n) tocaSitio = true;
   });
+  // v3: si se quita el producto de la portada (hero.producto_destacado), la portada vuelve a su imagen sin producto destacado.
+  if (E.site.hero && q.has(E.site.hero.producto_destacado)) { delete E.site.hero.producto_destacado; delete E.site.hero.etiqueta_destacado; tocaSitio = true; }
   if (tocaSitio) { out.ids.push('site'); if (out.archivos.indexOf('site') < 0) out.archivos.push('site'); }
 }
 // Aplica UN borrador (CONTRATO §8) sobre E = {products, articles, site}. Devuelve {ok, errores, ids, archivos, imagenes, entidad_id, linea}.
@@ -464,7 +466,7 @@ function aplicarBorrador(E, b, fotos, ctx) {
     const tallas = ordenTallas(Array.isArray(c.tallas) ? c.tallas : []);
     if (!tallas.length) return falla('faltan las tallas');
     const slug = slugUnico(slugificar(nombre), P);
-    const p = { id: id, slug: slug, nombre: nombre, categoria: c.categoria, subcategoria: SUBCATEGORIAS.indexOf(c.subcategoria) >= 0 ? c.subcategoria : 'otros', precio: r2(c.precio) };
+    const p = { id: id, slug: slug, nombre: nombre, categoria: c.categoria, subcategoria: normalizarSubcategoria(c.categoria, c.subcategoria) || 'otros', precio: r2(c.precio) };
     if (typeof c.precio_oferta === 'number' && c.precio_oferta > 0) p.precio_oferta = r2(c.precio_oferta);
     p.tallas = tallas;
     p.colores = colores(c.colores);
@@ -563,7 +565,9 @@ function aplicarBorrador(E, b, fotos, ctx) {
     const cambios = [];
     if (!vacio(c.nombre)) { p.nombre = textoSeguro(c.nombre, 70); cambios.push('nombre'); }
     if (!vacio(c.categoria) && c.categoria !== p.categoria) { p.categoria = c.categoria; cambios.push('categoria ' + c.categoria); }
-    if (!vacio(c.subcategoria) && c.subcategoria !== p.subcategoria) { p.subcategoria = c.subcategoria; cambios.push('subcategoria ' + c.subcategoria); }
+    // v3: la subcategoría debe estar permitida en la categoría (normalizarSubcategoria); si cambió la categoría, se ajusta la actual.
+    const subNueva = !vacio(c.subcategoria) ? normalizarSubcategoria(p.categoria, c.subcategoria) : normalizarSubcategoria(p.categoria, p.subcategoria);
+    if (subNueva && subNueva !== p.subcategoria) { p.subcategoria = subNueva; cambios.push('subcategoria ' + subNueva); }
     if (typeof c.precio === 'number' && c.precio > 0) { p.precio = r2(c.precio); cambios.push('precio ' + p.precio.toFixed(2)); }
     if (typeof c.precio_oferta === 'number') {
       if (c.precio_oferta === 0) { if (p.precio_oferta !== undefined) { delete p.precio_oferta; cambios.push('sin oferta'); } }

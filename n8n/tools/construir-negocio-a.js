@@ -17,7 +17,7 @@ const crypto = require('crypto');
 const RAIZ = path.resolve(__dirname, '..', '..');
 const SRC = path.join(RAIZ, 'n8n', 'src', 'negocio');
 const SALIDA = path.join(RAIZ, 'n8n', 'workflows');
-const ID = { WF3: 'pbWf03Borrador00', WF4: 'pbWf04Comandos00', WF5: 'pbWf05Publicar00', WF6: 'pbWf06Imagen0000', WF9: 'pbWf09Errores000' };
+const ID = { WF3: 'pbWf03Borrador00', WF4: 'pbWf04Comandos00', WF5: 'pbWf05Publicar00', WF6: 'pbWf06Imagen0000', WF9: 'pbWf09Errores000', WF16: 'pbWf16PedBot0000' };
 const CRED_GITHUB = { githubApi: { id: 'pbCredGithub0001', name: 'GitHub Palmera Brava' } };
 const CRED_TELEGRAM = { telegramApi: { id: 'pbCredTelegram01', name: 'Telegram Palmera Brava' } };
 
@@ -276,12 +276,12 @@ function wf3() {
 // =====================================================================================================
 function wf4() {
   const W = workflow(ID.WF4, 'PB WF4 Comandos', Object.assign({}, COMUNES), 'wf4.js');
-  W.nota('## WF4 · Comandos (sub-workflow de WF2)\nInterpreta `/comando args`, revisa el **permiso del rol actual** (marketing no usa /borrar, /whatsapp, /limpiar_muestras, /deshacer, /pausa, /reanudar) y:\n- consultas → responde (catálogo leído de GitHub);\n- **toda escritura** → operación a WF3 (borrador + Publicar);\n- /historial y /deshacer → WF5 (`modo:"historial"`);\n- /imagen → WF6; /pausa, /reanudar, /cancelar → `pb_config` / `pb_borradores`.', [X(0) - 40, -1240], 760, 340, 4);
+  W.nota('## WF4 · Comandos (sub-workflow de WF2)\nInterpreta `/comando args`, revisa el **permiso del rol actual** (marketing no usa /borrar, /whatsapp, /limpiar_muestras, /deshacer, /pausa, /reanudar) y:\n- consultas → responde (catálogo leído de GitHub);\n- **toda escritura** → operación a WF3 (borrador + Publicar);\n- /historial y /deshacer → WF5 (`modo:"historial"`);\n- /imagen → WF6; /pausa, /reanudar, /cancelar → `pb_config` / `pb_borradores`;\n- v3: pedidos, envíos y usuarios → WF16.', [X(0) - 40, -1240], 760, 340, 4);
   W.nodo('Entrada', 'executeWorkflowTrigger', 1.2, [X(0), 0], { inputSource: 'passthrough' });
   dtLeer(W, 'Leer config', 'pb_config', [], [X(1), 0]);
   W.code('Config', [X(2), 0]);
   W.code('Interpretar', [X(3), 0]);
-  segun(W, 'Ruta', '={{ $json.ruta }}', ['responder', 'consulta', 'estado', 'historial', 'deshacer', 'borrador', 'imagen', 'pausa', 'cancelar'], [X(4), 0]);
+  segun(W, 'Ruta', '={{ $json.ruta }}', ['responder', 'consulta', 'estado', 'historial', 'deshacer', 'borrador', 'imagen', 'pausa', 'cancelar', 'pedidos'], [X(4), 0]);
   const y = function (k) { return -880 + k * 220; };
   W.nota('### Consultas (sin borrador)\n/ayuda, /lista, /ver, /estado, /ids y respuestas de uso o de permiso.', [X(5) - 40, y(0) - 120], 1200, 620, 7);
   W.code('Responder', [X(5), y(0)]);
@@ -306,11 +306,13 @@ function wf4() {
   W.code('Ids cancelados', [X(6), y(8)]);
   dtBorrar(W, 'Borrar imagenes', 'pb_imagenes', [['draft_id', 'eq', '={{ $json.draft_id }}']], [X(7), y(8)]);
   W.code('Cancelados', [X(8), y(8)]);
+  W.nota('### v3 · Pedidos y usuarios\n/envios, /pedidos, /pedido, /preparando, /enviar, /recojo, /entregado, /cancelar_pedido, /desconocidos, /autorizar, /desautorizar y sus botones (`ped:`/`usr:`) → **WF16 Pedidos-Bot** (debe estar publicado).', [X(5) - 40, y(9) - 140], 1200, 300, 4);
+  ejecutar(W, 'WF16 Pedidos', ID.WF16, [X(5), y(9)]);
   telegram(W, 'Enviar', [X(10), 0]);
   W.code('Salida', [X(11), 0]);
 
   W.cadena('Entrada', 'Leer config', 'Config', 'Interpretar', 'Ruta');
-  ['Responder', 'GET productos', 'Inbox nuevo', 'WF5 historial', 'WF5 head', 'WF3 Borrador', 'WF6 Imagen', 'Guardar pausa', 'Cancelar pendientes', 'Responder']
+  ['Responder', 'GET productos', 'Inbox nuevo', 'WF5 historial', 'WF5 head', 'WF3 Borrador', 'WF6 Imagen', 'Guardar pausa', 'Cancelar pendientes', 'WF16 Pedidos', 'Responder']
     .forEach(function (n, i) { W.con('Ruta', n, i); });
   W.con('Responder', 'Enviar');
   W.cadena('GET productos', 'GET articulos', 'Consulta', 'Enviar');
@@ -320,6 +322,7 @@ function wf4() {
   W.con('¿Deshacer?', 'WF3 Borrador', 0); W.con('¿Deshacer?', 'Enviar', 1);
   W.con('WF3 Borrador', 'Salida');
   W.con('WF6 Imagen', 'Salida');
+  W.con('WF16 Pedidos', 'Salida');
   W.cadena('Guardar pausa', 'Pausa', 'Enviar');
   W.cadena('Cancelar pendientes', 'Ids cancelados', 'Borrar imagenes', 'Cancelados', 'Enviar');
   W.con('Enviar', 'Salida');

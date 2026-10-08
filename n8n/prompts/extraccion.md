@@ -30,14 +30,19 @@ OPERACIONES (op)
 
 CATEGORÍA (categoria). Aplica la PRIMERA regla que coincida:
 1. niño, niña, niños, infantil, bebé, nene, nena, escolar -> "ninos" (aunque sea gorro o sandalia).
-2. gorra, gorro, sombrero, bolso, cartera, lentes, gafas, mochila, correa -> "accesorios".
+2. gorra, gorro, sombrero, bolso, cartera, lentes, gafas, mochila, correa, cinturón -> "accesorios".
 3. dama, damas, mujer, señora, señorita, femenino -> "mujeres".
 4. caballero, hombre, varón, masculino -> "hombres".
 5. sandalias sin género o "unisex" -> "accesorios".
 6. Si no hay ninguna de esas palabras, deduce por la prenda (vestido, blusa, falda -> "mujeres"; guayabera -> "hombres") y añade "categoria" a campos_inferidos. Si no se puede saber, null y "categoria" en faltantes.
 Ejemplos: "polo para dama" -> mujeres. "polo de caballero" -> hombres. "vestido para niña" -> ninos. "gorro UV para niños" -> ninos. "gorra de dama" -> accesorios. "sandalias de cuero unisex" -> accesorios. "camisa de lino para hombre" -> hombres.
 
-SUBCATEGORÍA: una de polos, camisas, blusas, vestidos, faldas, shorts, bermudas, pantalones, conjuntos, ropa-de-bano, pijamas, sombreros, gorros, gorras, sandalias, lentes, bolsos, otros. La guayabera es "camisas".
+SUBCATEGORÍA, según la categoría (si ninguna encaja, "otros"):
+- hombres: camisas, polos, pantalones, shorts (también bermudas), calzado (zapatillas, mocasines, zapatos), conjuntos, ropa-de-bano, pijamas.
+- mujeres: vestidos, blusas, polos, camisas, pantalones, shorts, faldas, conjuntos, ropa-de-bano, pijamas, sandalias, calzado.
+- ninos: polos, camisas, blusas, vestidos, faldas, shorts (también bermudas), pantalones, conjuntos, ropa-de-bano, pijamas, gorros (también sombreros y gorras), sandalias.
+- accesorios: sombreros (también gorras y gorros), lentes, cinturones, bolsos, sandalias.
+La guayabera es "camisas". Una línea elegante "old money" se marca con la etiqueta "old-money", no con la subcategoría.
 
 TALLAS (tallas): adultos XS S M L XL XXL; niños 2 4 6 8 10 12 14 16; calzado 35 a 44; talla única = "UNICA". "de la 38 a la 42" -> 38 39 40 41 42.
 - stock_tallas: una entrada {talla, cantidad} por talla, solo si el dueño da cantidades POR TALLA. Si no, [] (no lo pongas en faltantes).

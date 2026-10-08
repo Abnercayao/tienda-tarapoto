@@ -169,10 +169,10 @@ async function principal() {
   const r1 = await chat(S, '¿Tienen camisas de lino para hombre? ¿Qué precio tienen?');
   caso('consulta (1.ª, crea tablas y carga catálogo) -> 200 en ' + (r1.ms / 1000).toFixed(1) + ' s, menciona lino y S/', r1.status === 200 && r1.json && /lino/i.test(r1.json.respuesta) && /S\/ ?\d/.test(r1.json.respuesta) && r1.json.escribiendo_ms >= 800, r1.texto);
   caso('respuesta con Allow-Origin ' + ORIGEN + ' y Cache-Control no-store', r1.headers.get('access-control-allow-origin') === ORIGEN && /no-store/.test(r1.headers.get('cache-control') || ''), { acao: r1.headers.get('access-control-allow-origin'), cc: r1.headers.get('cache-control') });
-  console.log('        Valeria: ' + (r1.json ? r1.json.respuesta : r1.texto));
+  console.log('        Vale: ' + (r1.json ? r1.json.respuesta : r1.texto));
   const r2 = await chat(S, '¿Y la tienen en talla L?');
   caso('2.º mensaje -> 200 en ' + (r2.ms / 1000).toFixed(1) + ' s', r2.status === 200 && r2.json && r2.json.respuesta, r2.texto);
-  console.log('        Valeria: ' + (r2.json ? r2.json.respuesta : r2.texto));
+  console.log('        Vale: ' + (r2.json ? r2.json.respuesta : r2.texto));
   const ex = ejecuciones('Catálogo');
   const fuentes = ex.map(function (e) { return e.salida && e.salida[0] ? e.salida[0].fuente : null; }).filter(Boolean);
   caso('catálogo: 1.ª vez desde la web publicada, 2.ª desde la caché (datos estáticos)', fuentes[0] === 'web' && fuentes[1] === 'cache', fuentes);
@@ -192,13 +192,13 @@ async function principal() {
   for (let i = 0; i < pasos.length && !resumen; i++) {
     const r = await chat(C, pasos[i]);
     ms.push(r.ms);
-    console.log('        Visitante: ' + pasos[i] + '\n        Valeria: ' + (r.json ? r.json.respuesta : r.status + ' ' + r.texto).replace(/\n/g, ' / '));
+    console.log('        Visitante: ' + pasos[i] + '\n        Vale: ' + (r.json ? r.json.respuesta : r.status + ' ' + r.texto).replace(/\n/g, ' / '));
     resumen = !!(r.json && /Revisa por favor los datos/.test(r.json.respuesta));
   }
   caso('la conversación llega al resumen fijo de la cita', resumen);
   const rs = await chat(C, 'Sí, todo correcto');
   ms.push(rs.ms);
-  console.log('        Visitante: Sí, todo correcto\n        Valeria: ' + (rs.json ? rs.json.respuesta : rs.texto));
+  console.log('        Visitante: Sí, todo correcto\n        Vale: ' + (rs.json ? rs.json.respuesta : rs.texto));
   caso('"Sí, todo correcto" -> 200 con cita.agendada (' + F + ' 10:00)', rs.status === 200 && rs.json && rs.json.cita && rs.json.cita.agendada === true && rs.json.cita.fecha === F && rs.json.cita.hora === '10:00', rs.texto);
   caso('tiempos de respuesta del chat < 60 s (web): ' + ms.map(function (x) { return (x / 1000).toFixed(1); }).join(', ') + ' s', ms.every(function (x) { return x < 60000; }));
   let d = {};

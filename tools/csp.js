@@ -11,6 +11,9 @@
  *    (application/json, application/ld+json), los que están dentro de comentarios y los externos (src=...).
  *  - Calcula sha256 en base64 del texto del script tal como lo ve el navegador (saltos CRLF/CR → LF, como el
  *    parser HTML), sobre sus bytes UTF-8.
+ *  - v3 (docs/PEDIDOS.md): si la página hace pedidos (/pedido, /seguimiento, /pedido/pago) exige los mismos orígenes del
+ *    proxy en connect-src, rechaza un connect-src abierto (*, https:, http:) y que la página llame a api.mercadopago.com
+ *    (la preferencia de pago la crea n8n con la credencial "Mercado Pago Prueba"; el token nunca va a la web).
  *  - Si la página usa el chat (lee data/chat.json), exige que connect-src permita https://*.trycloudflare.com,
  *    http://127.0.0.1:8787 y http://localhost:8787 (contrato v2, sección 0.6).
  *  - En el <meta http-equiv="Content-Security-Policy">, reescribe la directiva script-src: quita los hashes
@@ -116,6 +119,13 @@ function analizar(html) {
     const faltanC = ORIGENES_CHAT.filter(function (o) { return !cs || cs.fuentes.indexOf(o) < 0; });
     if (faltanC.length) r.problemas.push('connect-src no permite el chat del agente (falta ' + faltanC.join(' ') + ')');
   }
+  if (/["']\/pedido\/pago["']|["']\/seguimiento["']/.test(html)) {
+    const cs = dir.filter(function (d) { return d.nombre === 'connect-src'; })[0];
+    const faltanP = ORIGENES_CHAT.filter(function (o) { return !cs || cs.fuentes.indexOf(o) < 0; });
+    if (faltanP.length) r.problemas.push('connect-src no permite los pedidos por el proxy (falta ' + faltanP.join(' ') + ')');
+    if (cs && cs.fuentes.some(function (x) { return x === '*' || x === 'https:' || x === 'http:'; })) r.problemas.push('connect-src demasiado abierto para una página que envía datos de pedidos');
+  }
+  if (/api\.mercadopago\.com/i.test(html)) r.problemas.push('la página menciona api.mercadopago.com: el pago lo crea n8n (WF13) y el Access Token nunca va a la web');
   if (enLinea.length > 1) r.avisos.push('hay ' + enLinea.length + ' scripts en línea ejecutables; el PLAN pide uno solo');
   if (r.marcador) r.problemas.push('la CSP aún tiene ' + MARCADOR + '; ejecuta: node tools/csp.js');
   const faltan = hashes.filter(function (h) { return r.hashesCsp.indexOf(h) < 0; });

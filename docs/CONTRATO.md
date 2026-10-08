@@ -2,10 +2,158 @@
 
 Este documento define **qué forma tienen los datos**, **qué reglas los protegen** y **cómo se comunican** la web, el bot de Telegram (n8n) y el LLM local. Es la referencia para los equipos A (web), C (n8n), D (IA local), E (publicación) y F (QA).
 
-- Contrato **v2.0.0** (`CONTRATO_VERSION` en `tools/validar.js`, `schema_version: 2`). Fecha: 2026-10-07 (v1.0.0: 2026-10-06).
-- **Las novedades de v2 están en la sección 0. Si algo de las secciones 1–13 la contradice, manda la sección 0.**
+- Contrato **v3.0.0** (`CONTRATO_VERSION` en `tools/validar.js`, `schema_version: 3`). Fecha: 2026-10-07 (v2.0.0: 2026-10-07; v1.0.0: 2026-10-06).
+- **Las novedades de v3 están en la sección 00 y las de v2 en la 0. Orden de prioridad: 00, luego 0, luego 1–13.**
 - Fuente única de verdad: `tools/validar.js`. Los esquemas de `data/schema/` **se generan** desde ahí (`node tools/validar.js --escribir-esquemas`); no se editan a mano.
 - Decisiones del usuario que este contrato aplica: tienda **Palmera Brava**, Tarapoto (San Martín); WhatsApp personal **51995542938** (se muestra "+51 995 542 938"); horario **8:00 a. m. – 8:00 p. m.**; varios roles (admin, dueño, marketing); fotos **con personas sin rostro**, y **niños sin personas**; productos de referencia con imágenes IA locales. **v2:** la web es una **demo privada** que Abner muestra solo a dueños de negocios; nunca será una tienda abierta al público, por eso **debe parecer una tienda real**.
+
+## 00. Contrato v3 (2026-10-07): taxonomía, envíos a todo el Perú, Mercado Pago y pedidos
+
+**Si algo de las secciones 0–13 contradice esta sección, manda la 00.** Todo lo de aquí está implementado y probado en `tools/validar.js` (bloque `COPIAR A N8N`) y `tools/test-validar.js` (sección 10).
+
+### 00.1 Resumen
+
+| Tema | Regla v3 |
+|---|---|
+| Versión | `schema_version: 3` en `products.json`, `articles.json` y `site.json`; `CONTRATO_VERSION` = `3.0.0`. Nuevo esquema `data/schema/pedido.schema.json` (generado). |
+| Asistente | Se llama **Vale** (`site.asistente`). En ningún texto público, prompt ni documento queda "Valeria". |
+| Temperatura | `site.temperatura_promedio` = **"38°"**. La web no escribe la cifra a mano: la lee de aquí. |
+| Envíos | Se elimina toda mención a "motocarro". **"Envíos a todo el Perú"** con Shalom, Olva Courier, agencia de bus elegida por el cliente y entrega local en Tarapoto, cada una con **costo y tiempo promedio** (`site.envios`, 00.4). |
+| Menú | Cada categoría trae su menú `site.categorias[].subcategorias` (subcategorías + colección "Old money"). Las subcategorías permitidas por categoría están en el código (`SUBCATEGORIAS_POR_CATEGORIA`). |
+| Catálogo | +20 productos (`prd-0018`…`prd-0037`, 5 por categoría), con una línea **old money** (etiqueta `old-money`). La portada muestra `site.hero.producto_destacado` = `prd-0019` (Polo de punto calado). |
+| Pagos | **Mercado Pago Checkout Pro en modo prueba** (`site.pagos.mercadopago`). El Access Token vive solo en la credencial n8n `pbCredMercPago01` (00.6). |
+| Pedidos | Número `PB-000101`…, estados con historial, seguimiento por número + correo. **Los pedidos NO se guardan en el repo**: viven en la Data Table `pb_pedidos` de n8n (00.5). |
+
+### 00.2 Taxonomía (subcategorías por categoría) y colecciones
+
+Lista global (`SUBCATEGORIAS`, enum del esquema y del LLM): `polos camisas blusas vestidos faldas shorts pantalones conjuntos ropa-de-bano pijamas calzado sandalias sombreros gorros lentes cinturones bolsos otros`. **Se quitan** `bermudas` (ahora `shorts`) y `gorras` (ahora `sombreros` en accesorios y `gorros` en niños). **Se añaden** `calzado` y `cinturones`.
+
+| Categoría | Subcategorías permitidas (`SUBCATEGORIAS_POR_CATEGORIA`) | Menú publicado (`site.categorias[].subcategorias`, en orden) |
+|---|---|---|
+| hombres | camisas, polos, pantalones, shorts, calzado, conjuntos, ropa-de-bano, pijamas, otros | Camisas · Polos · Pantalones · Shorts y bermudas · Zapatillas y mocasines (`calzado`) · **Old money** |
+| mujeres | vestidos, blusas, polos, camisas, pantalones, shorts, faldas, conjuntos, ropa-de-bano, pijamas, sandalias, calzado, otros | Vestidos · Blusas · Pantalones · Shorts · Faldas · Sandalias · **Old money** |
+| ninos | polos, camisas, blusas, vestidos, faldas, shorts, pantalones, conjuntos, ropa-de-bano, pijamas, gorros, sandalias, otros | Polos · Vestidos · Shorts y bermudas · Conjuntos · Ropa de baño UV · Gorros y sombreros |
+| accesorios | sombreros, lentes, cinturones, bolsos, sandalias, otros | Sombreros y gorras · Lentes de sol · Cinturones · Bolsos · Sandalias · **Old money** |
+
+- **Entrada de menú** `{id, nombre, orden, etiqueta?}`. Sin `etiqueta`: subcategoría (la web filtra `producto.categoria = cat` y `producto.subcategoria = id`). Con `etiqueta`: colección (filtra `categoria = cat` y `etiquetas` contiene la etiqueta). Ruta web: `#/c/<categoria>/<id>`; "Ver todo" = `#/c/<categoria>`.
+- **`site.colecciones[]`** `{id, nombre, descripcion, etiqueta, categorias[], imagen?}`: página propia `#/coleccion/<id>` (todas las categorías). Hoy: `old-money` (hombres, mujeres, accesorios; imagen `assets/img/brand/col-old-money.webp`).
+- Reglas (código `[taxonomia]`, error): subcategoría de menú no permitida en esa categoría; entrada con etiqueta sin colección del mismo id y etiqueta, o colección que no incluye esa categoría; id de colección igual a una subcategoría (comparten ruta); ids repetidos. Avisos: `[menu_vacio]` (entrada o colección sin productos activos: la web la oculta) y `[menu]` (producto cuya subcategoría no está en el menú: solo sale en "Ver todo").
+- **Producto** (código `[subcategoria]`, error): `subcategoria` debe estar en `SUBCATEGORIAS_POR_CATEGORIA[categoria]`.
+- **Bot y LLM:** `normalizarSubcategoria(categoria, sub)` convierte sinónimos (`bermudas`→`shorts`, `zapatillas/mocasines`→`calzado`, `gorras`→`sombreros`, `correa`→`cinturones`…) y equivalentes por categoría (`hombres+sandalias`→`calzado`, `ninos+sombreros`→`gorros`, `accesorios+gorros`→`sombreros`); si nada encaja, `otros`. `validarOperacion` ya la aplica (aviso `[subcategoria]`) y, si `actualizar` cambia la categoría, ajusta la subcategoría actual. El `PROMPT_PRODUCTO` y el `format` (`data/schema/ollama-format-producto.json`) tienen la lista por categoría.
+- Reasignación de los 17 existentes: `prd-0004` y `prd-0011` (`bermudas`→`shorts`), `prd-0014` (`gorros`→`sombreros`).
+- Guía de tallas: nuevas tablas `hombres-calzado` (38–44), `mujeres-calzado` (sandalias y calzado, 35–40) y `accesorios-cinturones` (S/M/L por cintura); las demás cambian solo sus `subcategorias`.
+
+### 00.3 Productos nuevos (todos `muestra: true`, `ia_local`, una foto por color `assets/img/products/<id>-<slug-color>.webp`)
+
+| Categoría | Productos (old money = ★) |
+|---|---|
+| hombres | prd-0018 Camisa cubana de lino ★ · prd-0019 Polo de punto calado ★ (portada) · prd-0020 Pantalón de lino plisado ★ · prd-0021 Mocasines de ante ★ · prd-0022 Zapatillas blancas minimalistas ★ |
+| mujeres | prd-0023 Vestido camisero de lino ★ · prd-0024 Blusa de seda lavada ★ · prd-0025 Pantalón palazzo de lino ★ · prd-0026 Sandalias de cuero trenzado ★ · prd-0027 Falda midi plisada |
+| ninos | prd-0028 Conjunto de lino para niño · prd-0029 Vestido de lino con tirantes para niña · prd-0030 Ropa de baño UV enteriza · prd-0031 Sombrero UV de ala ancha · prd-0032 Short de lino con elástico |
+| accesorios | prd-0033 Lentes de sol carey ★ · prd-0034 Cinturón de cuero trenzado ★ · prd-0035 Bolso de rafia estructurado ★ · prd-0036 Gorra de lino ★ · prd-0037 Sombrero panamá de paja toquilla ★ |
+
+Cada uno: 2–3 colores, `stock_por_color` 0–20 (agotados: prd-0018 Verde oliva, prd-0024 Azul marino, prd-0029 Mango, prd-0031 Verde palma, prd-0034 Azul marino), frescura, precio (y a veces oferta) en S/. Las 54 imágenes nuevas (52 de producto + `brand/hero-old-money.webp` + `brand/col-old-money.webp`) tienen su prompt en `tools/image-prompts.json` (estilo "quiet luxury" tropical para la línea old money; adultos sin rostro con recorte superior; niños, calzado y accesorios en bodegón sin personas). **Aún no existen en disco**: hay que generarlas con `node tools/generar-imagenes.mjs`.
+
+### 00.4 `site.json`: campos nuevos
+
+| Campo | Contenido |
+|---|---|
+| `temperatura_promedio` | `"38°"` (patrón `^\d{1,2}°$`). |
+| `asistente` | `{nombre: "Vale", rol, saludo, acciones[]}`. `acciones` son los chips del chat; la primera es **"Hacer seguimiento de mi pedido"**. |
+| `hero.producto_destacado`, `hero.etiqueta_destacado` | Producto de la portada (`prd-0019`, debe existir y estar activo; error `[referencia]` si no existe) y su etiqueta ("Nuevo · Línea old money"). `hero.imagenes[0]` = `brand/hero-old-money.webp`. **`/limpiar_muestras` debe borrar `producto_destacado` si apunta a una muestra que quita.** |
+| `categorias[].subcategorias`, `colecciones` | 00.2. |
+| `envio` (texto), `zonas_reparto`, `metodos_pago`, `anuncio` | Sin "motocarro": "Enviamos a todo el Perú con Shalom, Olva Courier o la agencia de bus…"; `zonas_reparto: ["Todo el Perú"]`; `metodos_pago: ["Mercado Pago", "Tarjetas de crédito y débito"]`. |
+| `envios` | `{cobertura: "Todo el Perú", resumen, despacho, nota, gratis_desde: 299, zonas[], opciones[]}` (00.4.1). |
+| `pagos.mercadopago` | `{activo: true, modo: "prueba", public_key: "", nota}`. `activo:false` = la web vuelve al pedido por WhatsApp. `public_key` es opcional (no se usa al redirigir a `init_point`); **nunca** el Access Token (validar.js lo detecta como `[secreto]`). `modo: "produccion"` deja aviso `[pagos]`. |
+| `textos` | `checkout{titulo, paso_contacto, paso_envio, paso_pago, nota_envio, boton_pagar, aviso_prueba, guardar_datos, privacidad}`, `pedido{titulo_pagado, texto_pagado, titulo_pendiente, texto_pendiente, titulo_rechazado, texto_rechazado}`, `seguimiento{titulo, intro, boton, no_encontrado, ayuda}`, `cuenta{titulo, intro, vacio, olvidar}`, `estados_pedido{<estado>: nombre visible}`. `aviso_prueba` se muestra solo en el paso de pago (es honesto: no hay cobro real). |
+
+El rol `marketing` no puede cambiar `temperatura_promedio`, `asistente`, `envios`, `pagos` ni `textos` (límites de daño, `[permiso]`).
+
+#### 00.4.1 Zonas y opciones de envío
+
+`zonas[]` `{id, nombre, departamentos[], distritos?}`: `lima` (Lima, Callao), `costa_norte` (Tumbes, Piura, Lambayeque, La Libertad, Áncash), `costa_sur` (Ica, Arequipa, Moquegua, Tacna), `sierra` (Cajamarca, Huánuco, Pasco, Junín, Huancavelica, Ayacucho, Apurímac, Cusco, Puno), `selva` (San Martín, Amazonas, Loreto, Ucayali, Madre de Dios) y `tarapoto` (San Martín, **solo** distritos Tarapoto, Morales, La Banda de Shilcayo; tiene prioridad). Cada uno de los 25 departamentos (`DEPARTAMENTOS`) está en **una** zona general (error `[envios]`).
+
+| `id` | Nombre | Entrega | `costo_desde` | `tiempo_promedio` | Lima | Costa norte | Costa sur | Sierra | Selva | Tarapoto | Rastreo |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| shalom | Shalom | agencia (DNI + clave de 4 dígitos por privado) | S/ 15 | 2 a 6 días hábiles | 2–3 | 2–4 | 4–6 | 4–6 | 1–2 San Martín; 3–6 resto | 1 día (agencia) | `https://shalom.com.pe/rastrea` |
+| olva | Olva Courier | domicilio | S/ 22 | 2 a 5 días hábiles | 2–3 | 2–4 | 3–5 | 3–5 | 2–5 | 1 día | `https://tracking.olvacourier.com/?q={codigo}` |
+| bus | Agencia de bus de tu preferencia | agencia (terminal, DNI y guía) | S/ 12 | 1 a 5 días hábiles | 1–2 | 1–2 | 3–5 (transbordo) | 3–5 (transbordo) | 1 San Martín; 2–4 resto | — | — |
+| local | Entrega local en Tarapoto | domicilio | S/ 7 | el mismo día | — | — | — | — | — | mismo día si paga antes de las 3 p. m.; si no, 24 h | — |
+
+Días hábiles desde el despacho (valores **estimados**, ver `docs/investigacion/mercadopago-envios.md`). `null` en `tiempos` = no llega. **Envío gratis** cuando el subtotal ≥ `gratis_desde` (S/ 299). La entrega local solo puede llegar a zonas con `distritos` y es a domicilio (error `[envios]`).
+
+Funciones (iguales para web, Vale y bot): `zonaEnvio(site, departamento, distrito)`, `cotizarEnvio(site, opcion, departamento, distrito, subtotal)` → `{ok, error, opcion, nombre, entrega, zona, costo, tiempo_estimado, gratis}`, `opcionesDeEnvio(site, departamento, distrito, subtotal)` (paso Envío del checkout) y `textoOpcionesEnvio(site, zona?)` (texto plano para Vale y Telegram, con el tiempo de la zona o el promedio).
+
+### 00.5 Pedido (no va en el repo)
+
+Esquema `ESQUEMAS.pedido` (`data/schema/pedido.schema.json`). Vive en n8n, Data Table **`pb_pedidos`**, columna `pedido_json`.
+
+| Campo | Regla |
+|---|---|
+| `numero` | `PB-` + 6 dígitos. `siguienteNumeroPedido(ultimo)` (el primero es **PB-000101**); n8n guarda el último en `pb_config` (clave `pedido_ultimo`) o usa el máximo de `pb_pedidos`. |
+| `fecha`, `actualizado` | ISO con `-05:00` (`fechaLima()`). |
+| `origen` | `web` \| `chat` \| `telegram`. |
+| `cliente` | `{nombre, correo (minúsculas), telefono ("51" + 9 dígitos, `normalizarTelefono`), dni? (8 dígitos)}`. **DNI obligatorio si la entrega es en agencia** (shalom, bus). |
+| `envio` | `{opcion, zona, departamento, provincia, distrito, direccion? (domicilio), referencia?, agencia_destino? (agencia), costo, tiempo_estimado}`. |
+| `items[]` | `{id, nombre, color, talla, cantidad (1–10), precio_unit}`; máx. 20 líneas; sin líneas repetidas (mismo id, color y talla). `precio_unit` = **precio vigente** (`precioVigente`: oferta válida si hay, si no precio). |
+| `subtotal`, `envio_costo`, `total`, `moneda` | Soles con 2 decimales; `subtotal` = Σ cantidad × precio_unit; `envio_costo` = `envio.costo` = tarifa de la opción (0 si aplica envío gratis); `total` = subtotal + envío; `moneda: "PEN"`. Sumas en céntimos. |
+| `pago` | `{proveedor: "mercadopago", estado, preference_id?, payment_id?, init_point?, detalle?, actualizado?}`; `estado` ∈ `pendiente, en_proceso, aprobado, rechazado, cancelado, reembolsado`. |
+| `estado` | `pendiente_pago → pagado → preparando → enviado → listo_recojo → entregado`, o `cancelado`. Transiciones (`TRANSICIONES_PEDIDO`): pendiente_pago→pagado\|cancelado; pagado→preparando\|enviado\|cancelado; preparando→enviado\|cancelado; enviado→listo_recojo\|entregado; listo_recojo→entregado. `listo_recojo` no existe para `local`. |
+| `seguimiento` | `null` hasta el envío; luego `{agencia, codigo, url?}`. Formatos (`RE_SEGUIMIENTO`): shalom `12345678-ABCD` (orden-código), olva `26-0123456`, bus `Movil Bus:0012345` (empresa:guía), local opcional. **Nunca** se guarda ni se muestra la clave de recojo de Shalom. |
+| `historial[]` | `{estado, fecha, nota?}`; empieza en `pendiente_pago`, termina en `estado`, cada paso es una transición permitida y las fechas no retroceden. |
+
+Funciones:
+- `calcularTotales(items, envio, productos, site, {verificarStock})` → recalcula con el **catálogo** (ignora precios del navegador), normaliza color (`claveColor`) y talla (`"única"`→`UNICA`), une líneas repetidas y revisa el stock **por color sumando tallas**.
+- `crearPedido(solicitud, {productos, site, numero, fecha?})` → `{ok, errores, avisos, pedido}`. La `solicitud` es lo que manda la web (00.7). Si `total_visto` difiere del real, aviso `[total_web]` y se cobra el real.
+- `validarPedido(pedido, {site?, productos?, verificarPrecios?, verificarStock?})`. Con `productos` comprueba precios vigentes y tarifa (desactívalo con `verificarPrecios:false` al releer pedidos viejos si cambió el catálogo); `verificarStock:true` solo al crear.
+- `transicionPedido(pedido, nuevo, {fecha?, nota?, agencia?, codigo?, pago?}, site)` → copia nueva; mismo estado = `[sin_cambio]` (idempotente); `cancelado` con pago aprobado avisa `[reembolso]`.
+- `vistaPublicaPedido(pedido, site)` → lo único que ve el cliente (seguimiento y chat): número, fechas, estado y textos, **solo el primer nombre**, ítems, totales, opción y tiempo de envío, departamento y distrito, seguimiento e historial. **Sin correo, celular, DNI, dirección ni apellidos.** Incluye `pago.init_point` solo si sigue pendiente de pago (para reintentar).
+- `filaPedido(pedido)` / `pedidoDesdeFila(fila)` y `COLUMNAS_PB_PEDIDOS`: `numero, correo, estado, pago_estado, total (number), fecha, actualizado, opcion_envio, departamento, preference_id, payment_id, codigo_seguimiento, pedido_json` (las demás, string). Búsqueda de seguimiento: por `numero` y luego `mismoCorreo(fila.correo, correo)`.
+- `stockTrasPedido(productos, pedido)` (opcional): stock por color tras un pedido pagado, para publicarlo con WF5.
+
+Códigos de error de pedidos: `[esquema] [items] [producto] [color] [talla] [cantidad] [stock] [envio] [cliente] [correo] [telefono] [dni] [numero] [precio] [total] [pago] [estado] [seguimiento] [historial] [transicion] [pago_mp] [secreto] [html]`. CLI: `node tools/validar.js --pedido archivo.json` (contra `data/`).
+
+### 00.6 Mercado Pago Checkout Pro en modo prueba
+
+1. La web manda la solicitud a n8n (00.7). n8n crea el pedido con `crearPedido` y lo guarda en `pb_pedidos`.
+2. n8n llama `POST https://api.mercadopago.com/checkout/preferences` con el cuerpo de **`preferenciaMercadoPago(pedido, {urlBase, notificationUrl, vence, nombreEnvio})`** y la credencial **`pbCredMercPago01`** ("Mercado Pago Prueba", tipo Header Auth, name `Authorization`, value `Bearer PEGAR_ACCESS_TOKEN_DE_PRUEBA`, que **solo el usuario** rellena en la UI de n8n). Guarda `preference_id` e `init_point` en el pedido (`sandbox_init_point` solo si `pb_config.mp_link = sandbox_init_point`).
+   - Ítems = líneas del pedido + el envío como ítem `ENVIO-<OPCION>`: **suman exactamente el total**. `external_reference` = número; `metadata.pedido`; `statement_descriptor: "PALMERABRAVA"`; `auto_return: "approved"`; `binary_mode: false`; `payer` solo con nombre y apellido (sin correo en modo prueba).
+   - `back_urls` **sin `#`**: `https://abnercayao.github.io/tienda-tarapoto/?mp=ok|pend|err&pedido=PB-000123`. Mercado Pago añade `payment_id`, `status`, `external_reference`, etc. a la query.
+   - `notification_url` solo si es https (URL del túnel + `/webhook/mp-notificacion?source_news=webhooks`).
+3. El cliente paga (cuenta de comprador de prueba, tarjeta Visa 4009 1753 3280 6176 a nombre `APRO`; `FUND` rechazo, `CONT` pendiente).
+4. Confirmación: **solo** `GET https://api.mercadopago.com/v1/payments/{id}` (desde el aviso, desde la vuelta a la web o desde `/pedido <num>` con `payments/search?external_reference=`). Con esa respuesta: **`aplicarPagoMP(pedido, pagoMP, {fecha, site})`** → verifica `external_reference`, `currency_id = PEN` y monto = total (`verificarPagoMP`), mapea el estado (`mapearPagoMP`: approved→aprobado/pagado; pending, in_process, authorized→en_proceso; rejected→rechazado; cancelled→cancelado; refunded, charged_back→reembolsado/cancelado) y devuelve `{ok, pedido, cambio, notificar}`. Es idempotente; un rechazo tardío no pisa un pago aprobado. Si `notificar = "pagado"`, aviso a Telegram.
+5. El `?status=` de la URL y el cuerpo del aviso **nunca** prueban un pago.
+
+### 00.7 Interfaz web ↔ n8n (vía `tools/chat-proxy.py`, rutas a añadir a su allowlist)
+
+| Proxy (POST, JSON) | Webhook n8n | Cuerpo | Respuesta 200 |
+|---|---|---|---|
+| `/pedido` | `/webhook/pedido-crear` | **solicitud**: `{cliente{nombre, correo, telefono, dni?}, envio{opcion, departamento, provincia, distrito, direccion?, referencia?, agencia_destino?}, items[{id, color, talla, cantidad}], total_visto?, origen: "web"\|"chat"}` | `{ok:true, numero, total, init_point, pedido: vistaPublica}` o `{ok:false, errores:[texto plano]}` |
+| `/pedido/consultar` | `/webhook/pedido-consultar` | `{numero, correo}` | `{ok:true, pedido: vistaPublica}` o `{ok:false, motivo:"no_encontrado"}` (**el mismo** si falla el número o el correo; limitar intentos por IP) |
+| `/pedido/pago` | `/webhook/pedido-pago` | `{numero, payment_id}` (vuelta de Mercado Pago) | `{ok:true, numero, estado, estado_texto, pago_estado}` (sin datos personales) |
+| (Mercado Pago) `/mp/notificacion` | `/webhook/mp-notificacion` | aviso de Mercado Pago (`data.id` / `id`, `type`/`topic`) | `200` inmediato; luego GET del pago y `aplicarPagoMP` |
+
+Los nombres de ruta son los de este contrato; si el equipo n8n/proxy los cambia, actualiza esta tabla. Los textos de `errores` ya vienen sin signos menor/mayor que.
+
+### 00.8 Web: rutas, "Mi cuenta" y seguimiento
+
+- Rutas con hash (una vista por ruta, transiciones tipo Bembella, `docs/investigacion/bembella.md`): `#/`, `#/c/<categoria>[/<sub|coleccion>]`, `#/coleccion/<id>`, `#/p/<id>`, `#/checkout`, `#/pedido/<PB-000123>`, `#/seguimiento`, `#/cuenta`, `#/blog/<slug>`. Al volver de Mercado Pago se lee `location.search` (`mp`, `pedido`, `payment_id`), se llama a `/pedido/pago` y se navega a `#/pedido/<num>`.
+- **Mi cuenta sin contraseña** (`localStorage`, clave `pb_cuenta`): `{v:1, cliente{nombre, correo, telefono, dni?}, envio{opcion, departamento, provincia, distrito, direccion?, referencia?, agencia_destino?}, pedidos[{numero, fecha, total}] (máx. 20)}`. Nunca datos de tarjeta. "Olvidar mis datos" borra la clave. El estado real se consulta siempre con número + correo.
+- Checkout: los departamentos salen de `site.envios.zonas`; las opciones, de `opcionesDeEnvio` (misma regla en la web: zona, costo con envío gratis y tiempo). El total mostrado se manda como `total_visto`.
+- Chat Vale: chip "Hacer seguimiento de mi pedido" → tarjeta-formulario (número, correo, Cancelar/Consultar) → `/pedido/consultar` → tarjeta de estado con `vistaPublicaPedido`.
+
+### 00.9 Telegram (pedidos y usuarios)
+
+- Permisos: `puede(rol, 'pedidos')` y `puede(rol, 'usuarios')` → solo **admin** y **dueno** (marketing no ve datos de clientes). `/autorizar <id> <rol>` y `/desautorizar <id>`: `puedeAsignarRol(rolQuien, rolObjetivo)`; `ROLES_ASIGNABLES = dueno, marketing`; **admin nunca se asigna ni se quita por el bot**. Ambos con botón de confirmación.
+- Comandos de pedidos y la función que usan: `/pedidos` (filas con estado pendiente_pago, pagado o preparando), `/pedido <num>` (detalle completo, privado; puede reconsultar Mercado Pago), `/preparando <num>` (`transicionPedido(p,'preparando')`), `/enviar <num> <shalom|olva|bus|local> <codigo>` (`transicionPedido(p,'enviado',{agencia,codigo})`, valida el formato y arma la URL de rastreo), `/entregado <num>`, `/cancelar_pedido <num>` (confirmación por botón; si estaba pagado, recordar la devolución). Opcional: `/recojo <num>` → `listo_recojo`.
+- Avisos automáticos: al crear un pedido (número, total, opción de envío, destino) y cuando `aplicarPagoMP` devuelve `notificar = "pagado"`.
+
+### 00.10 Transición (lo que deben hacer los demás equipos)
+
+- **n8n:** reconstruir los workflows desde `n8n/src` (embeben el bloque nuevo de `validar.js`); en WF5, usar `normalizarSubcategoria(c.categoria, c.subcategoria)` en vez de `SUBCATEGORIAS.indexOf(...)` y borrar `site.hero.producto_destacado` en `/limpiar_muestras` si apunta a una muestra quitada; copiar la lista de subcategorías por categoría en `n8n/prompts/extraccion.md`; renombrar Valeria → Vale en `n8n/prompts/vendedor.md` y `n8n/src/chat/*`; crear `pb_pedidos` (00.5) y los webhooks de 00.7; ajustar las pruebas que cuentan 16 muestras o 5 productos de hombres (ahora 36 y 10).
+- **Web:** leer `temperatura_promedio`, `asistente`, `envios`, `textos`, menú y colecciones de `site.json`; quitar "motocarro" y "32 °C" de `index.html`; regenerar la semilla (`node tools/semilla.js`).
+- **Imágenes:** generar las 54 imágenes nuevas (`node tools/generar-imagenes.mjs`).
+- **QA:** `tools/qa.js` ahora falla si quedan "motocarro", "Valeria" o "32°" en datos, páginas públicas o prompts, si `site.json` no tiene 38° y Vale, o si aparece un pedido de cliente en `data/`.
 
 ## 0. Contrato v2 (2026-10-07): demo privada que parece una tienda real
 
@@ -176,7 +324,7 @@ Envoltura + `moneda: "PEN"` + `productos: [...]` (máximo 1000).
 | `slug` | sí | `^[a-z0-9]+(-[a-z0-9]+)*$`, 3–80, único. `slugificar(nombre)`; si ya existe, añadir `-2`, `-3`… |
 | `nombre` | sí | 3–70. |
 | `categoria` | sí | `hombres` · `mujeres` · `ninos` · `accesorios` (la etiqueta "Niños" la pone la web). |
-| `subcategoria` | sí | `polos camisas blusas vestidos faldas shorts bermudas pantalones conjuntos ropa-de-bano pijamas sombreros gorros gorras sandalias lentes bolsos otros`. |
+| `subcategoria` | sí | **v3:** una de `SUBCATEGORIAS` y, además, permitida para su categoría (`SUBCATEGORIAS_POR_CATEGORIA`, sección 00.2). |
 | `precio` | sí | Soles, > 0, ≤ 9999, máximo 2 decimales. La web muestra "S/ 69.90" (`Intl` es-PE, PEN). |
 | `precio_oferta` | no | Ausente o `null` = sin oferta. Si existe: > 0, 2 decimales y **menor que `precio`**. El % de descuento se calcula en una sola función compartida. |
 | `tallas` | sí | 1–12, sin repetir. Valores y coherencia con la categoría en la tabla siguiente. |
@@ -544,7 +692,7 @@ CATEGORÍA (categoria). Aplica la PRIMERA regla que coincida:
 6. Si no hay ninguna de esas palabras, deduce por la prenda (vestido, blusa, falda -> "mujeres"; guayabera -> "hombres") y añade "categoria" a campos_inferidos. Si no se puede saber, null y "categoria" en faltantes.
 Ejemplos: "polo para dama" -> mujeres. "polo de caballero" -> hombres. "vestido para niña" -> ninos. "gorro UV para niños" -> ninos. "gorra de dama" -> accesorios. "sandalias de cuero unisex" -> accesorios. "camisa de lino para hombre" -> hombres.
 
-SUBCATEGORÍA: una de polos, camisas, blusas, vestidos, faldas, shorts, bermudas, pantalones, conjuntos, ropa-de-bano, pijamas, sombreros, gorros, gorras, sandalias, lentes, bolsos, otros. La guayabera es "camisas".
+(v2, reemplazado en v3: el texto vigente del prompt está en PROMPT_PRODUCTO de tools/validar.js, lista por categoría de la sección 00.2) SUBCATEGORÍA: una de polos, camisas, blusas, vestidos, faldas, shorts, bermudas, pantalones, conjuntos, ropa-de-bano, pijamas, sombreros, gorros, gorras, sandalias, lentes, bolsos, otros. La guayabera es "camisas".
 
 TALLAS (tallas): adultos XS S M L XL XXL; niños 2 4 6 8 10 12 14 16; calzado 35 a 44; talla única = "UNICA". "de la 38 a la 42" -> 38 39 40 41 42.
 - stock_tallas: una entrada {talla, cantidad} por talla. "3 de cada una" -> cantidad 3 en todas. Si no dice cantidades, [] (no lo pongas en faltantes).

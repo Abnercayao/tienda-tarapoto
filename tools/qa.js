@@ -43,7 +43,8 @@ const SECRETOS = [
   { nombre: 'PAT fine-grained de GitHub', re: /github_pat_[A-Za-z0-9_]{22,}/ },
   { nombre: 'otro token de GitHub', re: /gh[ousr]_[A-Za-z0-9]{36}/ },
   { nombre: 'clave privada', re: /-----BEGIN [A-Z ]*PRIVATE KEY-----/ },
-  { nombre: 'API key de n8n (JWT)', re: /eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{20,}/ }
+  { nombre: 'API key de n8n (JWT)', re: /eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{20,}/ },
+  { nombre: 'Access Token de Mercado Pago', re: /\b(APP_USR|TEST)-\d{6,}-\d{6}-[0-9a-f]{32}-\d{6,}/ }
 ];
 // Valores FALSOS de tools/test-validar.js (prueban que el validador rechaza tokens). Se quitan antes de buscar.
 // Partidos en trozos para que este archivo no tenga la forma de un token.
@@ -328,7 +329,39 @@ const imagenes = repo.archivos.filter(function (f) { return /^assets\/img\//.tes
   anotar(M, enSitio.length || enHtml.length ? 'FALLA' : 'OK', 'Sin avisos de "muestra" ni de "IA" en las páginas públicas (la demo parece una tienda real)',
     enSitio.length || enHtml.length ? (enSitio.length ? 'site.json: ' + enSitio.join(', ') + '. ' : '') + (enHtml.length ? 'textos de aviso en: ' + enHtml.join(', ') : '')
       : 'site.json y ' + PUBLICAS.join(', ') + ' sin avisos');
+  // Contrato v3: pedidos del usuario (asistente "Vale", 38°, envíos a todo el Perú) en datos, páginas públicas y prompts.
+  const fuentes = {};
+  ['products', 'articles', 'site'].forEach(function (n) { if (txt[n]) fuentes['data/' + n + '.json'] = txt[n]; });
+  PUBLICAS.forEach(function (h) { if (htmlTxt[h]) fuentes[h] = htmlTxt[h]; });
+  const dirPrompts = path.join(RAIZ, 'n8n', 'prompts');
+  if (fs.existsSync(dirPrompts)) fs.readdirSync(dirPrompts).filter(function (f) { return /\.md$/.test(f); }).forEach(function (f) { fuentes['n8n/prompts/' + f] = leer('n8n/prompts/' + f); });
+  const RE_V3 = [
+    { re: /motocarro/i, que: '"motocarro" (v3: envíos a todo el Perú)' },
+    { re: /Valeria/, que: '"Valeria" (v3: la asistente se llama Vale)' },
+    { re: /\b32\s?°/, que: '"32°" (v3: temperatura promedio 38°)' }
+  ];
+  const hallados = [];
+  RE_V3.forEach(function (x) { Object.keys(fuentes).forEach(function (f) { if (fuentes[f] && x.re.test(fuentes[f])) hallados.push(x.que + ' en ' + f); }); });
+  anotar(M, hallados.length ? 'FALLA' : 'OK', 'v3: sin "motocarro", sin "Valeria" y sin "32°" (datos, páginas públicas y prompts)',
+    hallados.length ? lista(hallados, 8) : Object.keys(fuentes).length + ' archivos revisados');
+  if (S.temperatura_promedio !== undefined || S.asistente !== undefined) {
+    const okV3 = S.temperatura_promedio === '38°' && S.asistente && S.asistente.nombre === 'Vale';
+    anotar(M, okV3 ? 'OK' : 'FALLA', 'v3: site.json con temperatura_promedio "38°" y asistente "Vale"', okV3 ? 'correcto' : corto3(S.temperatura_promedio) + ' / ' + corto3(S.asistente && S.asistente.nombre));
+  }
+  // Contrato v3: los pedidos (datos personales) viven en n8n (Data Table pb_pedidos), nunca en el repo.
+  const conPedidos = [];
+  (function recorrer(dir) {
+    fs.readdirSync(path.join(RAIZ, dir), { withFileTypes: true }).forEach(function (e) {
+      const r = dir + '/' + e.name;
+      if (e.isDirectory()) { recorrer(r); return; }
+      if (r === 'data/schema/pedido.schema.json') return;
+      const t = /\.json$/i.test(e.name) ? leer(r) : null;
+      if (/pedido/i.test(e.name) || (t && /"PB-\d{6}"/.test(t) && /"correo"\s*:/.test(t))) conPedidos.push(r);
+    });
+  })('data');
+  anotar(M, conPedidos.length ? 'FALLA' : 'OK', 'v3: sin pedidos de clientes en data/ (viven en la Data Table pb_pedidos de n8n)', conPedidos.length ? lista(conPedidos) : 'ninguno');
 })();
+function corto3(v) { return v === undefined ? 'falta' : JSON.stringify(v); }
 
 // ---------------------------------------------------------------------------------------------
 // 5. Rutas: imágenes de los JSON, absolutas, enlaces internos y sitemap

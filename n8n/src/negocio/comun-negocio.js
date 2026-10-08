@@ -141,7 +141,7 @@ function nbPlantilla(texto) {
     if (!v || /^hombres \/ mujeres/.test(v)) return;
     if (k === 'nombre') { c.nombre = textoSeguro(v, 70); n++; }
     else if (k === 'categoria') { const cat = quitarTildes(v).toLowerCase().replace(/[^a-z]/g, ''); if (CATEGORIAS.indexOf(cat) >= 0) { c.categoria = cat; n++; } }
-    else if (k === 'subcategoria') { const s = quitarTildes(v).toLowerCase().trim().replace(/\s+/g, '-'); if (SUBCATEGORIAS.indexOf(s) >= 0) { c.subcategoria = s; n++; } }
+    else if (k === 'subcategoria') { const s = quitarTildes(v).toLowerCase().trim().replace(/\s+/g, '-'); if (SUBCATEGORIAS.indexOf(s) >= 0 || (typeof ALIAS_SUBCATEGORIA === 'object' && ALIAS_SUBCATEGORIA[s])) { c.subcategoria = ALIAS_SUBCATEGORIA[s] || s; n++; } }
     else if (k === 'precio') { const p = nbNumero(v.split(/\s+(?:oferta|con)\s+/i)[0]); if (p) { c.precio = p; n++; } const o = /oferta\s*(?:a\s*)?(?:s\/\.?\s*)?(\d+(?:[.,]\d{1,2})?)/i.exec(v); if (o) c.precio_oferta = nbNumero(o[1]); }
     else if (k === 'oferta' || k === 'precio oferta' || k === 'precio_oferta') { const p = nbNumero(v); if (p) { c.precio_oferta = p; n++; } }
     else if (k === 'tallas' || k === 'talla') { const t = nbTallas(v); if (t.length) { c.tallas = t; n++; } }
@@ -431,6 +431,9 @@ function nbAyuda(rol, nombre, saludo) {
   L.push('<b>Cambios</b> (siempre con borrador y botón Publicar): /precio prd-0001 69.90 [oferta 59.90 | sin oferta], /stock prd-0001 Blanco 5 (stock por color, de 0 a 20; Blanco +2 si llegaron, Blanco -1 si vendiste; varios: Blanco 5 Arena 3), /frescura prd-0001 5 (de 1 a 5 hojitas), /ocultar prd-0001, /mostrar prd-0001, /foto prd-0001 (como leyenda de una foto), /cancelar');
   L.push('<b>Producto nuevo con stock</b>: "Polo de lino blanco y arena, 59.90, tallas S M L, 10 por color". La frescura se sugiere por la tela (lino 5, algodón 4, dri-fit 3, denim 2).');
   L.push('<b>Contenido</b>: /articulo tema, /articulo_ocultar art-0001, /imagen [art-0001|look-1] descripción');
+  L.push('<b>Pedidos</b>: /pedidos (abiertos), /pedido PB-000101, /envios (opciones, costos y tiempos)' + (rol === 'marketing' ? ' (sin datos de contacto del cliente)' : ''));
+  if (rol === 'admin' || rol === 'dueno') L.push('<b>Estados</b>: /preparando PB-000101, /enviar PB-000101 shalom 12345678-ABCD (olva 26-0123456, bus Movil Bus:0012345, local), /recojo PB-000101, /entregado PB-000101, /cancelar_pedido PB-000101 (con botón)');
+  if (rol === 'admin' || rol === 'dueno') L.push('<b>Usuarios</b>: /desconocidos, /autorizar 123456789 dueno|marketing, /desautorizar 123456789 (con botón; admin no se asigna por el bot)');
   if (rol === 'admin' || rol === 'dueno') L.push('<b>Delicado</b> (doble confirmación): /borrar prd-0001, /whatsapp 51987654321, /limpiar_muestras, /deshacer, /pausa, /reanudar');
   if (rol === 'admin') L.push('<b>Admin</b>: /ids (quién escribió sin estar autorizado)');
   L.push('Siguiente paso: envía una foto con su descripción o usa uno de los comandos.');

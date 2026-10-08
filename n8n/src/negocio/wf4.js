@@ -25,8 +25,13 @@ const ACCION = {
   start: 'consulta', ayuda: 'consulta', lista: 'consulta', ver: 'consulta', estado: 'consulta', historial: 'consulta',
   precio: 'actualizar', frescura: 'actualizar', stock: 'stock', ocultar: 'desactivar', mostrar: 'reactivar', foto: 'agregar_imagen', articulo: 'articulo',
   articulo_ocultar: 'articulo', imagen: 'imagen', cancelar: 'publicar', borrar: 'borrar', whatsapp: 'whatsapp',
-  limpiar_muestras: 'limpiar_muestras', deshacer: 'deshacer', pausa: 'pausa', reanudar: 'reanudar', ids: 'ids'
+  limpiar_muestras: 'limpiar_muestras', deshacer: 'deshacer', pausa: 'pausa', reanudar: 'reanudar', ids: 'ids',
+  // v3 (WF16): ver pedidos y envíos = todos (marketing sin datos de contacto); cambios de estado y usuarios = admin y dueño.
+  envios: 'consulta', pedidos: 'consulta', pedido: 'consulta', boton_pedidos: 'consulta',
+  preparando: 'pedidos', enviar: 'pedidos', recojo: 'pedidos', entregado: 'pedidos', cancelar_pedido: 'pedidos',
+  desconocidos: 'usuarios', autorizar: 'usuarios', desautorizar: 'usuarios'
 };
+const WF16 = ['envios', 'pedidos', 'pedido', 'boton_pedidos', 'preparando', 'enviar', 'recojo', 'entregado', 'cancelar_pedido', 'desconocidos', 'autorizar', 'desautorizar'];
 if (!ACCION[c]) return R('No conozco ese comando.\nSiguiente paso: escribe /ayuda para ver la lista.');
 const acc = ACCION[c];
 if (!(acc === 'ids' ? rol === 'admin' : puede(rol, acc))) return R('Tu rol (' + h(rol || 'sin rol') + ') no puede usar /' + c + '.\nSiguiente paso: pídeselo al dueño o al admin.');
@@ -34,6 +39,7 @@ const reP = /^prd-\d{4,6}$/;
 const reA = /^art-\d{4,6}$/;
 const id0 = (args[0] || '').toLowerCase();
 if (c === 'start' || c === 'ayuda') return R(nbAyuda(rol, t.nombre, c === 'start'));
+if (WF16.indexOf(c) >= 0) return [{ json: Object.assign({}, t, { ruta: 'pedidos', trabajo: t, comando: c }) }];
 if (c === 'ids') {
   const l = (cfg.DESCONOCIDOS || []).slice(-10).reverse();
   return R(l.length

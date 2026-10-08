@@ -56,7 +56,7 @@ const CONFIG_FILAS = [{ clave: 'BOT_TOKEN', valor: TOKEN_FALSO }, { clave: 'AUTO
   // ------------------------------------------------------------------ WF0
   console.log('WF0 Setup');
   const def = await correr(W0, 'Claves por defecto', [{ clave: 'BOT_TOKEN', valor: '' }, { clave: 'REPO', valor: 'x/y' }]);
-  caso('inserta solo las claves que faltan (no pisa BOT_TOKEN ni REPO)', def.length === 15 && !def.some(function (d) { return d.clave === 'BOT_TOKEN' || d.clave === 'REPO'; }), def.map(function (d) { return d.clave; }));
+  caso('inserta solo las claves que faltan (no pisa BOT_TOKEN ni REPO)', def.length === 20 && !def.some(function (d) { return d.clave === 'BOT_TOKEN' || d.clave === 'REPO'; }), def.map(function (d) { return d.clave; }));
   const cfg0 = (await correr(W0, 'Config', CONFIG_FILAS))[0];
   caso('Config: AUTORIZADOS sin ids 0 y token aceptado', cfg0.AUTORIZADOS.length === 3 && cfg0.hayToken === true);
   const cfgSin = (await correr(W0, 'Config', [{ clave: 'BOT_TOKEN', valor: 'PEGAR_AQUI' }]))[0];

@@ -21,7 +21,7 @@ const ESQUEMA_CHAT = {
   type: 'object',
   properties: {
     respuesta: { type: 'string' },
-    intencion: { type: 'string', enum: ['consulta_producto', 'interes_servicio', 'agendar', 'confirmar_cita', 'otro'] },
+    intencion: { type: 'string', enum: ['consulta_producto', 'seguimiento', 'interes_servicio', 'agendar', 'confirmar_cita', 'otro'] },
     cita: {
       type: 'object',
       properties: { nombre: { type: 'string' }, negocio: { type: 'string' }, rubro: { type: 'string' }, correo: { type: 'string' }, telefono: { type: 'string' },
@@ -382,7 +382,7 @@ function compactarCatalogo(prod, site, sitioUrl) {
       'colores: ' + (col || 'consultar') + (spc ? '' : total === null ? '' : ' (total ' + total + ')'),
       limpio(p.material || '', 50) || 'material por confirmar', fr ? 'frescura ' + fr + '/5' : ''].filter(Boolean).join(' | ');
   });
-  return { catalogo: lineas.length ? lineas.join('\n') : '(Sin productos activos ahora.)', ids: ids, precios: precios, n: lineas.length, tienda: tiendaTexto(site, sitioUrl), whatsapp: whatsappDe(site) };
+  return { catalogo: lineas.length ? lineas.join('\n') : '(Sin productos activos ahora.)', ids: ids, precios: precios, n: lineas.length, tienda: tiendaTexto(site, sitioUrl), whatsapp: whatsappDe(site), envios: site && site.envios && typeof site.envios === 'object' ? site.envios : null };
 }
 // ¿Pregunta por el precio de la ropa (no del servicio de Abner)?
 function preguntaPrecio(m) {
@@ -409,10 +409,108 @@ function tiendaTexto(site, sitioUrl) {
     '- Tienda: ' + (limpio(s.nombre, 60) || 'Palmera Brava') + (s.lema ? ' ("' + limpio(s.lema, 80) + '")' : '') + ', en ' + (limpio(s.direccion, 80) || 'Tarapoto, San Martín') + '. La dirección exacta se coordina por WhatsApp.',
     '- Atención: ' + (s.horario && s.horario.texto ? limpio(s.horario.texto, 80) : 'todos los días de 8:00 a. m. a 8:00 p. m.') + '.',
     '- WhatsApp: ' + (limpio(s.telefono_visible, 30) || '+' + wa) + ' (https://wa.me/' + wa + ').',
-    '- Envíos: ' + (limpio(s.envio, 240) || 'se coordinan por WhatsApp.') + (zonas.length ? ' Zonas de reparto: ' + zonas.join(', ') + '.' : ''),
-    '- Pagos: ' + (pagos.length ? pagos.join(', ') + '.' : 'se coordinan por WhatsApp al confirmar el pedido (no menciones métodos concretos).'),
-    '- Web: ' + (sitioUrl || '') + ' (catálogo con filtros Hombres, Mujeres, Niños, Accesorios, Novedades y Ofertas; bolsa de compras; "Guía de tallas" en cada prenda; blog).'
+    '- Envíos: ' + (limpio(s.envio, 240) || 'se coordinan por WhatsApp.') + (zonas.length ? ' Cobertura: ' + zonas.join(', ') + '.' : ''),
+    envioOpcionesTexto(s),
+    '- Pagos: ' + (pagos.length ? pagos.join(', ') + '.' : 'se coordinan por WhatsApp al confirmar el pedido (no menciones métodos concretos).') +
+      (s.pagos && s.pagos.mercadopago && s.pagos.mercadopago.activo ? ' Se paga con Mercado Pago al finalizar la compra en la web' + (s.pagos.mercadopago.modo === 'prueba' ? ' (tienda de demostración en modo de prueba: no se cobra dinero real)' : '') + '.' : ''),
+    '- Seguimiento: cada compra tiene un número como PB-000123; con ese número y el correo de la compra se ve el estado en "Seguimiento de pedido" de la web o aquí en el chat.',
+    '- Web: ' + (sitioUrl || '') + ' (catálogo con menú por categoría y subcategoría, línea old money, Novedades y Ofertas; bolsa de compras y pago con Mercado Pago; "Seguimiento de pedido"; "Mi cuenta" sin contraseña; "Guía de tallas" en cada prenda; blog).'
   ].join('\n');
+}
+
+// v3: opciones de envío con costo "desde" y tiempo promedio por zona (site.envios). Texto plano para el prompt de Vale.
+function envioOpcionesTexto(s) {
+  const E = s && s.envios && Array.isArray(s.envios.opciones) ? s.envios : null;
+  if (!E) return '- Opciones de envío: se coordinan por WhatsApp.';
+  const zonas = {};
+  (Array.isArray(E.zonas) ? E.zonas : []).forEach(function (z) { if (z && z.id) zonas[z.id] = limpio(z.nombre, 60); });
+  const L = ['- Opciones de envío (costo desde; tiempo promedio en días hábiles desde el despacho):'];
+  E.opciones.filter(function (o) { return o && o.activa === true; }).forEach(function (o) {
+    const t = o.tiempos && typeof o.tiempos === 'object' ? Object.keys(o.tiempos).filter(function (k) { return typeof o.tiempos[k] === 'string'; })
+      .map(function (k) { return (zonas[k] || k) + ': ' + limpio(o.tiempos[k], 90); }).join('; ') : '';
+    L.push('  * ' + limpio(o.nombre, 50) + ' (' + (o.entrega === 'agencia' ? 'recojo en agencia con DNI' : 'a domicilio') + '): desde ' + precioTexto(o.costo_desde) + '. ' + limpio(o.tiempo_promedio, 60) + (t ? '. Por zona: ' + t : '') + '.');
+  });
+  if (typeof E.gratis_desde === 'number') L.push('  * Envío gratis desde ' + precioTexto(E.gratis_desde) + ' de compra.');
+  if (E.despacho) L.push('  * ' + limpio(E.despacho, 200));
+  if (E.nota) L.push('  * ' + limpio(E.nota, 200));
+  return L.join('\n');
+}
+
+// ---------- v3: respuesta FIJA de envíos (el modelo a veces inventa tiempos) ----------
+// Ciudades frecuentes que no son nombre de departamento -> departamento (para la zona de site.envios).
+const CIUDADES_ENVIO = {
+  chiclayo: 'Lambayeque', trujillo: 'La Libertad', chimbote: 'Áncash', huaraz: 'Áncash', iquitos: 'Loreto', yurimaguas: 'Loreto', pucallpa: 'Ucayali',
+  moyobamba: 'San Martín', rioja: 'San Martín', juanjui: 'San Martín', tocache: 'San Martín', lamas: 'San Martín', bellavista: 'San Martín', 'nueva cajamarca': 'San Martín',
+  chachapoyas: 'Amazonas', bagua: 'Amazonas', jaen: 'Cajamarca', huancayo: 'Junín', juliaca: 'Puno', 'tingo maria': 'Huánuco', 'puerto maldonado': 'Madre de Dios',
+  sullana: 'Piura', talara: 'Piura', chincha: 'Ica', pisco: 'Ica', nazca: 'Ica', ilo: 'Moquegua', abancay: 'Apurímac', huamanga: 'Ayacucho', 'cerro de pasco': 'Pasco'
+};
+function normEnvio(s) { return ' ' + sinTildes(s).toLowerCase().replace(/[^a-z0-9ñ ]+/g, ' ').replace(/\s+/g, ' ').trim() + ' '; }
+// ¿Pregunta por envíos, delivery o tiempos de entrega? (el seguimiento de un pedido ya hecho se resuelve antes, sin IA)
+function preguntaEnvio(m) {
+  return /\b(envi(o|os|an|as|ar|amos|ame|en)|delivery|despach\w*|shalom|olva|courier|agencia de bus|mandan|reparto|reparten|cuanto (demora|tarda|se demora)|en cuantos dias|llega(n|ria)? (a|hasta)|entrega(n|s)? (a|en))\b/.test(sinTildes(m).toLowerCase());
+}
+// Destino nombrado en el texto: distrito local (Tarapoto, Morales…), ciudad conocida o departamento. -> {departamento, distrito, nombre} o null
+function destinoEnvio(m, envios) {
+  const t = normEnvio(m);
+  const zonas = envios && Array.isArray(envios.zonas) ? envios.zonas : [];
+  for (const z of zonas) {
+    for (const d of (Array.isArray(z.distritos) ? z.distritos : [])) if (t.indexOf(normEnvio(d)) >= 0) return { departamento: z.departamentos[0], distrito: d, nombre: d };
+  }
+  for (const k of Object.keys(CIUDADES_ENVIO)) if (t.indexOf(' ' + k + ' ') >= 0) return { departamento: CIUDADES_ENVIO[k], distrito: k.replace(/\b\w/g, function (c) { return c.toUpperCase(); }), nombre: k.replace(/\b\w/g, function (c) { return c.toUpperCase(); }) };
+  const deps = [];
+  zonas.forEach(function (z) { (z.departamentos || []).forEach(function (d) { if (deps.indexOf(d) < 0) deps.push(d); }); });
+  deps.sort(function (a, b) { return b.length - a.length; });
+  for (const d of deps) if (t.indexOf(normEnvio(d)) >= 0) return { departamento: d, distrito: '', nombre: d };
+  return null;
+}
+// Texto fijo con las opciones reales (costo desde y tiempo) para un destino, o el resumen general si no se sabe adónde.
+// Usa opcionesDeEnvio() de validar.js (misma regla que el checkout de la web).
+function textoEnvio(envios, mensaje) {
+  if (!envios || !Array.isArray(envios.opciones)) return '';
+  const site = { envios: envios };
+  const gratis = typeof envios.gratis_desde === 'number' ? ' Envío gratis desde ' + precioTexto(envios.gratis_desde) + ' de compra.' : '';
+  const dest = destinoEnvio(mensaje, envios);
+  if (dest && typeof opcionesDeEnvio === 'function') {
+    const ops = opcionesDeEnvio(site, dest.departamento, dest.distrito, 0);
+    if (ops.length) {
+      return 'Sí, enviamos a ' + dest.nombre + ': ' + ops.map(function (o) {
+        return o.nombre + ' desde ' + precioTexto(o.costo) + ' (' + limpio(o.tiempo_estimado, 90) + (o.entrega === 'agencia' ? ', recojo en agencia con tu DNI' : ', a domicilio') + ')';
+      }).join('; ') + '.' + gratis + ' Los tiempos son promedios en días hábiles desde el despacho.';
+    }
+  }
+  const ops = envios.opciones.filter(function (o) { return o && o.activa === true; });
+  return 'Enviamos a todo el Perú: ' + ops.map(function (o) { return o.nombre + ' desde ' + precioTexto(o.costo_desde) + ' (' + limpio(o.tiempo_promedio, 60) + ')'; }).join('; ') + '.' + gratis + ' ¿A qué ciudad lo enviarías? Así te digo el tiempo exacto.';
+}
+
+// ---------- v3: seguimiento de pedidos (WF15, sin IA) ----------
+const RE_PEDIDO_CHAT = /\bPB[\s-]?(\d{6})\b/i;
+function numeroPedidoDe(t) { const m = RE_PEDIDO_CHAT.exec(String(t || '')); return m ? 'PB-' + m[1] : ''; }
+function correoDe(t) { const m = /[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,24}/i.exec(String(t || '')); return m ? m[0].toLowerCase() : ''; }
+// "Hacer seguimiento de mi pedido", "¿dónde está mi pedido?", "PB-000123"... (no: "¿cómo hago un pedido?").
+function pideSeguimiento(m) {
+  const t = sinTildes(m).toLowerCase();
+  return RE_PEDIDO_CHAT.test(String(m || '')) || /\b(seguimiento|rastre\w*|tracking)\b/.test(t) ||
+    /\b(donde|cuando|como) (esta|va|viene|llega|anda)\w* (mi|el|mis|los) (pedido|compra|paquete|envio|orden)/.test(t) ||
+    /\b(estado|status) de (mi|el|mis) (pedido|compra|envio|orden|paquete)/.test(t) ||
+    /\bmi (pedido|compra|paquete|envio|orden) (no |aun no |todavia no )?(ha )?(llega|llego|llegado|sale|salio|enviaron|despacharon)/.test(t) ||
+    /\b(ya )?(enviaron|despacharon|mandaron) mi (pedido|compra|paquete)/.test(t);
+}
+// Respuesta (texto plano) con la vista pública de WF15 (vistaPublicaPedido: sin datos personales).
+function textoSeguimiento(r) {
+  if (!r || r.motivo === 'limite' || r.status === 429) return 'Hiciste varias consultas seguidas. Espera unos minutos y vuelve a intentarlo, o escríbenos por WhatsApp.';
+  if (!r.ok || !r.pedido) return 'No encontré un pedido con ese número y ese correo. Revisa que el número tenga la forma PB-000123 y que el correo sea el mismo que usaste al comprar. ¿Lo intentamos de nuevo?';
+  const p = r.pedido;
+  const fecha = function (f) { const x = String(f || ''); return x.slice(8, 10) + '/' + x.slice(5, 7) + ' ' + x.slice(11, 16); };
+  const L = ['Tu pedido ' + p.numero + ' está: ' + limpio(p.estado_texto || p.estado, 40) + '.'];
+  const e = p.envio || {};
+  if (p.estado === 'pendiente_pago') L.push('Aún no registramos el pago; puedes completarlo desde "Seguimiento de pedido" en la web.');
+  if (p.seguimiento) L.push('Lo enviamos con ' + limpio(p.seguimiento.agencia_nombre || p.seguimiento.agencia, 50) + (p.seguimiento.codigo ? ', código ' + limpio(p.seguimiento.codigo, 40) : '') + '.' + (p.seguimiento.url ? ' Puedes rastrearlo en ' + p.seguimiento.url : ''));
+  if (['pagado', 'preparando', 'enviado'].indexOf(p.estado) >= 0 && e.tiempo_estimado) L.push('Envío: ' + limpio(e.opcion_nombre || e.opcion, 50) + ' a ' + limpio(e.distrito || e.departamento, 40) + ', tiempo estimado ' + limpio(e.tiempo_estimado, 80) + ' desde el despacho.');
+  if (p.estado === 'listo_recojo') L.push('Recógelo en la agencia con tu DNI' + (p.seguimiento && p.seguimiento.agencia === 'shalom' ? ' y la clave de 4 dígitos que te enviamos por privado' : '') + '.');
+  const H = Array.isArray(p.historial) ? p.historial : [];
+  if (H.length) L.push('Historial: ' + H.map(function (x) { return limpio(x.estado_texto || x.estado, 30) + ' (' + fecha(x.fecha) + ')'; }).join(' → ') + '.');
+  L.push('¿Te ayudo con algo más?');
+  return L.join(' ');
 }
 
 // ---------- aprendizaje ----------
@@ -464,7 +562,7 @@ function notasAprendidas(filas) {
 // ---------- aviso y archivo .ics ----------
 function avisoCitaTexto(c, resumen, esc) {
   const tel = normTelefono(c.telefono);
-  return 'Nueva cita desde el chat de la web (Valeria)\n\n' +
+  return 'Nueva cita desde el chat de la web (Vale)\n\n' +
     'Cuándo: ' + esc(fechaLarga(c.fecha)) + ', ' + esc(c.hora) + '–' + esc(hhmm(minutos(c.hora) + CHAT.CITA_MIN)) + ' (hora de Perú)\n' +
     'Modalidad: ' + esc(textoModalidad(c.modalidad)) + '\n' +
     'Nombre: ' + esc(c.nombre) + '\n' +
@@ -492,7 +590,7 @@ function icsUtc(ms) { return new Date(ms).toISOString().replace(/[-:]/g, '').rep
 function icsCita(c, ahoraMs) {
   const desc = ['Reunión de 30 minutos con ' + c.nombre + ' (' + c.negocio + ', ' + c.rubro + ').', 'Correo: ' + c.correo, 'Teléfono/WhatsApp: ' + c.telefono,
     'Modalidad: ' + textoModalidad(c.modalidad), c.notas ? 'Notas: ' + c.notas : '', c.resumen ? 'Resumen del chat: ' + c.resumen : '',
-    'Agendada desde el chat de la web (Valeria). Id: ' + c.cita_id].filter(Boolean).join('\n');
+    'Agendada desde el chat de la web (Vale). Id: ' + c.cita_id].filter(Boolean).join('\n');
   return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Palmera Brava//Chat vendedor//ES', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'BEGIN:VEVENT',
     'UID:' + c.cita_id + '@palmera-brava', 'DTSTAMP:' + icsUtc(ahoraMs), 'DTSTART:' + icsUtc(Number(c.inicio_ms)), 'DTEND:' + icsUtc(Number(c.fin_ms)),
     'SUMMARY:' + icsTexto('Cita Palmera Brava – ' + c.negocio), 'DESCRIPTION:' + icsTexto(desc),

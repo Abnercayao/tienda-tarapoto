@@ -457,5 +457,521 @@
     "personas": false,
     "generar": "1216x832",
     "recortar_arriba": 0
+  },
+  {
+    "path": "assets/img/products/prd-0018-crema.webp",
+    "size": "768x1024",
+    "seed": 118,
+    "prompt": "An adult man wearing a cream linen Cuban-collar camp shirt with short sleeves, mother-of-pearl buttons and a chest pocket, relaxed straight fit, worn untucked over pleated beige linen trousers, framed from the shoulders to the hips. The photo is cropped at the neck, no face, no head visible, adults only, a single adult model: the top edge of the frame cuts across the collarbones, so the chin, mouth and face are completely outside the picture. Background: whitewashed colonial wall with an arched wooden window and palm leaf shadows. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": true,
+    "generar": "768x1216",
+    "recortar_arriba": 192
+  },
+  {
+    "path": "assets/img/products/prd-0018-azul-marino.webp",
+    "size": "768x1024",
+    "seed": 11801,
+    "prompt": "An adult man wearing a navy blue linen Cuban-collar camp shirt with short sleeves, mother-of-pearl buttons and a chest pocket, relaxed straight fit, worn untucked over pleated beige linen trousers, framed from the shoulders to the hips. The photo is cropped at the neck, no face, no head visible, adults only, a single adult model: the top edge of the frame cuts across the collarbones, so the chin, mouth and face are completely outside the picture. Background: whitewashed colonial wall with an arched wooden window and palm leaf shadows. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": true,
+    "generar": "768x1216",
+    "recortar_arriba": 192,
+    "color": "Azul marino",
+    "variante_de": "assets/img/products/prd-0018-crema.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0018-verde-oliva.webp",
+    "size": "768x1024",
+    "seed": 11802,
+    "prompt": "An adult man wearing a olive green linen Cuban-collar camp shirt with short sleeves, mother-of-pearl buttons and a chest pocket, relaxed straight fit, worn untucked over pleated beige linen trousers, framed from the shoulders to the hips. The photo is cropped at the neck, no face, no head visible, adults only, a single adult model: the top edge of the frame cuts across the collarbones, so the chin, mouth and face are completely outside the picture. Background: whitewashed colonial wall with an arched wooden window and palm leaf shadows. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": true,
+    "generar": "768x1216",
+    "recortar_arriba": 192,
+    "color": "Verde oliva",
+    "variante_de": "assets/img/products/prd-0018-crema.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0019-crema.webp",
+    "size": "768x1024",
+    "seed": 119,
+    "prompt": "An adult man wearing a cream open-knit pointelle polo shirt in pima cotton with an open buttonless collar and short sleeves, neatly tucked into light linen trousers, framed from the shoulders to the hips. The photo is cropped at the neck, no face, no head visible, adults only, a single adult model: the top edge of the frame cuts across the collarbones, so the chin, mouth and face are completely outside the picture. Background: cream stucco wall on a tiled veranda with potted palms. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": true,
+    "generar": "768x1216",
+    "recortar_arriba": 192
+  },
+  {
+    "path": "assets/img/products/prd-0019-azul-marino.webp",
+    "size": "768x1024",
+    "seed": 11901,
+    "prompt": "An adult man wearing a navy blue open-knit pointelle polo shirt in pima cotton with an open buttonless collar and short sleeves, neatly tucked into light linen trousers, framed from the shoulders to the hips. The photo is cropped at the neck, no face, no head visible, adults only, a single adult model: the top edge of the frame cuts across the collarbones, so the chin, mouth and face are completely outside the picture. Background: cream stucco wall on a tiled veranda with potted palms. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": true,
+    "generar": "768x1216",
+    "recortar_arriba": 192,
+    "color": "Azul marino",
+    "variante_de": "assets/img/products/prd-0019-crema.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0020-beige.webp",
+    "size": "768x1024",
+    "seed": 120,
+    "prompt": "An adult man wearing warm beige pleated linen trousers with front pleats, side adjusters and straight legs, with a cream knit polo tucked in and suede loafers, framed from the chest down to the shoes. The photo is cropped at the neck, no face, no head visible, adults only, a single adult model: the top edge of the frame cuts across the collarbones, so the chin, mouth and face are completely outside the picture. Background: terracotta tiled terrace with soft palm shadows. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": true,
+    "generar": "768x1216",
+    "recortar_arriba": 192
+  },
+  {
+    "path": "assets/img/products/prd-0020-azul-marino.webp",
+    "size": "768x1024",
+    "seed": 12001,
+    "prompt": "An adult man wearing navy blue pleated linen trousers with front pleats, side adjusters and straight legs, with a cream knit polo tucked in and suede loafers, framed from the chest down to the shoes. The photo is cropped at the neck, no face, no head visible, adults only, a single adult model: the top edge of the frame cuts across the collarbones, so the chin, mouth and face are completely outside the picture. Background: terracotta tiled terrace with soft palm shadows. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": true,
+    "generar": "768x1216",
+    "recortar_arriba": 192,
+    "color": "Azul marino",
+    "variante_de": "assets/img/products/prd-0020-beige.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0020-blanco-hueso.webp",
+    "size": "768x1024",
+    "seed": 12002,
+    "prompt": "An adult man wearing off-white pleated linen trousers with front pleats, side adjusters and straight legs, with a cream knit polo tucked in and suede loafers, framed from the chest down to the shoes. The photo is cropped at the neck, no face, no head visible, adults only, a single adult model: the top edge of the frame cuts across the collarbones, so the chin, mouth and face are completely outside the picture. Background: terracotta tiled terrace with soft palm shadows. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": true,
+    "generar": "768x1216",
+    "recortar_arriba": 192,
+    "color": "Blanco hueso",
+    "variante_de": "assets/img/products/prd-0020-beige.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0021-camel.webp",
+    "size": "768x1024",
+    "seed": 121,
+    "prompt": "Still life product photo of a pair of camel suede penny loafers with a classic strap and flexible rubber soles, placed on terracotta floor tiles next to a folded linen shirt, seen from a slightly high angle. No people, no mannequin, no hands, product only. No feet. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024"
+  },
+  {
+    "path": "assets/img/products/prd-0021-azul-marino.webp",
+    "size": "768x1024",
+    "seed": 12101,
+    "prompt": "Still life product photo of a pair of navy blue suede penny loafers with a classic strap and flexible rubber soles, placed on terracotta floor tiles next to a folded linen shirt, seen from a slightly high angle. No people, no mannequin, no hands, product only. No feet. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024",
+    "color": "Azul marino",
+    "variante_de": "assets/img/products/prd-0021-camel.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0021-cacao.webp",
+    "size": "768x1024",
+    "seed": 12102,
+    "prompt": "Still life product photo of a pair of dark chocolate brown suede penny loafers with a classic strap and flexible rubber soles, placed on terracotta floor tiles next to a folded linen shirt, seen from a slightly high angle. No people, no mannequin, no hands, product only. No feet. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024",
+    "color": "Cacao",
+    "variante_de": "assets/img/products/prd-0021-camel.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0022-blanco.webp",
+    "size": "768x1024",
+    "seed": 122,
+    "prompt": "Still life product photo of a pair of minimalist pure white leather low-top sneakers with small side perforations and stitched rubber soles, without logos, placed on a light wooden bench with tropical leaves, seen from a slightly high angle. No people, no mannequin, no hands, product only. No feet. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024"
+  },
+  {
+    "path": "assets/img/products/prd-0022-blanco-hueso.webp",
+    "size": "768x1024",
+    "seed": 12201,
+    "prompt": "Still life product photo of a pair of minimalist off-white leather low-top sneakers with small side perforations and stitched rubber soles, without logos, placed on a light wooden bench with tropical leaves, seen from a slightly high angle. No people, no mannequin, no hands, product only. No feet. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024",
+    "color": "Blanco hueso",
+    "variante_de": "assets/img/products/prd-0022-blanco.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0023-crema.webp",
+    "size": "768x1024",
+    "seed": 123,
+    "prompt": "An adult woman wearing a cream linen midi shirt dress with buttons down the front, rolled sleeves and a self-tie fabric belt, framed from the shoulders to the knees. The photo is cropped at the neck, no face, no head visible, adults only, a single adult model: the top edge of the frame cuts across the collarbones, so the chin, mouth and face are completely outside the picture. Background: whitewashed wall with soft bougainvillea and palm shadows. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": true,
+    "generar": "768x1216",
+    "recortar_arriba": 192
+  },
+  {
+    "path": "assets/img/products/prd-0023-azul-marino.webp",
+    "size": "768x1024",
+    "seed": 12301,
+    "prompt": "An adult woman wearing a navy blue linen midi shirt dress with buttons down the front, rolled sleeves and a self-tie fabric belt, framed from the shoulders to the knees. The photo is cropped at the neck, no face, no head visible, adults only, a single adult model: the top edge of the frame cuts across the collarbones, so the chin, mouth and face are completely outside the picture. Background: whitewashed wall with soft bougainvillea and palm shadows. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": true,
+    "generar": "768x1216",
+    "recortar_arriba": 192,
+    "color": "Azul marino",
+    "variante_de": "assets/img/products/prd-0023-crema.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0023-verde-oliva.webp",
+    "size": "768x1024",
+    "seed": 12302,
+    "prompt": "An adult woman wearing a olive green linen midi shirt dress with buttons down the front, rolled sleeves and a self-tie fabric belt, framed from the shoulders to the knees. The photo is cropped at the neck, no face, no head visible, adults only, a single adult model: the top edge of the frame cuts across the collarbones, so the chin, mouth and face are completely outside the picture. Background: whitewashed wall with soft bougainvillea and palm shadows. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": true,
+    "generar": "768x1216",
+    "recortar_arriba": 192,
+    "color": "Verde oliva",
+    "variante_de": "assets/img/products/prd-0023-crema.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0024-champan.webp",
+    "size": "768x1024",
+    "seed": 124,
+    "prompt": "An adult woman wearing a champagne washed silk blouse with a soft V-neckline and buttoned cuffs, tucked into high-waisted beige linen trousers, framed from the shoulders to the hips. The photo is cropped at the neck, no face, no head visible, adults only, a single adult model: the top edge of the frame cuts across the collarbones, so the chin, mouth and face are completely outside the picture. Background: cream plaster wall with soft palm frond shadows. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": true,
+    "generar": "768x1216",
+    "recortar_arriba": 192
+  },
+  {
+    "path": "assets/img/products/prd-0024-blanco-hueso.webp",
+    "size": "768x1024",
+    "seed": 12401,
+    "prompt": "An adult woman wearing a off-white washed silk blouse with a soft V-neckline and buttoned cuffs, tucked into high-waisted beige linen trousers, framed from the shoulders to the hips. The photo is cropped at the neck, no face, no head visible, adults only, a single adult model: the top edge of the frame cuts across the collarbones, so the chin, mouth and face are completely outside the picture. Background: cream plaster wall with soft palm frond shadows. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": true,
+    "generar": "768x1216",
+    "recortar_arriba": 192,
+    "color": "Blanco hueso",
+    "variante_de": "assets/img/products/prd-0024-champan.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0024-azul-marino.webp",
+    "size": "768x1024",
+    "seed": 12402,
+    "prompt": "An adult woman wearing a navy blue washed silk blouse with a soft V-neckline and buttoned cuffs, tucked into high-waisted beige linen trousers, framed from the shoulders to the hips. The photo is cropped at the neck, no face, no head visible, adults only, a single adult model: the top edge of the frame cuts across the collarbones, so the chin, mouth and face are completely outside the picture. Background: cream plaster wall with soft palm frond shadows. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": true,
+    "generar": "768x1216",
+    "recortar_arriba": 192,
+    "color": "Azul marino",
+    "variante_de": "assets/img/products/prd-0024-champan.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0025-beige.webp",
+    "size": "768x1024",
+    "seed": 125,
+    "prompt": "An adult woman wearing warm beige high-waisted wide-leg linen palazzo trousers with front pleats and a simple cream tank top tucked in, framed from the chest down to the ankles. The photo is cropped at the neck, no face, no head visible, adults only, a single adult model: the top edge of the frame cuts across the collarbones, so the chin, mouth and face are completely outside the picture. Background: tiled terrace with potted palms and a cream wall. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": true,
+    "generar": "768x1216",
+    "recortar_arriba": 192
+  },
+  {
+    "path": "assets/img/products/prd-0025-blanco-hueso.webp",
+    "size": "768x1024",
+    "seed": 12501,
+    "prompt": "An adult woman wearing off-white high-waisted wide-leg linen palazzo trousers with front pleats and a simple cream tank top tucked in, framed from the chest down to the ankles. The photo is cropped at the neck, no face, no head visible, adults only, a single adult model: the top edge of the frame cuts across the collarbones, so the chin, mouth and face are completely outside the picture. Background: tiled terrace with potted palms and a cream wall. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": true,
+    "generar": "768x1216",
+    "recortar_arriba": 192,
+    "color": "Blanco hueso",
+    "variante_de": "assets/img/products/prd-0025-beige.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0025-azul-marino.webp",
+    "size": "768x1024",
+    "seed": 12502,
+    "prompt": "An adult woman wearing navy blue high-waisted wide-leg linen palazzo trousers with front pleats and a simple cream tank top tucked in, framed from the chest down to the ankles. The photo is cropped at the neck, no face, no head visible, adults only, a single adult model: the top edge of the frame cuts across the collarbones, so the chin, mouth and face are completely outside the picture. Background: tiled terrace with potted palms and a cream wall. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": true,
+    "generar": "768x1216",
+    "recortar_arriba": 192,
+    "color": "Azul marino",
+    "variante_de": "assets/img/products/prd-0025-beige.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0026-camel.webp",
+    "size": "768x1024",
+    "seed": 126,
+    "prompt": "Still life product photo of a pair of flat camel hand-braided leather sandals with padded insoles, placed on terracotta floor tiles with dappled palm shadows, seen from a slightly high angle. No people, no mannequin, no hands, product only. No feet. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024"
+  },
+  {
+    "path": "assets/img/products/prd-0026-blanco-hueso.webp",
+    "size": "768x1024",
+    "seed": 12601,
+    "prompt": "Still life product photo of a pair of flat off-white hand-braided leather sandals with padded insoles, placed on terracotta floor tiles with dappled palm shadows, seen from a slightly high angle. No people, no mannequin, no hands, product only. No feet. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024",
+    "color": "Blanco hueso",
+    "variante_de": "assets/img/products/prd-0026-camel.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0026-negro.webp",
+    "size": "768x1024",
+    "seed": 12602,
+    "prompt": "Still life product photo of a pair of flat black hand-braided leather sandals with padded insoles, placed on terracotta floor tiles with dappled palm shadows, seen from a slightly high angle. No people, no mannequin, no hands, product only. No feet. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024",
+    "color": "Negro",
+    "variante_de": "assets/img/products/prd-0026-camel.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0027-verde-oliva.webp",
+    "size": "768x1024",
+    "seed": 127,
+    "prompt": "An adult woman wearing a olive green pleated midi skirt in fluid viscose with a hidden elastic waistband and a simple white top tucked in, framed from the chest down to the ankles. The photo is cropped at the neck, no face, no head visible, adults only, a single adult model: the top edge of the frame cuts across the collarbones, so the chin, mouth and face are completely outside the picture. Background: warm terracotta plaster wall with palm frond shadows. Editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon. Warm tropical golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, color palette of warm sand, palm green, lagoon turquoise, terracotta and mango orange. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": true,
+    "generar": "768x1216",
+    "recortar_arriba": 192
+  },
+  {
+    "path": "assets/img/products/prd-0027-arena.webp",
+    "size": "768x1024",
+    "seed": 12701,
+    "prompt": "An adult woman wearing a sand-beige pleated midi skirt in fluid viscose with a hidden elastic waistband and a simple white top tucked in, framed from the chest down to the ankles. The photo is cropped at the neck, no face, no head visible, adults only, a single adult model: the top edge of the frame cuts across the collarbones, so the chin, mouth and face are completely outside the picture. Background: warm terracotta plaster wall with palm frond shadows. Editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon. Warm tropical golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, color palette of warm sand, palm green, lagoon turquoise, terracotta and mango orange. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": true,
+    "generar": "768x1216",
+    "recortar_arriba": 192,
+    "color": "Arena",
+    "variante_de": "assets/img/products/prd-0027-verde-oliva.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0028-blanco-hueso.webp",
+    "size": "768x1024",
+    "seed": 128,
+    "prompt": "Flat lay product photo of a children's two-piece set: a off-white short-sleeve linen shirt with a Cuban collar and matching linen shorts with an elastic waistband, laid flat on a light sand-colored linen cloth with a few monstera leaves around it, seen from directly above. No people, no mannequin, no hands, product only. Editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon. Warm tropical golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, color palette of warm sand, palm green, lagoon turquoise, terracotta and mango orange. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024"
+  },
+  {
+    "path": "assets/img/products/prd-0028-celeste.webp",
+    "size": "768x1024",
+    "seed": 12801,
+    "prompt": "Flat lay product photo of a children's two-piece set: a light sky blue short-sleeve linen shirt with a Cuban collar and matching linen shorts with an elastic waistband, laid flat on a light sand-colored linen cloth with a few monstera leaves around it, seen from directly above. No people, no mannequin, no hands, product only. Editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon. Warm tropical golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, color palette of warm sand, palm green, lagoon turquoise, terracotta and mango orange. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024",
+    "color": "Celeste",
+    "variante_de": "assets/img/products/prd-0028-blanco-hueso.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0029-verde-agua.webp",
+    "size": "768x1024",
+    "seed": 129,
+    "prompt": "Flat lay product photo of a girl's soft aqua green linen sundress with wide crossed straps and a flared skirt, laid flat on a light sand-colored linen cloth with a few hibiscus flowers around it, seen from directly above. No people, no mannequin, no hands, product only. Editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon. Warm tropical golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, color palette of warm sand, palm green, lagoon turquoise, terracotta and mango orange. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024"
+  },
+  {
+    "path": "assets/img/products/prd-0029-blanco-hueso.webp",
+    "size": "768x1024",
+    "seed": 12901,
+    "prompt": "Flat lay product photo of a girl's off-white linen sundress with wide crossed straps and a flared skirt, laid flat on a light sand-colored linen cloth with a few hibiscus flowers around it, seen from directly above. No people, no mannequin, no hands, product only. Editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon. Warm tropical golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, color palette of warm sand, palm green, lagoon turquoise, terracotta and mango orange. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024",
+    "color": "Blanco hueso",
+    "variante_de": "assets/img/products/prd-0029-verde-agua.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0029-mango.webp",
+    "size": "768x1024",
+    "seed": 12902,
+    "prompt": "Flat lay product photo of a girl's mango-orange linen sundress with wide crossed straps and a flared skirt, laid flat on a light sand-colored linen cloth with a few hibiscus flowers around it, seen from directly above. No people, no mannequin, no hands, product only. Editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon. Warm tropical golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, color palette of warm sand, palm green, lagoon turquoise, terracotta and mango orange. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024",
+    "color": "Mango",
+    "variante_de": "assets/img/products/prd-0029-verde-agua.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0030-azul-laguna.webp",
+    "size": "768x1024",
+    "seed": 130,
+    "prompt": "Flat lay product photo of a children's long-sleeve one-piece UV protection swimsuit in lagoon turquoise with a back zipper, laid flat on a light sand-colored towel next to small swim goggles, seen from directly above. No people, no mannequin, no hands, product only. Editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon. Warm tropical golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, color palette of warm sand, palm green, lagoon turquoise, terracotta and mango orange. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024"
+  },
+  {
+    "path": "assets/img/products/prd-0030-coral.webp",
+    "size": "768x1024",
+    "seed": 13001,
+    "prompt": "Flat lay product photo of a children's long-sleeve one-piece UV protection swimsuit in coral with a back zipper, laid flat on a light sand-colored towel next to small swim goggles, seen from directly above. No people, no mannequin, no hands, product only. Editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon. Warm tropical golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, color palette of warm sand, palm green, lagoon turquoise, terracotta and mango orange. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024",
+    "color": "Coral",
+    "variante_de": "assets/img/products/prd-0030-azul-laguna.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0031-arena.webp",
+    "size": "768x1024",
+    "seed": 131,
+    "prompt": "Still life product photo of a children's wide-brim sun hat in sand-beige cotton with an adjustable chin cord, resting on a light linen cloth with tropical leaves, seen from a slightly high angle. No people, no mannequin, no hands, product only. Editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon. Warm tropical golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, color palette of warm sand, palm green, lagoon turquoise, terracotta and mango orange. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024"
+  },
+  {
+    "path": "assets/img/products/prd-0031-azul-laguna.webp",
+    "size": "768x1024",
+    "seed": 13101,
+    "prompt": "Still life product photo of a children's wide-brim sun hat in lagoon turquoise cotton with an adjustable chin cord, resting on a light linen cloth with tropical leaves, seen from a slightly high angle. No people, no mannequin, no hands, product only. Editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon. Warm tropical golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, color palette of warm sand, palm green, lagoon turquoise, terracotta and mango orange. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024",
+    "color": "Azul laguna",
+    "variante_de": "assets/img/products/prd-0031-arena.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0031-verde-palma.webp",
+    "size": "768x1024",
+    "seed": 13102,
+    "prompt": "Still life product photo of a children's wide-brim sun hat in palm green cotton with an adjustable chin cord, resting on a light linen cloth with tropical leaves, seen from a slightly high angle. No people, no mannequin, no hands, product only. Editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon. Warm tropical golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, color palette of warm sand, palm green, lagoon turquoise, terracotta and mango orange. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024",
+    "color": "Verde palma",
+    "variante_de": "assets/img/products/prd-0031-arena.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0032-arena.webp",
+    "size": "768x1024",
+    "seed": 132,
+    "prompt": "Flat lay product photo of children's sand-beige linen shorts with an elastic drawstring waistband and side pockets, laid flat on a light sand-colored linen cloth with a few palm leaves around it, seen from directly above. No people, no mannequin, no hands, product only. Editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon. Warm tropical golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, color palette of warm sand, palm green, lagoon turquoise, terracotta and mango orange. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024"
+  },
+  {
+    "path": "assets/img/products/prd-0032-verde-oliva.webp",
+    "size": "768x1024",
+    "seed": 13201,
+    "prompt": "Flat lay product photo of children's olive green linen shorts with an elastic drawstring waistband and side pockets, laid flat on a light sand-colored linen cloth with a few palm leaves around it, seen from directly above. No people, no mannequin, no hands, product only. Editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon. Warm tropical golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, color palette of warm sand, palm green, lagoon turquoise, terracotta and mango orange. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024",
+    "color": "Verde oliva",
+    "variante_de": "assets/img/products/prd-0032-arena.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0032-azul-marino.webp",
+    "size": "768x1024",
+    "seed": 13202,
+    "prompt": "Flat lay product photo of children's navy blue linen shorts with an elastic drawstring waistband and side pockets, laid flat on a light sand-colored linen cloth with a few palm leaves around it, seen from directly above. No people, no mannequin, no hands, product only. Editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon. Warm tropical golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, color palette of warm sand, palm green, lagoon turquoise, terracotta and mango orange. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024",
+    "color": "Azul marino",
+    "variante_de": "assets/img/products/prd-0032-arena.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0033-carey.webp",
+    "size": "768x1024",
+    "seed": 133,
+    "prompt": "Still life product photo of a pair of round sunglasses with a tortoiseshell acetate frame, thin metal hinges and dark polarized lenses, resting on a rattan table next to a folded linen napkin, seen from a slightly high angle. No people, no mannequin, no hands, product only. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024"
+  },
+  {
+    "path": "assets/img/products/prd-0033-negro.webp",
+    "size": "768x1024",
+    "seed": 13301,
+    "prompt": "Still life product photo of a pair of round sunglasses with a black acetate frame, thin metal hinges and dark polarized lenses, resting on a rattan table next to a folded linen napkin, seen from a slightly high angle. No people, no mannequin, no hands, product only. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024",
+    "color": "Negro",
+    "variante_de": "assets/img/products/prd-0033-carey.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0034-camel.webp",
+    "size": "768x1024",
+    "seed": 134,
+    "prompt": "Still life product photo of a braided leather belt in camel with a brushed brass buckle, loosely coiled on a light wooden bench with tropical leaves, seen from a slightly high angle. No people, no mannequin, no hands, product only. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024"
+  },
+  {
+    "path": "assets/img/products/prd-0034-cacao.webp",
+    "size": "768x1024",
+    "seed": 13401,
+    "prompt": "Still life product photo of a braided leather belt in dark chocolate brown with a brushed brass buckle, loosely coiled on a light wooden bench with tropical leaves, seen from a slightly high angle. No people, no mannequin, no hands, product only. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024",
+    "color": "Cacao",
+    "variante_de": "assets/img/products/prd-0034-camel.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0034-azul-marino.webp",
+    "size": "768x1024",
+    "seed": 13402,
+    "prompt": "Still life product photo of a braided leather belt in navy blue with a brushed brass buckle, loosely coiled on a light wooden bench with tropical leaves, seen from a slightly high angle. No people, no mannequin, no hands, product only. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024",
+    "color": "Azul marino",
+    "variante_de": "assets/img/products/prd-0034-camel.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0035-natural.webp",
+    "size": "768x1024",
+    "seed": 135,
+    "prompt": "Still life product photo of a structured woven raffia tote bag in natural straw-colored with short leather handles and a rectangular base, standing on a wooden bench in front of a cream wall with palm shadows. No people, no mannequin, no hands, product only. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024"
+  },
+  {
+    "path": "assets/img/products/prd-0035-crema.webp",
+    "size": "768x1024",
+    "seed": 13501,
+    "prompt": "Still life product photo of a structured woven raffia tote bag in cream with short leather handles and a rectangular base, standing on a wooden bench in front of a cream wall with palm shadows. No people, no mannequin, no hands, product only. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024",
+    "color": "Crema",
+    "variante_de": "assets/img/products/prd-0035-natural.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0036-beige.webp",
+    "size": "768x1024",
+    "seed": 136,
+    "prompt": "Still life product photo of a six-panel washed linen baseball cap in warm beige with a curved brim and a small metal buckle strap, resting on a rattan chair, seen from a slightly high angle. No people, no mannequin, no hands, product only. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024"
+  },
+  {
+    "path": "assets/img/products/prd-0036-azul-marino.webp",
+    "size": "768x1024",
+    "seed": 13601,
+    "prompt": "Still life product photo of a six-panel washed linen baseball cap in navy blue with a curved brim and a small metal buckle strap, resting on a rattan chair, seen from a slightly high angle. No people, no mannequin, no hands, product only. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024",
+    "color": "Azul marino",
+    "variante_de": "assets/img/products/prd-0036-beige.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0036-verde-oliva.webp",
+    "size": "768x1024",
+    "seed": 13602,
+    "prompt": "Still life product photo of a six-panel washed linen baseball cap in olive green with a curved brim and a small metal buckle strap, resting on a rattan chair, seen from a slightly high angle. No people, no mannequin, no hands, product only. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024",
+    "color": "Verde oliva",
+    "variante_de": "assets/img/products/prd-0036-beige.webp"
+  },
+  {
+    "path": "assets/img/products/prd-0037-natural.webp",
+    "size": "768x1024",
+    "seed": 137,
+    "prompt": "Still life product photo of a classic Panama hat of hand-woven toquilla straw in natural ivory straw with a medium brim and a thin cotton band, resting on a wooden table next to a linen napkin. No people, no mannequin, no hands, product only. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024"
+  },
+  {
+    "path": "assets/img/products/prd-0037-blanco-hueso.webp",
+    "size": "768x1024",
+    "seed": 13701,
+    "prompt": "Still life product photo of a classic Panama hat of hand-woven toquilla straw in bleached off-white straw with a medium brim and a thin cotton band, resting on a wooden table next to a linen napkin. No people, no mannequin, no hands, product only. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024",
+    "color": "Blanco hueso",
+    "variante_de": "assets/img/products/prd-0037-natural.webp"
+  },
+  {
+    "path": "assets/img/brand/hero-old-money.webp",
+    "size": "1344x768",
+    "seed": 205,
+    "prompt": "Wide editorial fashion photograph of the torso of an adult man wearing a cream open-knit pointelle polo shirt neatly tucked into pleated beige linen trousers with a braided camel leather belt, standing relaxed on a sunlit colonial terrace, tightly framed from the chest to the knees, head out of frame. The photo is cropped at the neck, no face, no head visible, adults only, a single adult model: the top edge of the frame cuts across the upper chest, below the shoulders, so the neck, chin, mouth and face are completely outside the picture. The model fills the right half of the frame; the left third is a calm whitewashed wall with an arched wooden shutter and large palm frond shadows. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": true,
+    "generar": "1344x1024",
+    "recortar_arriba": 256
+  },
+  {
+    "path": "assets/img/brand/col-old-money.webp",
+    "size": "768x1024",
+    "seed": 305,
+    "prompt": "Still life flat lay of a quiet luxury summer outfit: a folded cream open-knit polo shirt, navy blue linen trousers, round tortoiseshell sunglasses, a braided camel leather belt and a pair of camel suede loafers, arranged on a natural rattan surface with a few palm leaves, seen from directly above. No people, no mannequin, no hands, product only. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
+    "personas": false,
+    "generar": "768x1024"
   }
 ]

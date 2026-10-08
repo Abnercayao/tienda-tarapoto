@@ -1,17 +1,18 @@
 # Palmera Brava: ropa fresca para el calor de la selva
 
-Catálogo web de una tienda de ropa de verano en **Tarapoto (San Martín, Perú)**. Los clientes ven las prendas, arman su bolsa y hacen el pedido por **WhatsApp** (no hay pagos en línea). El catálogo se actualiza desde **Telegram**: el dueño o el encargado de marketing manda una foto con los datos, un bot local arma un borrador con IA y lo publica cuando alguien con permiso toca **Publicar**.
+Catálogo web de una tienda de ropa de verano en **Tarapoto (San Martín, Perú)**. Los clientes ven las prendas, arman su bolsa y compran con **Mercado Pago Checkout Pro (modo prueba)** o por **WhatsApp**; luego siguen su pedido (PB-000123) en la web, con Vale (el chat) o lo gestiona la tienda desde Telegram. El catálogo se actualiza desde **Telegram**: el dueño o el encargado de marketing manda una foto con los datos, un bot local arma un borrador con IA y lo publica cuando alguien con permiso toca **Publicar**.
 
 - **Sitio publicado:** https://abnercayao.github.io/tienda-tarapoto/
 - **Sitio y panel en la PC de la tienda:** http://127.0.0.1:8080/tienda-tarapoto/ y http://127.0.0.1:8080/tienda-tarapoto/admin.html (con `tools\iniciar-todo.bat`)
-- **Estado:** v2, **demo privada**. Abner la muestra solo a dueños de negocios para enseñarles lo que pueden tener (web + agente de n8n/Telegram); nunca será una tienda abierta al público. Por eso **parece una tienda real**: sin avisos de "muestra" ni de imágenes de IA, todas las prendas van a la bolsa y se piden por WhatsApp, y cada página lleva `noindex, nofollow` (no hay `sitemap.xml`). Las 16 prendas de referencia siguen marcadas `muestra:true` en los datos solo para `/limpiar_muestras`.
+- **Estado:** v3, **demo privada**. Abner la muestra solo a dueños de negocios para enseñarles lo que pueden tener (web + agente de n8n/Telegram); nunca será una tienda abierta al público. Por eso **parece una tienda real**: sin avisos de "muestra" ni de imágenes de IA, todas las prendas van a la bolsa y se compran con Mercado Pago (tarjetas de prueba) o por WhatsApp, y cada página lleva `noindex, nofollow` (no hay `sitemap.xml`). Las 16 prendas de referencia siguen marcadas `muestra:true` en los datos solo para `/limpiar_muestras`.
 
 | Dato | Valor |
 |---|---|
 | Tienda | Palmera Brava, Tarapoto (San Martín) |
 | WhatsApp | +51 995 542 938 (número personal; no hay WhatsApp Business) |
 | Horario | Todos los días, de 8:00 a. m. a 8:00 p. m. **(por confirmar: los días no se especificaron)** |
-| Entrega | Coordinada por WhatsApp; motocarro dentro de Tarapoto |
+| Envíos | A todo el Perú: Shalom, Olva Courier, agencia de bus de tu preferencia y entrega local en Tarapoto, Morales y La Banda de Shilcayo (costo y tiempo promedio por departamento en `data/site.json` → `envios`) |
+| Pagos | Mercado Pago Checkout Pro en **modo prueba** (credencial de n8n "Mercado Pago Prueba"); sin ella, pago simulado marcado como tal |
 
 > Todo lo que está en `data/` es **público** (el repo y la web lo son), incluidos los productos ocultos y el stock. Nunca se guarda ahí nada privado.
 
@@ -20,22 +21,22 @@ Catálogo web de una tienda de ropa de verano en **Tarapoto (San Martín, Perú)
 <!-- KPIS:INICIO (generado con: node tools/kpis.js --readme; no editar a mano) -->
 | Cifra | Valor |
 |---|---|
-| Productos visibles (`activo: true`) | 17 |
-| Hombres / Mujeres / Niños / Accesorios | 5 / 4 / 4 / 4 (suman 17) |
+| Productos visibles (`activo: true`) | 37 |
+| Hombres / Mujeres / Niños / Accesorios | 10 / 9 / 9 / 9 (suman 37) |
 | ¿Las categorías suman el total? | Sí |
-| De muestra / reales | 16 / 1 |
+| De muestra / reales | 36 / 1 |
 | Productos ocultos (`activo: false`) | 0 |
-| En oferta (descuento máximo) | 5 (-19 %) |
+| En oferta (descuento máximo) | 14 (-19 %) |
 | Agotados | 0 |
-| Unidades en stock | 248 |
-| Rango de precios (con la oferta aplicada) | S/ 24.90 a S/ 89.90 |
-| Imágenes de productos (IA local / foto / provisional) | 34 / 1 / 0 |
+| Unidades en stock | 541 |
+| Rango de precios (con la oferta aplicada) | S/ 24.90 a S/ 189.90 |
+| Imágenes de productos (IA local / foto / provisional) | 86 / 1 / 0 |
 | Artículos del blog publicados | 3 de 3 |
 | Looks del lookbook | 4 |
 | Testimonios verificados | 0 |
 | WhatsApp configurado | Sí |
-| Versión de los datos (productos / artículos / tienda) | 3 / 2 / 2 |
-| Datos actualizados | 2026-10-07T06:34:49-05:00 |
+| Versión de los datos (productos / artículos / tienda) | 4 / 2 / 3 |
+| Datos actualizados | 2026-10-07T10:00:00-05:00 |
 
 Cifras calculadas por `tools/kpis.js` sobre `data/*.json` (las mismas que responde `/estado` y muestra el panel local).
 <!-- KPIS:FIN -->
@@ -49,7 +50,9 @@ Cifras calculadas por `tools/kpis.js` sobre `data/*.json` (las mismas que respon
                                            ├─ tools/validar.js: valida el borrador (mismas reglas que en local)
                                            ├─ Publicar ► 1 commit agrupado a GitHub (como máximo cada 6 min)
                                            └─ /imagen y panel ► sd-server + Z-Image Turbo (127.0.0.1:1234)
- GitHub (repo público) ──► GitHub Pages ──► clientes ──► "Pedir por WhatsApp" (wa.me/51995542938)
+ GitHub (repo público) ──► GitHub Pages ──► clientes ──► checkout ──► túnel + tools/chat-proxy.py ──► n8n WF13
+                                                     (pedido PB-000123) ──► Mercado Pago (modo prueba) ──► vuelta a la web
+                                           o "Pedir por WhatsApp" (wa.me/51995542938)
 ```
 
 - Nada de la PC queda expuesto a internet: el bot **consulta** a Telegram (no recibe conexiones) y n8n, Ollama, sd-server y el sitio local escuchan solo en `127.0.0.1`.
@@ -170,15 +173,28 @@ Los cambios publicados tardan hasta 6 min (lote del bot) más 1–10 min (build 
 | **Revisa:** las decisiones de impacto alto pasan por revisión humana | Toda escritura es borrador + Publicar; doble confirmación en `/borrar`, `/limpiar_muestras` y `/whatsapp`; roles | Pruebas 4–6, 9, 17 y 18 de F7 |
 | **Regla de cierre:** lo atractivo también es verificable | Lighthouse ≥ 90 en rendimiento y ≥ 95 en accesibilidad, buenas prácticas y SEO, más las filas anteriores | Chrome DevTools → Lighthouse en local y en Pages |
 
+## Qué trae la web (v3): compra y seguimiento
+
+Contrato de las rutas públicas: **[docs/PEDIDOS.md](docs/PEDIDOS.md)** (`/pedido`, `/seguimiento`, `/pedido/pago`, `/chat`). La web nunca habla con la API de Mercado Pago ni ve datos de tarjeta: el pedido y la preferencia los crea n8n.
+
+- **Páginas con transición (tipo Bembella):** `#/checkout` → `?paso=envio` → `?paso=pago` (cada paso es una "página" con su título, foco en el h1, View Transitions y botón Atrás del navegador), `#/pedido/PB-000123`, `#/seguimiento` y `#/cuenta`. Cabecera mínima en el checkout; resumen plegable arriba en el móvil.
+- **Checkout:** 1) nombre y apellido, correo y celular; 2) departamento → opciones de envío con **costo y tiempo promedio** (Shalom, Olva Courier, agencia de bus, entrega local; envío gratis desde S/ 299), provincia y distrito, y dirección + referencia (domicilio) o agencia/terminal + DNI (recojo); 3) revisión con "Cambiar", casilla "Guardar mis datos en este dispositivo" y **Pagar con Mercado Pago** → `POST /pedido` → `init_point`. Validación accesible (etiqueta, ayuda y error unidos con `aria-describedby`, `aria-invalid`, foco en el primer error) y los mensajes de error de n8n enlazan al paso que hay que corregir. Si el proxy no responde: aviso y **Pedir por WhatsApp** con el resumen (prendas, envío, total y destino).
+- **Vuelta de Mercado Pago:** `?mp=ok|pend|err&pedido=…&payment_id=…` → se limpia la URL, `POST /pedido/pago` y `#/pedido/<num>` muestra "¡Gracias! Recibimos tu pago", "Tu pedido está reservado" o "El pago no se completó" según **la respuesta de n8n** (nunca el `?status=`). En pago simulado lo dice ("Pago simulado (demo)…").
+- **Seguimiento:** número + correo → `POST /seguimiento` → tarjeta con estado, **línea de tiempo** (pedido recibido, pagado, preparando, enviado, listo para recoger, entregado o cancelado, con fecha y hora), agencia, código y enlace de rastreo (solo dominios de `rastreo_url`), prendas y totales; si sigue pendiente, "Pagar ahora con Mercado Pago".
+- **Mi cuenta sin contraseña** (`localStorage` `pb_cuenta`): pedidos hechos o consultados en este navegador con su último estado y "Seguir pedido"; datos de envío (solo si el cliente marca la casilla o los guarda aquí), editables y con "Olvidar mis datos". El correo de un pedido recién hecho queda solo en la pestaña (`sessionStorage`) para mostrar el estado al volver de Mercado Pago.
+- **Chat con Vale:** bienvenida con 2 prendas destacadas (primero la que estás viendo) y acciones rápidas "Hacer seguimiento de mi pedido" (formulario **dentro del chat**: número + correo, Cancelar / Hacer seguimiento → tarjeta de estado y "Seguimiento de otro pedido" / "Nueva conversación"), "¿Cuánto tarda el envío?" y "Guía de tallas" (van a `/chat`). Si n8n responde `accion: "formulario_seguimiento"` aparece el mismo formulario; si responde `pedido`, la tarjeta. Cada mensaje lleva "Enviado / Automático · hora".
+- **Pie:** "Paga seguro con Mercado Pago" y "Envíos a todo el Perú" con las opciones de `site.json` (solo texto e íconos genéricos, sin logos de marcas).
+- **Prueba local sin tocar n8n:** un simulador del proxy en `[::1]:8787` (IPv6, para no chocar con el proxy real en `127.0.0.1:8787`) y la web en `http://localhost:8080`: compra completa → PB-000101 → pago simulado → "Pagado" → seguimiento "Enviado" con Shalom; error 502 de Mercado Pago (pedido registrado); proxy caído (WhatsApp); formularios con errores; 375 px sin scroll horizontal.
+
 ## Qué trae la web (v2)
 
 - **Menú por secciones.** En el celular, el botón de menú abre acordeones: **Catálogo** (Hombres, Mujeres, Niños, Accesorios, Novedades, Ofertas; cada opción filtra el catálogo), **Blog** (cada artículo), **Nosotros** (Cómo comprar, Por qué Palmera Brava, Looks, Dónde estamos), **Guía de tallas** y **Contacto**. En escritorio, los mismos menús se despliegan desde la cabecera (Catálogo con fotos de cada categoría).
 - **Índice de frescura (1 a 5 hojitas)** en cada tarjeta y en la vista rápida. Manda el campo `frescura`; si falta, la web lo calcula con la **misma tabla por material que usa el bot** (`data/schema/frescura-materiales.json`, generada desde `tools/validar.js`).
 - **Color con foto y stock.** Cada color tiene su foto (`imagenes[].color`): elegir un color en la tarjeta o en la vista rápida cambia la foto con un fundido, y la vista rápida trae miniaturas por color. El stock se lleva **por color** (`stock_por_color`, 0 a 20): "Quedan N", "¡Últimas N unidades!" o "Agotado en <color>" (ese color no se puede pedir y aparece "Avísame cuando vuelva este color"). La bolsa no deja pasar del stock del color, sumando todas las tallas.
 - **Guía de tallas** desde cada prenda (tarjeta y vista rápida), el menú y el pie: abre la tabla de la categoría de la prenda, marca la talla elegida, explica cómo medir con una ilustración y recomienda tallas holgadas para el calor. Se edita en `data/site.json` → `guia_tallas`.
-- **Chat con Valeria**, la asesora virtual (burbuja amarilla sobre el botón de WhatsApp). Responde con el agente de n8n y el modelo local `llama3.1:8b`; muestra "escribiendo…" mientras espera (10 a 20 s es normal; a los 25 s dice "sigue escribiendo…") y a los 60 s, o si el agente no responde, ofrece WhatsApp. La conversación se guarda en el navegador (botón "Conversación nueva" para empezar de cero).
+- **Chat con Vale**, la asesora virtual (burbuja amarilla sobre el botón de WhatsApp). Responde con el agente de n8n y el modelo local `llama3.1:8b`; muestra "escribiendo…" mientras espera (10 a 20 s es normal; a los 25 s dice "sigue escribiendo…") y a los 60 s, o si el agente no responde, ofrece WhatsApp. La conversación se guarda en el navegador (botón "Conversación nueva" para empezar de cero).
   - **Dónde se conecta:** la web lee `data/chat.json` (`{url, activo, actualizado}`) sin caché y llama a `url + "/chat"`. Si `activo` es `false` o la URL está vacía, la burbuja no aparece. En la PC de la tienda usa primero `http://127.0.0.1:8787/chat` (el proxy local) si responde.
-  - **Encenderlo para una demo:** `toolsiniciar-chat.bat` arranca el proxy y el túnel rápido de Cloudflare y registra la URL nueva en `data/chat.json` (vía n8n, solo si cambió). La CSP de `index.html` ya permite `https://*.trycloudflare.com` y el proxy local (`node tools/csp.js --check` lo comprueba).
+  - **Encenderlo para una demo:** `tools\iniciar-chat.bat` arranca el proxy y el túnel rápido de Cloudflare y registra la URL nueva en `data/chat.json` (vía n8n, solo si cambió). La CSP de `index.html` ya permite `https://*.trycloudflare.com` y el proxy local (`node tools/csp.js --check` lo comprueba).
   - Petición: `POST {sessionId, mensaje, pagina:{seccion, producto?}}` → `{respuesta, escribiendo_ms?}`. Todo se pinta con `textContent`; solo se enlazan URLs de `wa.me` y de este sitio.
 
 ## El bot de Telegram
@@ -220,7 +236,8 @@ El equipo no introduce tokens, contraseñas ni ajustes de seguridad. Haz esto en
 4. **Clave del panel.** En n8n, crea una credencial **Header Auth** con nombre de cabecera `X-Tienda-Key` y un valor largo que inventes. Es la clave que pide el panel.
 5. **Asignar credenciales y publicar los workflows.** En n8n, abre cada workflow importado, asigna las credenciales (Telegram, GitHub, Header Auth) y pulsa **Publish**.
 6. **Confirmar los datos de la tienda:** días de atención (hoy dice "Todos los días"), dirección exacta, zonas y costo de reparto, medios de pago, política de cambios y redes. Verifica la marca en INDECOPI y consulta a un asesor sobre el Libro de Reclamaciones y la Ley 29733.
-7. **Pruebas tuyas:** la diapositiva 22 en tu móvil real; desde la misma Wi-Fi, confirma que `http://<IP-de-la-PC>:5678` y `:8080` **no** responden. No aceptes avisos del Firewall para `python`, `sd-server` u `ollama`.
+7. **Mercado Pago (modo prueba):** crea la aplicación Checkout Pro y pega el **Access Token de prueba** en la credencial **"Mercado Pago Prueba"** de n8n (`Bearer ` + token). Pasos, cuentas y tarjetas de prueba: [docs/PEDIDOS.md](docs/PEDIDOS.md) §5. Mientras tenga el texto de ejemplo, la tienda cobra en **pago simulado**.
+8. **Pruebas tuyas:** la diapositiva 22 en tu móvil real; desde la misma Wi-Fi, confirma que `http://<IP-de-la-PC>:5678` y `:8080` **no** responden. No aceptes avisos del Firewall para `python`, `sd-server` u `ollama`.
 
 ## Runbook resumido
 
@@ -241,7 +258,8 @@ Detalle completo, con responsables: **[docs/RUNBOOK.md](docs/RUNBOOK.md)**.
 - Repo y sitio **públicos**: ningún token en el repo. Barreras: hook `tools/hooks/pre-commit` (activar con `git config core.hooksPath tools/hooks`), `tools/qa.js`, el validador y `tools/limpiar-workflows.js` para los exports de n8n.
 - El token del bot vive en la credencial de n8n y en la Data Table `config`; el PAT, solo en la credencial de n8n; la clave del panel, en `sessionStorage` del navegador.
 - Imágenes: WebP sin EXIF; personas sin rostro; niños sin personas. v2: como la web es una demo privada, no lleva etiquetas de IA (`origen` queda como dato interno).
-- Chat: el proxy local solo reenvía `POST /chat` (JSON de hasta 4 KB) a n8n, con CORS para este sitio y límite de mensajes; nunca expone el resto de n8n. La web limita cada mensaje a 500 caracteres y frena los envíos seguidos.
+- Pagos: la web nunca ve datos de tarjeta ni el token de Mercado Pago; solo redirige a `init_point` (Mercado Pago o, en simulado, la vuelta a esta tienda). La vista pública de un pedido no trae correo, celular, DNI, dirección ni apellidos, y solo se consulta con número + correo.
+- Chat y pedidos: el proxy local solo reenvía `POST /chat`, `/pedido`, `/seguimiento` y `/pedido/pago` (JSON pequeño) a n8n, con CORS para este sitio y límite de mensajes; nunca expone el resto de n8n. La web limita cada mensaje a 500 caracteres y frena los envíos seguidos.
 - Testimonios: solo reales y verificados. Si no hay, la sección no aparece.
 
 ## Créditos y licencias

@@ -51,6 +51,7 @@ if (t.charAt(0) === '/' && base.tipo !== 'callback') {
 const tipo = fotos.length ? 'foto' : base.tipo;
 let ruta;
 if (!rol) ruta = 'rechazado';
+else if (tipo === 'callback' && /^(ped|usr):/.test(String(base.callback_data || ''))) { ruta = 'comando'; comando = 'boton_pedidos'; } // v3: botones de WF16
 else if (tipo === 'callback') ruta = 'callback';
 else if (comando) ruta = 'comando';
 else if (tipo === 'foto' || tipo === 'texto') ruta = 'borrador';

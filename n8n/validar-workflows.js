@@ -36,7 +36,12 @@ const WORKFLOWS = {
   pbWf09Errores000: { nombre: 'PB WF9 Errores', archivo: 'WF9-errores.json' },
   // ARQUITECTURA-N8N.md §11 (chat vendedor, v2)
   pbWf11ChatVend00: { nombre: 'PB WF11 Chat-Vendedor', archivo: 'WF11-chat-vendedor.json' },
-  pbWf12ChatUrl000: { nombre: 'PB WF12 Chat-URL', archivo: 'WF12-chat-url.json' }
+  pbWf12ChatUrl000: { nombre: 'PB WF12 Chat-URL', archivo: 'WF12-chat-url.json' },
+  // ARQUITECTURA-N8N.md §12 (pedidos y Mercado Pago, v3)
+  pbWf13PedCrear00: { nombre: 'PB WF13 Pedido-Crear', archivo: 'WF13-pedido-crear.json' },
+  pbWf14MpNotif000: { nombre: 'PB WF14 MP-Notificacion', archivo: 'WF14-mp-notificacion.json' },
+  pbWf15PedSegui00: { nombre: 'PB WF15 Pedido-Seguimiento', archivo: 'WF15-pedido-seguimiento.json' },
+  pbWf16PedBot0000: { nombre: 'PB WF16 Pedidos-Bot', archivo: 'WF16-pedidos-bot.json' }
 };
 const WF9 = 'pbWf09Errores000';
 const WF1 = 'pbWf01Ingesta000';
@@ -48,13 +53,14 @@ const MAX_TV = {
 };
 const PROHIBIDOS = { readWriteFile: 'en 2.x no llega al volumen montado (ARQUITECTURA §1)' };
 const DISPARADORES = ['scheduleTrigger', 'manualTrigger', 'executeWorkflowTrigger', 'webhook', 'errorTrigger'];
-const TABLAS = ['pb_config', 'pb_locks', 'pb_inbox', 'pb_borradores', 'pb_imagenes', 'pb_citas', 'pb_chat_mensajes', 'pb_chat_aprendizaje'];
+const TABLAS = ['pb_config', 'pb_locks', 'pb_inbox', 'pb_borradores', 'pb_imagenes', 'pb_citas', 'pb_chat_mensajes', 'pb_chat_aprendizaje', 'pb_pedidos'];
 const SECRETOS = [
   [/(?<!\d)\d{8,10}:[A-Za-z0-9_-]{30,}/, 'token de bot de Telegram'],
   [/github_pat_[A-Za-z0-9_]{22,}/, 'PAT de GitHub (fine-grained)'],
   [/\bgh[pousr]_[A-Za-z0-9]{30,}/, 'token de GitHub'],
   [/-----BEGIN [A-Z ]*PRIVATE KEY-----/, 'clave privada'],
-  [/\bsk-[A-Za-z0-9]{20,}/, 'clave de API (sk-)']
+  [/\bsk-[A-Za-z0-9]{20,}/, 'clave de API (sk-)'],
+  [/\b(APP_USR|TEST)-\d{6,}-\d{6}-[0-9a-f]{20,}/, 'Access Token de Mercado Pago']
 ];
 
 function cargarCredenciales() {
@@ -175,6 +181,9 @@ function revisar(entrada) {
       else if (pl.type !== tipo || pl.name !== c.name) err(q + ': credencial ' + c.id + ' no coincide con la plantilla (' + pl.type + ' / ' + pl.name + ')');
     });
     if (t === 'httpRequest' && p.authentication === 'predefinedCredentialType' && !(n.credentials && n.credentials[p.nodeCredentialType])) err(q + ': falta la credencial ' + p.nodeCredentialType);
+    if (t === 'httpRequest' && p.authentication === 'genericCredentialType' && !(n.credentials && n.credentials[p.genericAuthType])) err(q + ': falta la credencial ' + p.genericAuthType);
+    // v3: el Access Token de Mercado Pago solo viaja a MP_API_URL (api.mercadopago.com o un simulador local que acepta pdConfig).
+    if (t === 'httpRequest' && n.credentials && n.credentials.httpHeaderAuth && n.credentials.httpHeaderAuth.name === 'Mercado Pago Prueba' && !/^=\{\{ \$\('Config'\)\.first\(\)\.json\.MP_API_URL \}\}\//.test(String(p.url || ''))) err(q + ': la credencial de Mercado Pago solo se usa con la URL MP_API_URL de pb_config');
     if (t === 'httpRequest' && /api\.telegram\.org/.test(String(p.url || '')) && n.credentials) err(q + ': HTTP a Telegram con credencial (el token va en la URL desde pb_config, A2)');
     // Data Tables
     if (t === 'dataTable') {
@@ -215,10 +224,20 @@ function revisar(entrada) {
     }
   });
   if (!notas) err('sin sticky notes explicativas');
-  // Un disparador por workflow; la única excepción son varios Webhook (WF8: una ruta por endpoint), con rutas distintas.
+  // Un disparador por workflow; excepciones: varios Webhook (WF8: una ruta por endpoint) con rutas distintas, y v3: Webhook(s) +
+  // UN Execute Workflow Trigger (WF14 y WF15 también se llaman como sub-workflow desde WF16 y WF11).
   const hooks = wf.nodes.filter(function (n) { return n.type === 'n8n-nodes-base.webhook'; });
+  const subs = wf.nodes.filter(function (n) { return n.type === 'n8n-nodes-base.executeWorkflowTrigger'; });
   const rutas = hooks.map(function (n) { return String((n.parameters || {}).httpMethod || 'GET') + ' ' + String((n.parameters || {}).path || ''); });
-  if (disparadores > 1 && hooks.length === disparadores) {
+  // Respond to Webhook: un Webhook "responseNode" debe alcanzar uno; uno "onReceived" no debe alcanzar ninguno (n8n falla: "Unused Respond to Webhook node").
+  const hijos = function (desde) { const v = new Set(); const pila = [desde]; while (pila.length) { const x = pila.pop(); ((wf.connections[x] || {}).main || []).forEach(function (l) { (l || []).forEach(function (y) { if (y && !v.has(y.node)) { v.add(y.node); pila.push(y.node); } }); }); } return v; };
+  hooks.forEach(function (hk) {
+    const modo = (hk.parameters || {}).responseMode || 'onReceived';
+    const alcanza = Array.from(hijos(hk.name)).some(function (x) { return porNombre[x] && porNombre[x].type === 'n8n-nodes-base.respondToWebhook'; });
+    if (modo === 'responseNode' && !alcanza) err('Webhook "' + hk.name + '" usa responseNode pero no llega a ningún Respond to Webhook');
+    if (modo !== 'responseNode' && alcanza) err('Webhook "' + hk.name + '" (' + modo + ') llega a un Respond to Webhook: n8n falla con "Unused Respond to Webhook node"');
+  });
+  if (disparadores > 1 && hooks.length + subs.length === disparadores && subs.length <= 1) {
     if (new Set(rutas).size !== rutas.length) err('dos Webhook con el mismo método y ruta: ' + rutas.join(', '));
   } else if (disparadores !== 1) err('debe haber exactamente 1 disparador (hay ' + disparadores + ')');
 

@@ -31,14 +31,35 @@
 'use strict';
 
 // === COPIAR A N8N ===
-const CONTRATO_VERSION = '2.0.0';
-const SCHEMA_VERSION = 2; // v2 (2026-10-07): frescura, stock_por_color, imagenes[].color, guia_tallas, chat.json; sin avisos de muestra
+const CONTRATO_VERSION = '3.0.0';
+// v2 (2026-10-07): frescura, stock_por_color, imagenes[].color, guia_tallas, chat.json; sin avisos de muestra
+// v3 (2026-10-07): subcategorías por categoría (menú), colecciones (old money), envíos a todo el Perú, Mercado Pago (prueba),
+//                  pedidos PB-000000 con seguimiento (fuera del repo), asistente "Vale", temperatura promedio
+const SCHEMA_VERSION = 3;
 const LIMITE_BYTES = 1000000; // cada JSON debe pesar MENOS de 1 MB (límite de la API de contenidos)
 const MAX_BORRADORES_APLICADOS = 100;
 
 const CATEGORIAS = ['hombres', 'mujeres', 'ninos', 'accesorios'];
-const SUBCATEGORIAS = ['polos', 'camisas', 'blusas', 'vestidos', 'faldas', 'shorts', 'bermudas', 'pantalones',
-  'conjuntos', 'ropa-de-bano', 'pijamas', 'sombreros', 'gorros', 'gorras', 'sandalias', 'lentes', 'bolsos', 'otros'];
+// v3: lista global (enum del esquema y del LLM) + subcategorías PERMITIDAS por categoría. El menú de la web
+// (site.categorias[].subcategorias) elige cuáles se muestran, con nombre y orden.
+const SUBCATEGORIAS = ['polos', 'camisas', 'blusas', 'vestidos', 'faldas', 'shorts', 'pantalones', 'conjuntos', 'ropa-de-bano', 'pijamas',
+  'calzado', 'sandalias', 'sombreros', 'gorros', 'lentes', 'cinturones', 'bolsos', 'otros'];
+const SUBCATEGORIAS_POR_CATEGORIA = {
+  hombres: ['camisas', 'polos', 'pantalones', 'shorts', 'calzado', 'conjuntos', 'ropa-de-bano', 'pijamas', 'otros'],
+  mujeres: ['vestidos', 'blusas', 'polos', 'camisas', 'pantalones', 'shorts', 'faldas', 'conjuntos', 'ropa-de-bano', 'pijamas', 'sandalias', 'calzado', 'otros'],
+  ninos: ['polos', 'camisas', 'blusas', 'vestidos', 'faldas', 'shorts', 'pantalones', 'conjuntos', 'ropa-de-bano', 'pijamas', 'gorros', 'sandalias', 'otros'],
+  accesorios: ['sombreros', 'lentes', 'cinturones', 'bolsos', 'sandalias', 'otros']
+};
+// Sinónimos (lo que dice el dueño o traen borradores v2) -> subcategoría v3.
+const ALIAS_SUBCATEGORIA = {
+  bermuda: 'shorts', bermudas: 'shorts', short: 'shorts', gorra: 'sombreros', gorras: 'sombreros', sombrero: 'sombreros', gorro: 'gorros',
+  zapatilla: 'calzado', zapatillas: 'calzado', zapato: 'calzado', zapatos: 'calzado', mocasin: 'calzado', mocasines: 'calzado', loafers: 'calzado',
+  sandalia: 'sandalias', lente: 'lentes', gafas: 'lentes', correa: 'cinturones', correas: 'cinturones', cinturon: 'cinturones',
+  cartera: 'bolsos', carteras: 'bolsos', bolso: 'bolsos', pantalon: 'pantalones', camisa: 'camisas', guayabera: 'camisas', polo: 'polos',
+  blusa: 'blusas', vestido: 'vestidos', falda: 'faldas', conjunto: 'conjuntos', pijama: 'pijamas', banador: 'ropa-de-bano', 'ropa-de-bano-uv': 'ropa-de-bano'
+};
+// Subcategoría válida en general pero no en esa categoría -> equivalente en la categoría (si no hay, "otros").
+const EQUIVALENTE_SUBCATEGORIA = { accesorios: { gorros: 'sombreros', calzado: 'sandalias' }, ninos: { sombreros: 'gorros', calzado: 'sandalias' }, hombres: { sandalias: 'calzado' } };
 const T_ADULTO = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 const T_NINOS = ['2', '4', '6', '8', '10', '12', '14', '16'];
 const T_CALZADO = ['35', '36', '37', '38', '39', '40', '41', '42', '43', '44'];
@@ -88,11 +109,54 @@ const PATRONES_SECRETO = [
   { nombre: 'token de GitHub (gho_/ghu_/ghs_/ghr_)', re: /\bgh[ousr]_[A-Za-z0-9]{16,}/ },
   { nombre: 'clave privada', re: /-----BEGIN [A-Z ]*PRIVATE KEY-----/ },
   { nombre: 'clave de AWS', re: /\bAKIA[0-9A-Z]{16}\b/ },
-  { nombre: 'clave de API (sk-)', re: /\bsk-[A-Za-z0-9_-]{20,}/ }
+  { nombre: 'clave de API (sk-)', re: /\bsk-[A-Za-z0-9_-]{20,}/ },
+  { nombre: 'Access Token de Mercado Pago', re: /\b(APP_USR|TEST)-\d{6,}-\d{6}-[0-9a-f]{32}-\d{6,}/ }
 ];
 // Roles (decisión del usuario): admin y dueno todo; marketing NO puede estas acciones.
+// v3: "pedidos" (datos personales de clientes) y "usuarios" (/desconocidos, /autorizar, /desautorizar) tampoco.
 const ROLES = ['admin', 'dueno', 'marketing'];
-const PROHIBIDO_MARKETING = ['whatsapp', 'limpiar_muestras', 'borrar', 'deshacer', 'pausa', 'reanudar', 'sitio_datos'];
+const PROHIBIDO_MARKETING = ['whatsapp', 'limpiar_muestras', 'borrar', 'deshacer', 'pausa', 'reanudar', 'sitio_datos', 'pedidos', 'usuarios'];
+const ROLES_ASIGNABLES = ['dueno', 'marketing']; // v3: /autorizar <id> <rol>; "admin" nunca se asigna por el bot
+
+// ---------- v3: envíos, pedidos y Mercado Pago ----------
+const OPCIONES_ENVIO = ['shalom', 'olva', 'bus', 'local'];
+const ENTREGAS_ENVIO = ['agencia', 'domicilio']; // agencia = recojo con DNI (agencia_destino); domicilio = direccion
+const ZONAS_ENVIO = ['lima', 'costa_norte', 'costa_sur', 'sierra', 'selva', 'tarapoto'];
+const DEPARTAMENTOS = ['Amazonas', 'Áncash', 'Apurímac', 'Arequipa', 'Ayacucho', 'Cajamarca', 'Callao', 'Cusco', 'Huancavelica', 'Huánuco', 'Ica',
+  'Junín', 'La Libertad', 'Lambayeque', 'Lima', 'Loreto', 'Madre de Dios', 'Moquegua', 'Pasco', 'Piura', 'Puno', 'San Martín', 'Tacna', 'Tumbes', 'Ucayali'];
+const ESTADOS_PEDIDO = ['pendiente_pago', 'pagado', 'preparando', 'enviado', 'listo_recojo', 'entregado', 'cancelado'];
+const TRANSICIONES_PEDIDO = {
+  pendiente_pago: ['pagado', 'cancelado'], pagado: ['preparando', 'enviado', 'cancelado'], preparando: ['enviado', 'cancelado'],
+  enviado: ['listo_recojo', 'entregado'], listo_recojo: ['entregado'], entregado: [], cancelado: []
+};
+const ESTADO_PEDIDO_TEXTO = {
+  pendiente_pago: 'Pendiente de pago', pagado: 'Pagado', preparando: 'Preparando tu pedido', enviado: 'Enviado',
+  listo_recojo: 'Listo para recoger', entregado: 'Entregado', cancelado: 'Cancelado'
+};
+const ESTADOS_PAGO = ['pendiente', 'en_proceso', 'aprobado', 'rechazado', 'cancelado', 'reembolsado'];
+// status de GET /v1/payments/{id} -> pago.estado
+const MAPA_PAGO_MP = {
+  approved: 'aprobado', authorized: 'en_proceso', in_process: 'en_proceso', in_mediation: 'en_proceso', pending: 'en_proceso',
+  rejected: 'rechazado', cancelled: 'cancelado', refunded: 'reembolsado', charged_back: 'reembolsado'
+};
+const MAX_ITEMS_PEDIDO = 20;
+const MAX_CANTIDAD_LINEA = 10;
+const PRIMER_PEDIDO = 101; // la numeración empieza en PB-000101
+// Formato del código de seguimiento por agencia (/enviar <num> <agencia> <codigo>). Ejemplos en CONTRATO.md.
+const RE_SEGUIMIENTO = {
+  shalom: '^[0-9]{5,12}[-/ ][A-Za-z0-9]{3,10}$',
+  olva: '^[A-Za-z0-9-]{5,25}$',
+  bus: '^[A-Za-z0-9ÁÉÍÓÚÑáéíóúñ .:/-]{3,40}$',
+  local: '^[A-Za-z0-9 .:-]{0,40}$'
+};
+// Data Table de n8n "pb_pedidos" (los pedidos NO se guardan en el repo: tienen datos personales).
+const COLUMNAS_PB_PEDIDOS = [
+  { nombre: 'numero', tipo: 'string' }, { nombre: 'correo', tipo: 'string' }, { nombre: 'estado', tipo: 'string' },
+  { nombre: 'pago_estado', tipo: 'string' }, { nombre: 'total', tipo: 'number' }, { nombre: 'fecha', tipo: 'string' },
+  { nombre: 'actualizado', tipo: 'string' }, { nombre: 'opcion_envio', tipo: 'string' }, { nombre: 'departamento', tipo: 'string' },
+  { nombre: 'preference_id', tipo: 'string' }, { nombre: 'payment_id', tipo: 'string' }, { nombre: 'codigo_seguimiento', tipo: 'string' },
+  { nombre: 'pedido_json', tipo: 'string' }
+];
 
 // ---------- Esquemas (JSON Schema 2020-12). data/schema/*.json se genera desde aquí. ----------
 const RE = {
@@ -110,9 +174,28 @@ const RE = {
   img_producto: '^assets/img/(products|placeholders)/[a-z0-9]+(-[a-z0-9]+)*\\.(webp|avif|jpg|jpeg|png|svg)$',
   img_sitio: '^assets/img/(blog|lookbook|brand|placeholders)/[a-z0-9]+(-[a-z0-9]+)*\\.(webp|avif|jpg|jpeg|png|svg)$',
   ref_esquema: '^\\./schema/[a-z-]+\\.schema\\.json$',
-  chat_url: '^(https://[a-z0-9]+(-[a-z0-9]+)*\\.trycloudflare\\.com)?$'
+  chat_url: '^(https://[a-z0-9]+(-[a-z0-9]+)*\\.trycloudflare\\.com)?$',
+  // v3
+  pedido: '^PB-\\d{6}$',
+  correo: '^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*\\.[A-Za-z]{2,24}$',
+  telefono: '^519\\d{8}$',
+  dni: '^\\d{8}$',
+  temperatura: '^\\d{1,2}°$',
+  mp_id: '^[A-Za-z0-9_-]{1,80}$',
+  mp_public_key: '^((APP_USR|TEST)-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$'
 };
 RE.fecha_o_vacio = '^(' + RE.fecha.slice(1, -1) + ')?$';
+function dineroEsq(desc) { return { type: 'number', minimum: 0, maximum: 99999, description: desc || 'Soles (PEN), máximo 2 decimales.' }; }
+// Objeto de textos de interfaz: todas las claves obligatorias, texto plano.
+function textosEsq(claves, max, desc) {
+  const props = {};
+  claves.forEach(function (k) { props[k] = txt(2, max); });
+  const e = { type: 'object', additionalProperties: false, required: claves.slice(), properties: props };
+  if (desc) e.description = desc;
+  return e;
+}
+const TIEMPOS_ENVIO_ESQ = { type: 'object', additionalProperties: false, required: ZONAS_ENVIO.slice(), properties: {}, description: 'Tiempo promedio por zona (texto, p. ej. "2–3 días hábiles"); null = esta opción no llega a esa zona.' };
+ZONAS_ENVIO.forEach(function (z) { TIEMPOS_ENVIO_ESQ.properties[z] = { type: ['string', 'null'], minLength: 2, maxLength: 80, pattern: RE.texto }; });
 function txt(min, max, desc) {
   const s = { type: 'string' };
   if (min) s.minLength = min;
@@ -262,7 +345,7 @@ const ESQUEMAS = {
     type: 'object', additionalProperties: false,
     required: ENVOLTURA_REQ.concat(['nombre', 'lema', 'whatsapp', 'telefono_visible', 'ciudad', 'region', 'pais', 'direccion', 'horario',
       'envio', 'zonas_reparto', 'metodos_pago', 'redes', 'mapa', 'hero', 'categorias', 'lookbook', 'testimonios',
-      'guia_tallas', 'mensajes']),
+      'guia_tallas', 'mensajes', 'temperatura_promedio', 'asistente', 'colecciones', 'envios', 'pagos', 'textos']),
     properties: Object.assign(envolturaProps('site.json'), {
       nombre: txt(2, 40),
       lema: txt(2, 90),
@@ -312,13 +395,62 @@ const ESQUEMAS = {
       },
       hero: {
         type: 'object', additionalProperties: false, required: ['imagenes'],
-        properties: { imagenes: { type: 'array', minItems: 1, maxItems: 4, items: { $ref: '#/$defs/imagen' } } }
+        properties: {
+          imagenes: { type: 'array', minItems: 1, maxItems: 4, items: { $ref: '#/$defs/imagen' } },
+          producto_destacado: { type: 'string', pattern: RE.prd, description: 'v3, opcional: producto de la portada (debe existir y estar activo).' },
+          etiqueta_destacado: txt(0, 40, 'v3, opcional: etiqueta corta junto al producto de la portada.')
+        }
       },
       categorias: {
         type: 'array', minItems: 4, maxItems: 4,
         items: {
-          type: 'object', additionalProperties: false, required: ['id', 'nombre', 'descripcion', 'imagen'],
-          properties: { id: { enum: CATEGORIAS }, nombre: txt(2, 30), descripcion: txt(0, 140), imagen: { $ref: '#/$defs/imagen' } }
+          type: 'object', additionalProperties: false, required: ['id', 'nombre', 'descripcion', 'imagen', 'subcategorias'],
+          properties: {
+            id: { enum: CATEGORIAS }, nombre: txt(2, 30), descripcion: txt(0, 140), imagen: { $ref: '#/$defs/imagen' },
+            subcategorias: {
+              type: 'array', minItems: 1, maxItems: 12, items: { $ref: '#/$defs/entrada_menu' },
+              description: 'v3: menú de la categoría en orden. Sin "etiqueta" = subcategoría (filtra por producto.subcategoria = id); con "etiqueta" = colección (filtra por esa etiqueta dentro de la categoría). Ruta web: #/c/<categoria>/<id>.'
+            }
+          }
+        }
+      },
+      colecciones: {
+        type: 'array', maxItems: 8, items: { $ref: '#/$defs/coleccion' },
+        description: 'v3: colecciones transversales (p. ej. "old money"): agrupan productos por etiqueta. Ruta web: #/coleccion/<id>.'
+      },
+      temperatura_promedio: { type: 'string', pattern: RE.temperatura, description: 'v3: temperatura promedio de Tarapoto que muestra la web (p. ej. "38°").' },
+      asistente: {
+        type: 'object', additionalProperties: false, required: ['nombre', 'rol', 'saludo', 'acciones'],
+        description: 'v3: asistente virtual del chat de la web.',
+        properties: {
+          nombre: txt(2, 20), rol: txt(2, 60), saludo: txt(10, 300),
+          acciones: { type: 'array', maxItems: 6, uniqueItems: true, items: txt(2, 48), description: 'Chips de acción rápida del chat; la primera es "Hacer seguimiento de mi pedido".' }
+        }
+      },
+      envios: { $ref: '#/$defs/envios' },
+      pagos: {
+        type: 'object', additionalProperties: false, required: ['mercadopago'],
+        properties: {
+          mercadopago: {
+            type: 'object', additionalProperties: false, required: ['activo', 'modo', 'public_key'],
+            properties: {
+              activo: { type: 'boolean', description: 'false = la web vuelve al pedido por WhatsApp.' },
+              modo: { enum: ['prueba', 'produccion'], description: 'Demo: "prueba" (Checkout Pro con cuentas y tarjetas de prueba).' },
+              public_key: { type: 'string', pattern: RE.mp_public_key, description: 'Opcional (vacío): no se usa al redirigir a init_point. NUNCA el Access Token: vive solo en la credencial n8n pbCredMercPago01.' },
+              nota: txt(0, 200)
+            }
+          }
+        }
+      },
+      textos: {
+        type: 'object', additionalProperties: false, required: ['checkout', 'pedido', 'seguimiento', 'cuenta', 'estados_pedido'],
+        description: 'v3: textos de las vistas de compra, seguimiento y cuenta.',
+        properties: {
+          checkout: textosEsq(['titulo', 'paso_contacto', 'paso_envio', 'paso_pago', 'nota_envio', 'boton_pagar', 'aviso_prueba', 'guardar_datos', 'privacidad'], 240),
+          pedido: textosEsq(['titulo_pagado', 'texto_pagado', 'titulo_pendiente', 'texto_pendiente', 'titulo_rechazado', 'texto_rechazado'], 240),
+          seguimiento: textosEsq(['titulo', 'intro', 'boton', 'no_encontrado', 'ayuda'], 240),
+          cuenta: textosEsq(['titulo', 'intro', 'vacio', 'olvidar'], 240),
+          estados_pedido: textosEsq(ESTADOS_PEDIDO, 40, 'Nombre visible de cada estado del pedido.')
         }
       },
       lookbook: {
@@ -385,7 +517,140 @@ const ESQUEMAS = {
       }
     }),
     $defs: {
-      imagen: imagenEsq(RE.img_sitio, 'Imagen de sitio: assets/img/brand|lookbook|blog|placeholders/. ia_local permitido.')
+      imagen: imagenEsq(RE.img_sitio, 'Imagen de sitio: assets/img/brand|lookbook|blog|placeholders/. ia_local permitido.'),
+      entrada_menu: {
+        type: 'object', additionalProperties: false, required: ['id', 'nombre', 'orden'],
+        properties: {
+          id: { type: 'string', minLength: 2, maxLength: 30, pattern: RE.slug, description: 'Slug: una subcategoría permitida para la categoría o el id de una colección.' },
+          nombre: txt(2, 40),
+          orden: { type: 'integer', minimum: 1, maximum: 99 },
+          etiqueta: { type: 'string', minLength: 2, maxLength: 24, pattern: RE.slug, description: 'Solo en colecciones: etiqueta de producto que filtra (igual a la de site.colecciones).' }
+        }
+      },
+      coleccion: {
+        type: 'object', additionalProperties: false, required: ['id', 'nombre', 'descripcion', 'etiqueta', 'categorias'],
+        properties: {
+          id: { type: 'string', minLength: 2, maxLength: 30, pattern: RE.slug },
+          nombre: txt(2, 40),
+          descripcion: txt(0, 240),
+          etiqueta: { type: 'string', minLength: 2, maxLength: 24, pattern: RE.slug, description: 'Los productos con esta etiqueta forman la colección.' },
+          categorias: { type: 'array', minItems: 1, maxItems: 4, uniqueItems: true, items: { enum: CATEGORIAS }, description: 'Categorías en cuyo menú aparece.' },
+          imagen: { $ref: '#/$defs/imagen' }
+        }
+      },
+      envios: {
+        type: 'object', additionalProperties: false, required: ['cobertura', 'resumen', 'despacho', 'nota', 'gratis_desde', 'zonas', 'opciones'],
+        description: 'v3: envíos a todo el Perú desde Tarapoto (web, chat Vale y bot usan estos datos).',
+        properties: {
+          cobertura: txt(2, 40),
+          resumen: txt(5, 200),
+          despacho: txt(5, 240),
+          nota: txt(0, 240),
+          gratis_desde: { type: ['number', 'null'], exclusiveMinimum: 0, maximum: 9999, description: 'Envío gratis cuando el subtotal llega a este monto (S/); null = nunca.' },
+          zonas: { type: 'array', minItems: ZONAS_ENVIO.length, maxItems: ZONAS_ENVIO.length, items: { $ref: '#/$defs/zona_envio' } },
+          opciones: { type: 'array', minItems: 1, maxItems: OPCIONES_ENVIO.length, items: { $ref: '#/$defs/opcion_envio' } }
+        }
+      },
+      zona_envio: {
+        type: 'object', additionalProperties: false, required: ['id', 'nombre', 'departamentos'],
+        properties: {
+          id: { enum: ZONAS_ENVIO },
+          nombre: txt(2, 60),
+          departamentos: { type: 'array', minItems: 1, maxItems: DEPARTAMENTOS.length, uniqueItems: true, items: { enum: DEPARTAMENTOS } },
+          distritos: { type: 'array', minItems: 1, maxItems: 12, uniqueItems: true, items: txt(2, 40), description: 'Solo zonas locales: la zona aplica a ESTOS distritos de sus departamentos (tiene prioridad).' }
+        }
+      },
+      opcion_envio: {
+        type: 'object', additionalProperties: false, required: ['id', 'nombre', 'descripcion', 'entrega', 'costo_desde', 'tiempo_promedio', 'tiempos', 'activa'],
+        properties: {
+          id: { enum: OPCIONES_ENVIO },
+          nombre: txt(2, 40),
+          descripcion: txt(5, 240),
+          entrega: { enum: ENTREGAS_ENVIO, description: 'agencia = el cliente recoge con DNI (pide agencia_destino); domicilio = pide direccion.' },
+          costo_desde: { type: 'number', minimum: 0, maximum: 999, description: 'Tarifa plana nacional que se cobra en la demo (S/), salvo envío gratis.' },
+          tiempo_promedio: txt(2, 60, 'Resumen corto para el chat y el bot.'),
+          tiempos: TIEMPOS_ENVIO_ESQ,
+          rastreo_url: { type: 'string', maxLength: 200, pattern: RE.https, description: 'Opcional. {codigo} se reemplaza por el código de seguimiento.' },
+          activa: { type: 'boolean' }
+        }
+      }
+    }
+  },
+
+  // v3: un PEDIDO. No es un archivo del repo: vive en la Data Table pb_pedidos de n8n (columna pedido_json).
+  pedido: {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    title: 'Palmera Brava — pedido (n8n Data Table pb_pedidos, columna pedido_json)',
+    description: 'v3. NUNCA se guarda en el repo (datos personales). Reglas entre campos: validarPedido() de tools/validar.js y docs/CONTRATO.md.',
+    type: 'object', additionalProperties: false,
+    required: ['numero', 'fecha', 'cliente', 'envio', 'items', 'subtotal', 'envio_costo', 'total', 'moneda', 'pago', 'estado', 'seguimiento', 'historial'],
+    properties: {
+      $schema: { type: 'string', pattern: RE.ref_esquema },
+      numero: { type: 'string', pattern: RE.pedido, description: 'PB- + 6 dígitos (PB-000101 en adelante).' },
+      fecha: fechaEsq('Creación del pedido.'),
+      actualizado: fechaEsq('Último cambio.'),
+      origen: { enum: ['web', 'chat', 'telegram'] },
+      cliente: {
+        type: 'object', additionalProperties: false, required: ['nombre', 'correo', 'telefono'],
+        properties: {
+          nombre: txt(2, 80),
+          correo: { type: 'string', minLength: 5, maxLength: 120, description: 'En minúsculas; con el número de pedido sirve para el seguimiento.' },
+          telefono: { type: 'string', maxLength: 20, description: '51 + 9 dígitos (formato wa.me), p. ej. 51987654321.' },
+          dni: { type: 'string', maxLength: 12, description: '8 dígitos. Obligatorio si la entrega es en agencia (recojo con DNI).' }
+        }
+      },
+      envio: {
+        type: 'object', additionalProperties: false, required: ['opcion', 'zona', 'departamento', 'provincia', 'distrito', 'costo', 'tiempo_estimado'],
+        properties: {
+          opcion: { enum: OPCIONES_ENVIO },
+          zona: { enum: ZONAS_ENVIO },
+          departamento: { enum: DEPARTAMENTOS },
+          provincia: txt(2, 60),
+          distrito: txt(2, 60),
+          direccion: txt(5, 160, 'Entrega a domicilio (olva, local).'),
+          referencia: txt(0, 160),
+          agencia_destino: txt(3, 120, 'Entrega en agencia (shalom, bus): agencia o terminal donde recoge.'),
+          costo: dineroEsq(),
+          tiempo_estimado: txt(2, 80)
+        }
+      },
+      items: { type: 'array', minItems: 1, maxItems: MAX_ITEMS_PEDIDO, items: { $ref: '#/$defs/item' } },
+      subtotal: dineroEsq('Suma de cantidad x precio_unit.'),
+      envio_costo: dineroEsq('Igual a envio.costo.'),
+      total: dineroEsq('subtotal + envio_costo.'),
+      moneda: { const: 'PEN' },
+      pago: {
+        type: 'object', additionalProperties: false, required: ['proveedor', 'estado'],
+        properties: {
+          proveedor: { const: 'mercadopago' },
+          estado: { enum: ESTADOS_PAGO },
+          preference_id: { type: 'string', pattern: RE.mp_id },
+          payment_id: { type: 'string', pattern: RE.mp_id },
+          init_point: { type: 'string', maxLength: 400, pattern: RE.https },
+          detalle: txt(0, 80, 'status_detail de Mercado Pago.'),
+          actualizado: fechaEsq()
+        }
+      },
+      estado: { enum: ESTADOS_PEDIDO },
+      seguimiento: {
+        type: ['object', 'null'], additionalProperties: false, required: ['agencia', 'codigo'],
+        description: 'null hasta que se envía. Nunca guarda la clave de recojo de Shalom.',
+        properties: { agencia: { enum: OPCIONES_ENVIO }, codigo: txt(0, 40), url: { type: 'string', maxLength: 300, pattern: RE.https } }
+      },
+      historial: {
+        type: 'array', minItems: 1, maxItems: 50,
+        items: { type: 'object', additionalProperties: false, required: ['estado', 'fecha'], properties: { estado: { enum: ESTADOS_PEDIDO }, fecha: fechaEsq(), nota: txt(0, 200) } }
+      }
+    },
+    $defs: {
+      item: {
+        type: 'object', additionalProperties: false, required: ['id', 'nombre', 'color', 'talla', 'cantidad', 'precio_unit'],
+        properties: {
+          id: { type: 'string', pattern: RE.prd }, nombre: txt(3, 70), color: txt(2, 24), talla: { enum: TALLAS },
+          cantidad: { type: 'integer', minimum: 1, maximum: MAX_CANTIDAD_LINEA },
+          precio_unit: dineroEsq('Precio vigente del catálogo al crear el pedido: precio_oferta si hay oferta, si no precio.')
+        }
+      }
     }
   },
 
@@ -730,6 +995,11 @@ function reglasProductos(P, err, avi) {
       if (num(p.precio) && p.precio_oferta >= p.precio) err('precio_oferta', r, 'precio_oferta (' + soles(p.precio_oferta) + ') debe ser menor que precio (' + soles(p.precio) + ')');
       else if (num(p.precio) && p.precio_oferta < p.precio * 0.3) avi('descuento', r, 'descuento mayor al 70 %: confirma que no es un error');
     }
+    // v3: la subcategoría debe pertenecer a la categoría (taxonomía del menú).
+    const subs = SUBCATEGORIAS_POR_CATEGORIA[p.categoria];
+    if (subs && typeof p.subcategoria === 'string' && SUBCATEGORIAS.indexOf(p.subcategoria) >= 0 && subs.indexOf(p.subcategoria) < 0) {
+      err('subcategoria', r + '.subcategoria', 'la subcategoría ' + corto(p.subcategoria) + ' no corresponde a la categoría "' + p.categoria + '" (permitidas: ' + subs.join(' ') + ')');
+    }
     const permitidas = TALLAS_POR_CATEGORIA[p.categoria];
     const tallas = Array.isArray(p.tallas) ? p.tallas.filter(function (t) { return typeof t === 'string'; }) : null;
     if (permitidas && tallas) for (const t of tallas) {
@@ -848,6 +1118,78 @@ function reglasSitio(S, err, avi) {
     S.lookbook.forEach(function (l, i) { if (esObjeto(l) && esObjeto(l.imagen)) revisarImagen(l.imagen, segmento('site.lookbook', i, l) + '.imagen', false, null, err, avi); });
   }
   if (esObjeto(S.guia_tallas)) reglasGuiaTallas(S.guia_tallas, err, avi);
+  if (Array.isArray(S.categorias)) reglasTaxonomia(S, err, avi);
+  if (esObjeto(S.envios)) reglasEnvios(S.envios, err, avi);
+  if (esObjeto(S.pagos) && esObjeto(S.pagos.mercadopago) && S.pagos.mercadopago.modo === 'produccion') {
+    avi('pagos', 'site.pagos.mercadopago.modo', 'modo producción: los cobros serían reales (la demo usa "prueba")');
+  }
+}
+// v3: menú por categoría (subcategorías y colecciones).
+function reglasTaxonomia(S, err, avi) {
+  const cols = Array.isArray(S.colecciones) ? S.colecciones.filter(esObjeto) : [];
+  if (Array.isArray(S.colecciones)) {
+    revisarUnicos(S.colecciones, 'id', 'id_duplicado', 'site.colecciones', err);
+    S.colecciones.forEach(function (c, i) {
+      if (!esObjeto(c)) return;
+      const r = 'site.colecciones[' + i + ']';
+      if (SUBCATEGORIAS.indexOf(c.id) >= 0) err('taxonomia', r + '.id', 'el id ' + corto(c.id) + ' choca con una subcategoría (comparten la ruta #/c/categoria/id)');
+      if (esObjeto(c.imagen)) revisarImagen(c.imagen, r + '.imagen', false, null, err, avi);
+    });
+  }
+  S.categorias.forEach(function (cat, i) {
+    if (!esObjeto(cat) || !Array.isArray(cat.subcategorias)) return;
+    const r = 'site.categorias[' + i + '].subcategorias';
+    const permitidas = SUBCATEGORIAS_POR_CATEGORIA[cat.id] || [];
+    revisarUnicos(cat.subcategorias, 'id', 'id_duplicado', r, err);
+    const ordenes = {};
+    cat.subcategorias.forEach(function (e, j) {
+      if (!esObjeto(e) || typeof e.id !== 'string') return;
+      const rr = r + '[' + j + ']';
+      if (e.etiqueta === undefined) {
+        if (permitidas.indexOf(e.id) < 0) err('taxonomia', rr, 'la subcategoría ' + corto(e.id) + ' no está permitida en "' + cat.id + '" (permitidas: ' + permitidas.join(' ') + ')');
+      } else {
+        const col = cols.find(function (c) { return c.id === e.id; });
+        if (!col) err('taxonomia', rr, 'la entrada ' + corto(e.id) + ' tiene etiqueta pero no hay una colección con ese id en site.colecciones');
+        else {
+          if (col.etiqueta !== e.etiqueta) err('taxonomia', rr, 'la etiqueta ' + corto(e.etiqueta) + ' no coincide con la de la colección (' + corto(col.etiqueta) + ')');
+          if (Array.isArray(col.categorias) && col.categorias.indexOf(cat.id) < 0) err('taxonomia', rr, 'la colección ' + corto(col.id) + ' no incluye la categoría "' + cat.id + '"');
+        }
+      }
+      if (Number.isInteger(e.orden)) { if (ordenes[e.orden]) avi('taxonomia', rr, 'orden ' + e.orden + ' repetido: el menú usará el orden del archivo'); ordenes[e.orden] = true; }
+    });
+  });
+}
+// v3: zonas y opciones de envío.
+function reglasEnvios(E, err, avi) {
+  const base = 'site.envios';
+  const zonas = Array.isArray(E.zonas) ? E.zonas.filter(esObjeto) : [];
+  const opciones = Array.isArray(E.opciones) ? E.opciones.filter(esObjeto) : [];
+  if (Array.isArray(E.zonas)) revisarUnicos(E.zonas, 'id', 'id_duplicado', base + '.zonas', err);
+  if (Array.isArray(E.opciones)) revisarUnicos(E.opciones, 'id', 'id_duplicado', base + '.opciones', err);
+  // Cada departamento del Perú está en UNA sola zona general (sin "distritos").
+  const veces = {};
+  zonas.forEach(function (z) { if (!Array.isArray(z.distritos) && Array.isArray(z.departamentos)) z.departamentos.forEach(function (d) { veces[d] = (veces[d] || 0) + 1; }); });
+  DEPARTAMENTOS.forEach(function (d) {
+    if (!veces[d]) err('envios', base + '.zonas', 'el departamento ' + corto(d) + ' no está en ninguna zona general');
+    else if (veces[d] > 1) err('envios', base + '.zonas', 'el departamento ' + corto(d) + ' está en ' + veces[d] + ' zonas generales');
+  });
+  const locales = zonas.filter(function (z) { return Array.isArray(z.distritos); }).map(function (z) { return z.id; });
+  if (typeof E.gratis_desde === 'number' && !dosDecimales(E.gratis_desde)) err('precio', base + '.gratis_desde', 'máximo 2 decimales');
+  opciones.forEach(function (o, i) {
+    const r = base + '.opciones[' + i + ']';
+    if (typeof o.costo_desde === 'number' && !dosDecimales(o.costo_desde)) err('precio', r + '.costo_desde', 'máximo 2 decimales');
+    const t = esObjeto(o.tiempos) ? o.tiempos : {};
+    const llega = ZONAS_ENVIO.filter(function (z) { return typeof t[z] === 'string'; });
+    if (!llega.length) err('envios', r + '.tiempos', 'la opción ' + corto(o.id) + ' no llega a ninguna zona');
+    if (o.id === 'local') {
+      llega.forEach(function (z) { if (locales.indexOf(z) < 0) err('envios', r + '.tiempos.' + z, 'la entrega local solo puede llegar a zonas locales (con distritos)'); });
+      if (o.entrega !== 'domicilio') err('envios', r + '.entrega', 'la entrega local es a domicilio');
+    }
+    if (typeof o.rastreo_url === 'string' && o.id === 'local') avi('envios', r + '.rastreo_url', 'la entrega local no tiene rastreo externo');
+  });
+  ZONAS_ENVIO.forEach(function (z) {
+    if (!opciones.some(function (o) { return o.activa === true && esObjeto(o.tiempos) && typeof o.tiempos[z] === 'string'; })) avi('envios', base, 'ninguna opción activa llega a la zona "' + z + '"');
+  });
 }
 function reglasGuiaTallas(G, err, avi) {
   const base = 'site.guia_tallas';
@@ -893,6 +1235,28 @@ function reglasReferencias(P, AR, S, err, avi) {
   });
   if (S && Array.isArray(S.lookbook)) S.lookbook.forEach(function (l, i) {
     if (esObjeto(l) && Array.isArray(l.productos)) l.productos.forEach(function (id) { revisar(id, segmento('site.lookbook', i, l) + '.productos', idSeguro(l.id) || 'el lookbook'); });
+  });
+  if (!S) return;
+  // v3: producto de la portada y cobertura del menú.
+  if (esObjeto(S.hero) && typeof S.hero.producto_destacado === 'string') revisar(S.hero.producto_destacado, 'site.hero.producto_destacado', 'la portada');
+  const activos = P.filter(function (p) { return esObjeto(p) && p.activo === true; });
+  const cols = Array.isArray(S.colecciones) ? S.colecciones.filter(esObjeto) : [];
+  cols.forEach(function (c, i) {
+    if (!activos.some(function (p) { return Array.isArray(p.etiquetas) && p.etiquetas.indexOf(c.etiqueta) >= 0; })) avi('menu_vacio', 'site.colecciones[' + i + ']', 'ningún producto activo tiene la etiqueta ' + corto(c.etiqueta));
+  });
+  if (Array.isArray(S.categorias)) S.categorias.forEach(function (cat, i) {
+    if (!esObjeto(cat) || !Array.isArray(cat.subcategorias)) return;
+    const enMenu = cat.subcategorias.filter(function (e) { return esObjeto(e) && e.etiqueta === undefined; }).map(function (e) { return e.id; });
+    cat.subcategorias.forEach(function (e, j) {
+      if (!esObjeto(e)) return;
+      const hay = activos.some(function (p) {
+        return p.categoria === cat.id && (e.etiqueta === undefined ? p.subcategoria === e.id : Array.isArray(p.etiquetas) && p.etiquetas.indexOf(e.etiqueta) >= 0);
+      });
+      if (!hay) avi('menu_vacio', 'site.categorias[' + i + '].subcategorias[' + j + ']', corto(e.id) + ' no tiene productos activos: la web la ocultará');
+    });
+    activos.forEach(function (p) {
+      if (p.categoria === cat.id && enMenu.indexOf(p.subcategoria) < 0) avi('menu', idSeguro(p.id) || 'producto', 'su subcategoría ' + corto(p.subcategoria) + ' no está en el menú de "' + cat.id + '": solo se ve en "Ver todo"');
+    });
   });
 }
 function sinEnvoltura(doc) {
@@ -957,7 +1321,8 @@ function limitesDeDano(datos, opciones, err, avi) {
       const cambia = function (k) { return !igual(a[k], b[k]); };
       if ((cambia('whatsapp') || cambia('telefono_visible')) && rol === 'marketing') err('permiso', 'site.whatsapp', 'el rol marketing no puede cambiar el WhatsApp');
       if (cambia('whatsapp')) avi('whatsapp_cambio', 'site.whatsapp', 'cambia de ' + corto(a.whatsapp) + ' a ' + corto(b.whatsapp) + ': requiere confirmación especial');
-      const deDatos = ['nombre', 'lema', 'ciudad', 'region', 'pais', 'direccion', 'horario', 'envio', 'zonas_reparto', 'metodos_pago', 'redes', 'mapa', 'testimonios', 'guia_tallas', 'mensajes'];
+      const deDatos = ['nombre', 'lema', 'ciudad', 'region', 'pais', 'direccion', 'horario', 'envio', 'zonas_reparto', 'metodos_pago', 'redes', 'mapa', 'testimonios', 'guia_tallas', 'mensajes',
+        'temperatura_promedio', 'asistente', 'envios', 'pagos', 'textos'];
       if (rol === 'marketing' && deDatos.some(cambia)) err('permiso', 'site', 'el rol marketing solo puede cambiar imágenes del sitio (hero, categorías, lookbook)');
     }
   }
@@ -1058,6 +1423,17 @@ function validarOperacion(salida, contexto) {
       avisos.push('[categoria] el texto indica "' + cat + '" y el LLM propuso ' + corto(c.categoria) + ': se corrige a "' + cat + '"');
       c.categoria = cat; inferidos.delete('categoria');
     }
+    // v3: la subcategoría debe pertenecer a la categoría (sinónimos y equivalentes con normalizarSubcategoria).
+    const catFinal = c.categoria || (actual ? actual.categoria : null);
+    if (SUBCATEGORIAS_POR_CATEGORIA[catFinal]) {
+      if (c.subcategoria !== null) {
+        const s = normalizarSubcategoria(catFinal, c.subcategoria);
+        if (s !== c.subcategoria) { avisos.push('[subcategoria] ' + corto(c.subcategoria) + ' no corresponde a "' + catFinal + '": se usa "' + s + '"'); c.subcategoria = s; }
+      } else if (op.op === 'actualizar' && actual && c.categoria && SUBCATEGORIAS_POR_CATEGORIA[c.categoria].indexOf(actual.subcategoria) < 0) {
+        c.subcategoria = normalizarSubcategoria(c.categoria, actual.subcategoria);
+        avisos.push('[subcategoria] cambia la categoría: la subcategoría pasa de ' + corto(actual.subcategoria) + ' a "' + c.subcategoria + '"');
+      }
+    }
     const num = function (v) { return typeof v === 'number' && Number.isFinite(v); };
     if (c.precio !== null && (!num(c.precio) || c.precio <= 0 || c.precio > 9999)) errores.push('[llm] precio fuera de rango ' + corto(c.precio));
     // precio_oferta 0 en "actualizar" = quitar la oferta (convención de CONTRATO.md)
@@ -1141,6 +1517,22 @@ function puede(rol, accion) {
   if (rol === 'admin' || rol === 'dueno') return true;
   if (rol === 'marketing') return PROHIBIDO_MARKETING.indexOf(accion) < 0;
   return false;
+}
+// v3: /autorizar <id> <rol> y /desautorizar <id>. Solo admin y dueno; rolObjetivo = rol que se asigna o el rol actual
+// de quien se desautoriza. "admin" nunca se asigna ni se quita por el bot.
+function puedeAsignarRol(rolQuien, rolObjetivo) {
+  return (rolQuien === 'admin' || rolQuien === 'dueno') && ROLES_ASIGNABLES.indexOf(rolObjetivo) >= 0;
+}
+// v3: subcategoría válida para la categoría: igual, sinónimo, equivalente o "otros". null si la categoría no existe.
+function normalizarSubcategoria(categoria, sub) {
+  const permitidas = SUBCATEGORIAS_POR_CATEGORIA[categoria];
+  if (!permitidas) return null;
+  let s = slugificar(sub);
+  if (!s) return 'otros';
+  if (ALIAS_SUBCATEGORIA[s]) s = ALIAS_SUBCATEGORIA[s];
+  if (permitidas.indexOf(s) >= 0) return s;
+  const eq = EQUIVALENTE_SUBCATEGORIA[categoria] ? EQUIVALENTE_SUBCATEGORIA[categoria][s] : null;
+  return eq || 'otros';
 }
 function slugificar(texto) {
   return quitarTildes(String(texto || '')).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80).replace(/-+$/, '');
@@ -1253,6 +1645,460 @@ function bloquesDesdeLLM(bloques) {
   });
   return out.slice(0, 60);
 }
+// ---------- v3: envíos, pedidos, seguimiento y Mercado Pago (mismas reglas en n8n y en la web) ----------
+function aCentimos(n) { return Math.round(Number(n) * 100); }
+function deCentimos(c) { return Math.round(c) / 100; }
+function esNumero(v) { return typeof v === 'number' && Number.isFinite(v); }
+function normalizarTexto(s) { return quitarTildes(String(s === null || s === undefined ? '' : s)).toLowerCase().replace(/\s+/g, ' ').trim(); }
+// Fecha ISO con zona de Lima (-05:00, sin horario de verano).
+function fechaLima(ms) {
+  const t = esNumero(ms) ? ms : Date.now();
+  return new Date(t - 5 * 3600000).toISOString().slice(0, 19) + '-05:00';
+}
+// "san martin", "SAN MARTÍN" -> "San Martín"; null si no es un departamento del Perú.
+function departamentoValido(nombre) {
+  const k = normalizarTexto(nombre);
+  return DEPARTAMENTOS.find(function (d) { return normalizarTexto(d) === k; }) || null;
+}
+// "+51 987-654-321", "987654321" -> "51987654321" (formato wa.me); null si no es un celular peruano.
+function normalizarTelefono(t) {
+  let d = String(t === null || t === undefined ? '' : t).replace(/[\s().-]/g, '');
+  if (/^\+?51\d{9}$/.test(d)) d = d.replace(/^\+?51/, '');
+  return /^9\d{8}$/.test(d) ? '51' + d : null;
+}
+function correoValido(c) { return typeof c === 'string' && largo(c) <= 120 && regex(RE.correo).test(c.trim()); }
+function mismoCorreo(a, b) { return typeof a === 'string' && typeof b === 'string' && a.trim() !== '' && a.trim().toLowerCase() === b.trim().toLowerCase(); }
+// Talla escrita por la web o el cliente -> valor del contrato ("única" -> "UNICA", "m" -> "M").
+function normalizarTalla(t) { const s = quitarTildes(String(t === null || t === undefined ? '' : t)).trim().toUpperCase(); return s === 'TALLA UNICA' ? 'UNICA' : s; }
+// Precio vigente: la oferta si es válida; si no, el precio. (La web muestra y cobra el mismo.)
+function precioVigente(p) { return esObjeto(p) && esNumero(p.precio_oferta) && p.precio_oferta > 0 && p.precio_oferta < p.precio ? p.precio_oferta : esObjeto(p) ? p.precio : null; }
+function opcionEnvio(site, id, inclusoInactiva) {
+  const ops = esObjeto(site) && esObjeto(site.envios) && Array.isArray(site.envios.opciones) ? site.envios.opciones : [];
+  return ops.find(function (o) { return esObjeto(o) && o.id === id && (inclusoInactiva || o.activa === true); }) || null;
+}
+// Zona de envío (site.envios.zonas) de un destino: primero las zonas locales (con distritos), luego la del departamento.
+function zonaEnvio(site, departamento, distrito) {
+  const zonas = esObjeto(site) && esObjeto(site.envios) && Array.isArray(site.envios.zonas) ? site.envios.zonas.filter(esObjeto) : [];
+  const dep = departamentoValido(departamento);
+  if (!dep) return null;
+  const dist = normalizarTexto(distrito);
+  const enDep = function (z) { return Array.isArray(z.departamentos) && z.departamentos.indexOf(dep) >= 0; };
+  const local = zonas.find(function (z) { return Array.isArray(z.distritos) && enDep(z) && z.distritos.some(function (d) { return normalizarTexto(d) === dist; }); });
+  if (local) return local.id;
+  const z = zonas.find(function (x) { return !Array.isArray(x.distritos) && enDep(x); });
+  return z ? z.id : null;
+}
+// Costo y tiempo de UNA opción para un destino. subtotal (S/) activa el envío gratis (site.envios.gratis_desde).
+// -> { ok, error, opcion, nombre, entrega, zona, costo, tiempo_estimado, gratis }
+function cotizarEnvio(site, opcionId, departamento, distrito, subtotal) {
+  const o = opcionEnvio(site, opcionId);
+  if (!o) return { ok: false, error: '[envio] envio.opcion: la opción de envío ' + corto(opcionId) + ' no existe o no está activa' };
+  if (!departamentoValido(departamento)) return { ok: false, error: '[envio] envio.departamento: ' + corto(departamento) + ' no es un departamento del Perú' };
+  const zona = zonaEnvio(site, departamento, distrito);
+  if (!zona) return { ok: false, error: '[envio] envio: no hay una zona de envío para ' + corto(departamento) };
+  const tiempo = esObjeto(o.tiempos) ? o.tiempos[zona] : null;
+  if (typeof tiempo !== 'string') return { ok: false, error: '[envio] envio.opcion: ' + o.nombre + ' no llega a ' + corto(distrito || departamento) + ' (zona ' + zona + ')' };
+  const gratis = site.envios.gratis_desde;
+  const esGratis = esNumero(gratis) && esNumero(subtotal) && aCentimos(subtotal) >= aCentimos(gratis) && o.costo_desde > 0;
+  return { ok: true, error: null, opcion: o.id, nombre: o.nombre, entrega: o.entrega, zona: zona, costo: esGratis ? 0 : o.costo_desde, tiempo_estimado: tiempo, gratis: esGratis };
+}
+// Todas las opciones activas que llegan a un destino (paso "Envío" del checkout, chat Vale y bot).
+function opcionesDeEnvio(site, departamento, distrito, subtotal) {
+  const ops = esObjeto(site) && esObjeto(site.envios) && Array.isArray(site.envios.opciones) ? site.envios.opciones : [];
+  return ops.filter(function (o) { return esObjeto(o) && o.activa === true; })
+    .map(function (o) { return cotizarEnvio(site, o.id, departamento, distrito, subtotal); })
+    .filter(function (c) { return c.ok; });
+}
+// Texto plano (sin HTML) de las opciones de envío para el chat y el bot. zona opcional ("lima", "selva"...).
+function textoOpcionesEnvio(site, zona) {
+  const E = esObjeto(site) && esObjeto(site.envios) ? site.envios : null;
+  if (!E || !Array.isArray(E.opciones)) return '';
+  const lineas = E.opciones.filter(function (o) { return esObjeto(o) && o.activa === true; }).map(function (o) {
+    const t = zona ? (esObjeto(o.tiempos) ? o.tiempos[zona] : null) : o.tiempo_promedio;
+    if (typeof t !== 'string') return null;
+    return '- ' + o.nombre + ': ' + soles(o.costo_desde) + ', ' + t + '.';
+  }).filter(Boolean);
+  if (esNumero(E.gratis_desde)) lineas.push('Envío gratis desde ' + soles(E.gratis_desde) + ' de compra.');
+  return (E.resumen ? E.resumen + '\n' : '') + lineas.join('\n');
+}
+// Recalcula un carrito con el CATÁLOGO (nunca con los precios que manda el navegador).
+// items: [{id, color, talla, cantidad}]; envio: {opcion, departamento, distrito} o null; opciones: {verificarStock (true por defecto)}.
+// -> { ok, errores[], avisos[], items[{id,nombre,color,talla,cantidad,precio_unit}], subtotal, envio_costo, total, moneda, envio }
+function calcularTotales(items, envio, productos, site, opciones) {
+  opciones = opciones || {};
+  const errores = [], avisos = [];
+  const catalogo = porId(productos);
+  const lineas = [], indice = {};
+  if (!Array.isArray(items) || !items.length) errores.push('[items] items: el pedido no tiene productos');
+  else if (items.length > MAX_ITEMS_PEDIDO) errores.push('[items] items: máximo ' + MAX_ITEMS_PEDIDO + ' líneas por pedido');
+  (Array.isArray(items) ? items.slice(0, MAX_ITEMS_PEDIDO) : []).forEach(function (it, i) {
+    const r = 'items[' + i + ']';
+    if (!esObjeto(it)) { errores.push('[items] ' + r + ': debe ser un objeto'); return; }
+    const p = typeof it.id === 'string' ? catalogo[it.id] : null;
+    if (!p) { errores.push('[producto] ' + r + ': el producto ' + corto(it.id) + ' no existe'); return; }
+    if (p.activo !== true) { errores.push('[producto] ' + r + ': ' + p.id + ' ya no está disponible'); return; }
+    const color = (Array.isArray(p.colores) ? p.colores : []).map(function (c) { return esObjeto(c) ? c.nombre : null; })
+      .find(function (n) { return typeof n === 'string' && claveColor(n) === claveColor(it.color); });
+    if (!color) { errores.push('[color] ' + r + ': ' + p.nombre + ' no tiene el color ' + corto(it.color)); return; }
+    const talla = normalizarTalla(it.talla);
+    if (!Array.isArray(p.tallas) || p.tallas.indexOf(talla) < 0) { errores.push('[talla] ' + r + ': ' + p.nombre + ' no tiene la talla ' + corto(it.talla)); return; }
+    if (!Number.isInteger(it.cantidad) || it.cantidad < 1 || it.cantidad > MAX_CANTIDAD_LINEA) { errores.push('[cantidad] ' + r + ': la cantidad debe ser un entero de 1 a ' + MAX_CANTIDAD_LINEA); return; }
+    const clave = p.id + '|' + color + '|' + talla;
+    if (indice[clave] !== undefined) {
+      const l = lineas[indice[clave]];
+      l.cantidad = Math.min(MAX_CANTIDAD_LINEA, l.cantidad + it.cantidad);
+      avisos.push('[items] ' + r + ': línea repetida, se suma a la anterior');
+      return;
+    }
+    indice[clave] = lineas.length;
+    lineas.push({ id: p.id, nombre: p.nombre, color: color, talla: talla, cantidad: it.cantidad, precio_unit: precioVigente(p) });
+  });
+  if (opciones.verificarStock !== false) {
+    const pide = {};
+    lineas.forEach(function (l) { const k = l.id + '|' + l.color; pide[k] = (pide[k] || 0) + l.cantidad; });
+    lineas.forEach(function (l) {
+      const p = catalogo[l.id];
+      const k = l.id + '|' + l.color;
+      const hay = esObjeto(p.stock_por_color) ? p.stock_por_color[l.color] : esObjeto(p.stock_por_talla) ? p.stock_por_talla[l.talla] : p.stock;
+      if (Number.isInteger(hay) && pide[k] > hay) {
+        errores.push('[stock] ' + l.id + ': no hay suficiente stock de ' + l.nombre + ' en ' + l.color + ' (pides ' + pide[k] + ', quedan ' + hay + ')');
+        pide[k] = -1; // un solo mensaje por producto y color
+      }
+      if (esObjeto(p.stock_por_color) && esObjeto(p.stock_por_talla) && p.stock_por_talla[l.talla] === 0) errores.push('[stock] ' + l.id + ': la talla ' + l.talla + ' de ' + l.nombre + ' está agotada');
+    });
+  }
+  const subC = lineas.reduce(function (s, l) { return s + aCentimos(l.precio_unit) * l.cantidad; }, 0);
+  let env = null;
+  if (esObjeto(envio)) {
+    const c = cotizarEnvio(site, envio.opcion, envio.departamento, envio.distrito, deCentimos(subC));
+    if (!c.ok) errores.push(c.error);
+    else env = { opcion: c.opcion, entrega: c.entrega, zona: c.zona, costo: c.costo, tiempo_estimado: c.tiempo_estimado, gratis: c.gratis };
+  }
+  const envC = env ? aCentimos(env.costo) : 0;
+  return {
+    ok: errores.length === 0, errores: errores, avisos: avisos, items: lineas,
+    subtotal: deCentimos(subC), envio_costo: deCentimos(envC), total: deCentimos(subC + envC), moneda: 'PEN', envio: env
+  };
+}
+// Datos del cliente y del envío (reglas comunes de crearPedido y validarPedido).
+function revisarClienteEnvio(cliente, envio, site, err) {
+  const c = esObjeto(cliente) ? cliente : {};
+  const e = esObjeto(envio) ? envio : {};
+  if (typeof c.nombre !== 'string' || largo(c.nombre.trim()) < 2 || /^\d+$/.test(c.nombre.trim())) err('cliente', 'cliente.nombre', 'escribe nombre y apellido');
+  if (!correoValido(c.correo)) err('correo', 'cliente.correo', 'correo no válido ' + corto(c.correo));
+  if (typeof c.telefono !== 'string' || !regex(RE.telefono).test(c.telefono)) err('telefono', 'cliente.telefono', 'celular no válido ' + corto(c.telefono) + ' (9 dígitos que empiezan con 9)');
+  if (c.dni !== undefined && (typeof c.dni !== 'string' || !regex(RE.dni).test(c.dni))) err('dni', 'cliente.dni', 'el DNI tiene 8 dígitos');
+  if (!departamentoValido(e.departamento)) err('envio', 'envio.departamento', corto(e.departamento) + ' no es un departamento del Perú');
+  if (typeof e.provincia !== 'string' || largo(e.provincia.trim()) < 2) err('envio', 'envio.provincia', 'falta la provincia');
+  if (typeof e.distrito !== 'string' || largo(e.distrito.trim()) < 2) err('envio', 'envio.distrito', 'falta el distrito');
+  const o = site ? opcionEnvio(site, e.opcion, true) : null;
+  if (site && !o) { err('envio', 'envio.opcion', 'la opción de envío ' + corto(e.opcion) + ' no existe'); return; }
+  const entrega = o ? o.entrega : e.opcion === 'shalom' || e.opcion === 'bus' ? 'agencia' : 'domicilio';
+  if (entrega === 'agencia') {
+    if (typeof e.agencia_destino !== 'string' || largo(e.agencia_destino.trim()) < 3) err('envio', 'envio.agencia_destino', 'indica la agencia o el terminal donde recogerás el pedido');
+    if (c.dni === undefined) err('dni', 'cliente.dni', 'para recoger en agencia se necesita el DNI de quien recoge');
+  } else if (typeof e.direccion !== 'string' || largo(e.direccion.trim()) < 5) err('envio', 'envio.direccion', 'falta la dirección de entrega');
+}
+// Crea un pedido NUEVO con lo que manda la web (o el chat). n8n le da el número; los precios salen del catálogo.
+// solicitud: { cliente{nombre,correo,telefono,dni?}, envio{opcion,departamento,provincia,distrito,direccion?,referencia?,agencia_destino?},
+//              items[{id,color,talla,cantidad}], total_visto?, origen? }
+// contexto: { productos, site, numero (siguienteNumeroPedido), fecha? } -> { ok, errores[], avisos[], pedido|null }
+function crearPedido(solicitud, contexto) {
+  contexto = contexto || {};
+  const errores = [], avisos = [];
+  const err = function (cod, ruta, msg) { const m = '[' + cod + '] ' + ruta + ': ' + msg; if (errores.indexOf(m) < 0) errores.push(m); };
+  const s = esObjeto(solicitud) ? solicitud : {};
+  const ci = esObjeto(s.cliente) ? s.cliente : {};
+  const en = esObjeto(s.envio) ? s.envio : {};
+  if (typeof contexto.numero !== 'string' || !regex(RE.pedido).test(contexto.numero)) err('numero', 'contexto.numero', 'falta un número PB-000000 (usa siguienteNumeroPedido)');
+  const tel = normalizarTelefono(ci.telefono);
+  const cliente = {
+    nombre: textoSeguro(ci.nombre, 80),
+    correo: String(ci.correo === undefined || ci.correo === null ? '' : ci.correo).trim().toLowerCase(),
+    telefono: tel || String(ci.telefono === undefined || ci.telefono === null ? '' : ci.telefono)
+  };
+  if (ci.dni !== undefined && ci.dni !== null && String(ci.dni).trim() !== '') cliente.dni = String(ci.dni).replace(/\s/g, '');
+  const envio = {
+    opcion: en.opcion, departamento: departamentoValido(en.departamento) || String(en.departamento === undefined || en.departamento === null ? '' : en.departamento),
+    provincia: textoSeguro(en.provincia, 60), distrito: textoSeguro(en.distrito, 60)
+  };
+  ['direccion', 'referencia', 'agencia_destino'].forEach(function (k) { const v = textoSeguro(en[k], k === 'agencia_destino' ? 120 : 160); if (v) envio[k] = v; });
+  revisarClienteEnvio(cliente, envio, contexto.site, err);
+  const t = calcularTotales(s.items, envio, contexto.productos, contexto.site, { verificarStock: true });
+  t.errores.forEach(function (e) { if (errores.indexOf(e) < 0) errores.push(e); });
+  t.avisos.forEach(function (a) { avisos.push(a); });
+  if (esNumero(s.total_visto) && t.ok && aCentimos(s.total_visto) !== aCentimos(t.total)) {
+    avisos.push('[total_web] la web mostró ' + soles(s.total_visto) + ' y el total con los precios vigentes es ' + soles(t.total) + ': se cobra ' + soles(t.total));
+  }
+  if (errores.length) return { ok: false, errores: errores, avisos: avisos, pedido: null };
+  const fecha = typeof contexto.fecha === 'string' ? contexto.fecha : fechaLima();
+  const origen = ['web', 'chat', 'telegram'].indexOf(s.origen) >= 0 ? s.origen : 'web';
+  const pedido = {
+    numero: contexto.numero, fecha: fecha, actualizado: fecha, origen: origen, cliente: cliente,
+    envio: { opcion: envio.opcion, zona: t.envio.zona, departamento: envio.departamento, provincia: envio.provincia, distrito: envio.distrito },
+    items: t.items, subtotal: t.subtotal, envio_costo: t.envio_costo, total: t.total, moneda: 'PEN',
+    pago: { proveedor: 'mercadopago', estado: 'pendiente' }, estado: 'pendiente_pago', seguimiento: null,
+    historial: [{ estado: 'pendiente_pago', fecha: fecha, nota: 'Pedido creado desde ' + (origen === 'chat' ? 'el chat' : origen === 'telegram' ? 'Telegram' : 'la web') }]
+  };
+  ['direccion', 'referencia', 'agencia_destino'].forEach(function (k) { if (envio[k]) pedido.envio[k] = envio[k]; });
+  pedido.envio.costo = t.envio_costo;
+  pedido.envio.tiempo_estimado = t.envio.tiempo_estimado;
+  const v = validarPedido(pedido, { productos: contexto.productos, site: contexto.site, verificarStock: true });
+  v.errores.forEach(function (e) { errores.push(e); });
+  v.avisos.forEach(function (a) { avisos.push(a); });
+  return { ok: errores.length === 0, errores: errores, avisos: avisos, pedido: errores.length ? null : pedido };
+}
+// Valida un pedido completo (al crearlo, al leerlo de pb_pedidos o antes de guardarlo).
+// contexto: { site, productos, verificarPrecios (true por defecto si hay productos), verificarStock (false por defecto) }
+// -> { ok, errores[], avisos[], resumen{numero, estado, total} }
+function validarPedido(pedido, contexto) {
+  contexto = contexto || {};
+  const errores = [], avisos = [];
+  const err = function (cod, ruta, msg) { const m = '[' + cod + '] ' + ruta + ': ' + msg; if (errores.indexOf(m) < 0) errores.push(m); };
+  const avi = function (cod, ruta, msg) { avisos.push('[' + cod + '] ' + ruta + ': ' + msg); };
+  let p = pedido;
+  if (typeof p === 'string') { try { p = JSON.parse(p); } catch (e) { return { ok: false, errores: ['[json] pedido: no es JSON válido'], avisos: avisos, resumen: null }; } }
+  if (!esObjeto(p)) return { ok: false, errores: ['[json] pedido: debe ser un objeto'], avisos: avisos, resumen: null };
+  revisarSecretos(JSON.stringify(p), 'pedido', err);
+  revisarCadenas(p, 'pedido', err);
+  const eEsq = [];
+  validarEsquema(p, ESQUEMAS.pedido, ESQUEMAS.pedido, 'pedido', eEsq);
+  eEsq.forEach(function (m) { errores.push('[esquema] ' + m); });
+  const resumen = { numero: typeof p.numero === 'string' && regex(RE.pedido).test(p.numero) ? p.numero : null, estado: p.estado, total: p.total };
+  if (eEsq.length) return { ok: false, errores: errores, avisos: avisos, resumen: resumen };
+  const site = esObjeto(contexto.site) ? contexto.site : null;
+  const productos = Array.isArray(contexto.productos) ? contexto.productos : null;
+  const verificarPrecios = !!productos && contexto.verificarPrecios !== false;
+  revisarClienteEnvio(p.cliente, p.envio, site, function (cod, ruta, msg) { err(cod, 'pedido.' + ruta, msg); });
+  if (p.cliente.correo !== p.cliente.correo.trim().toLowerCase()) err('correo', 'pedido.cliente.correo', 'se guarda en minúsculas y sin espacios');
+  if (site) {
+    const zona = zonaEnvio(site, p.envio.departamento, p.envio.distrito);
+    if (zona !== p.envio.zona) err('envio', 'pedido.envio.zona', 'la zona de ' + corto(p.envio.distrito) + ' es ' + corto(zona) + ', no ' + corto(p.envio.zona));
+  }
+  // Dinero: 2 decimales y sumas exactas en céntimos.
+  ['subtotal', 'envio_costo', 'total'].forEach(function (k) { if (!dosDecimales(p[k])) err('precio', 'pedido.' + k, 'máximo 2 decimales'); });
+  p.items.forEach(function (it, i) { if (!dosDecimales(it.precio_unit)) err('precio', 'pedido.items[' + i + '].precio_unit', 'máximo 2 decimales'); });
+  const subC = p.items.reduce(function (s, it) { return s + aCentimos(it.precio_unit) * it.cantidad; }, 0);
+  if (subC !== aCentimos(p.subtotal)) err('total', 'pedido.subtotal', soles(p.subtotal) + ' no es la suma de las líneas (' + soles(deCentimos(subC)) + ')');
+  if (aCentimos(p.envio.costo) !== aCentimos(p.envio_costo)) err('total', 'pedido.envio_costo', 'no coincide con envio.costo');
+  if (aCentimos(p.subtotal) + aCentimos(p.envio_costo) !== aCentimos(p.total)) err('total', 'pedido.total', soles(p.total) + ' no es subtotal + envío (' + soles(deCentimos(aCentimos(p.subtotal) + aCentimos(p.envio_costo))) + ')');
+  const vistos = {};
+  p.items.forEach(function (it, i) {
+    const k = it.id + '|' + it.color + '|' + it.talla;
+    if (vistos[k]) err('items', 'pedido.items[' + i + ']', 'línea repetida (mismo producto, color y talla)');
+    vistos[k] = true;
+  });
+  if (verificarPrecios) {
+    const envio = site ? { opcion: p.envio.opcion, departamento: p.envio.departamento, distrito: p.envio.distrito } : null;
+    const t = calcularTotales(p.items.map(function (it) { return { id: it.id, color: it.color, talla: it.talla, cantidad: it.cantidad }; }), envio, productos, site, { verificarStock: contexto.verificarStock === true });
+    t.errores.forEach(function (e) { if (errores.indexOf(e) < 0) errores.push(e); });
+    if (t.ok && t.items.length === p.items.length) {
+      t.items.forEach(function (l, i) {
+        if (aCentimos(l.precio_unit) !== aCentimos(p.items[i].precio_unit)) err('precio', 'pedido.items[' + i + '].precio_unit', soles(p.items[i].precio_unit) + ' no es el precio vigente de ' + l.id + ' (' + soles(l.precio_unit) + ')');
+      });
+      if (site && aCentimos(t.envio_costo) !== aCentimos(p.envio_costo)) err('total', 'pedido.envio_costo', soles(p.envio_costo) + ' no es la tarifa de ' + p.envio.opcion + ' (' + soles(t.envio_costo) + ')');
+    }
+  } else if (contexto.verificarStock === true) avi('stock', 'pedido', 'no se recibió el catálogo: no se comprobó el stock');
+  // Estado, pago, seguimiento e historial.
+  const posteriores = ['pagado', 'preparando', 'enviado', 'listo_recojo', 'entregado'];
+  if (posteriores.indexOf(p.estado) >= 0 && p.pago.estado !== 'aprobado') err('pago', 'pedido.pago.estado', 'un pedido "' + p.estado + '" necesita el pago aprobado (es ' + corto(p.pago.estado) + ')');
+  if (p.estado === 'pendiente_pago' && p.pago.estado === 'aprobado') avi('pago', 'pedido', 'el pago está aprobado pero el pedido sigue pendiente de pago');
+  if (p.estado === 'listo_recojo' && p.envio.opcion === 'local') err('estado', 'pedido.estado', 'la entrega local no tiene recojo en agencia');
+  if (['enviado', 'listo_recojo', 'entregado'].indexOf(p.estado) >= 0 && p.envio.opcion !== 'local' && p.seguimiento === null) err('seguimiento', 'pedido.seguimiento', 'un pedido "' + p.estado + '" necesita la agencia y el código de seguimiento');
+  if (p.seguimiento) {
+    const v = validarCodigoSeguimiento(p.seguimiento.agencia, p.seguimiento.codigo, site);
+    if (!v.ok) errores.push(v.error);
+    if (p.seguimiento.agencia !== p.envio.opcion) avi('seguimiento', 'pedido.seguimiento.agencia', 'se envió con ' + p.seguimiento.agencia + ' y el cliente eligió ' + p.envio.opcion);
+  }
+  const H = p.historial;
+  if (H[0].estado !== 'pendiente_pago') err('historial', 'pedido.historial[0]', 'el primer estado es "pendiente_pago"');
+  if (H[H.length - 1].estado !== p.estado) err('historial', 'pedido.historial', 'el último estado (' + H[H.length - 1].estado + ') no es el estado del pedido (' + p.estado + ')');
+  for (let i = 1; i < H.length; i++) {
+    if ((TRANSICIONES_PEDIDO[H[i - 1].estado] || []).indexOf(H[i].estado) < 0) err('historial', 'pedido.historial[' + i + ']', 'no se puede pasar de "' + H[i - 1].estado + '" a "' + H[i].estado + '"');
+    if (Date.parse(H[i].fecha) < Date.parse(H[i - 1].fecha)) err('historial', 'pedido.historial[' + i + ']', 'la fecha es anterior a la del paso previo');
+  }
+  if (Date.parse(H[0].fecha) < Date.parse(p.fecha)) err('historial', 'pedido.historial[0]', 'la fecha es anterior a la del pedido');
+  return { ok: errores.length === 0, errores: errores, avisos: avisos, resumen: resumen };
+}
+// Código de seguimiento de /enviar <num> <shalom|olva|bus|local> <codigo>. -> { ok, error, codigo, url }
+function validarCodigoSeguimiento(agencia, codigo, site) {
+  if (OPCIONES_ENVIO.indexOf(agencia) < 0) return { ok: false, error: '[seguimiento] agencia: ' + corto(agencia) + ' no es una agencia (usa shalom, olva, bus o local)', codigo: null, url: null };
+  const c = String(codigo === null || codigo === undefined ? '' : codigo).replace(/\s+/g, ' ').trim();
+  const ejemplo = { shalom: '12345678-ABCD (orden-código)', olva: '26-0123456', bus: 'Movil Bus:0012345 (empresa:guía)', local: 'opcional' }[agencia];
+  if (agencia !== 'local' && !c) return { ok: false, error: '[seguimiento] codigo: falta el código de ' + agencia + ' (ejemplo: ' + ejemplo + ')', codigo: null, url: null };
+  if (!regex(RE_SEGUIMIENTO[agencia]).test(c)) return { ok: false, error: '[seguimiento] codigo: ' + corto(c) + ' no tiene el formato de ' + agencia + ' (ejemplo: ' + ejemplo + ')', codigo: null, url: null };
+  const o = opcionEnvio(site, agencia, true);
+  const url = o && typeof o.rastreo_url === 'string' && c ? o.rastreo_url.replace('{codigo}', encodeURIComponent(c)) : null;
+  return { ok: true, error: null, codigo: c, url: url };
+}
+// Cambia el estado de un pedido SIN modificar el original (bot: /preparando, /enviar, /entregado, /cancelar_pedido; pago de MP).
+// datos: { fecha?, nota?, agencia?, codigo? (enviado), pago? {estado, payment_id, preference_id, detalle} }
+// -> { ok, errores[], avisos[], pedido, cambio }
+function transicionPedido(pedido, nuevo, datos, site) {
+  datos = datos || {};
+  const errores = [], avisos = [];
+  if (!esObjeto(pedido) || !Array.isArray(pedido.historial) || !esObjeto(pedido.pago) || !esObjeto(pedido.envio)) return { ok: false, errores: ['[pedido] pedido: no es un pedido válido'], avisos: avisos, pedido: pedido, cambio: false };
+  if (ESTADOS_PEDIDO.indexOf(nuevo) < 0) return { ok: false, errores: ['[estado] estado: ' + corto(nuevo) + ' no existe (' + ESTADOS_PEDIDO.join(', ') + ')'], avisos: avisos, pedido: pedido, cambio: false };
+  const p = JSON.parse(JSON.stringify(pedido));
+  const fecha = typeof datos.fecha === 'string' ? datos.fecha : fechaLima();
+  if (esObjeto(datos.pago)) {
+    ['estado', 'payment_id', 'preference_id', 'detalle'].forEach(function (k) {
+      if (datos.pago[k] !== undefined && datos.pago[k] !== null && datos.pago[k] !== '') p.pago[k] = k === 'detalle' ? textoSeguro(datos.pago[k], 80) : String(datos.pago[k]);
+    });
+    if (!igual(p.pago, pedido.pago)) p.pago.actualizado = fecha;
+  }
+  if (p.estado === nuevo) {
+    avisos.push('[sin_cambio] ' + p.numero + ' ya está en "' + nuevo + '"');
+    const cambio = !igual(p, pedido);
+    if (cambio) p.actualizado = fecha;
+    return { ok: true, errores: errores, avisos: avisos, pedido: p, cambio: cambio };
+  }
+  const permitidos = TRANSICIONES_PEDIDO[p.estado] || [];
+  if (permitidos.indexOf(nuevo) < 0) errores.push('[transicion] ' + p.numero + ': no se puede pasar de "' + p.estado + '" a "' + nuevo + '"' + (permitidos.length ? ' (siguiente: ' + permitidos.join(' o ') + ')' : ' (estado final)'));
+  if (nuevo === 'pagado' && p.pago.estado !== 'aprobado') errores.push('[pago] ' + p.numero + ': solo pasa a "pagado" con el pago aprobado por Mercado Pago');
+  if (nuevo === 'listo_recojo' && p.envio.opcion === 'local') errores.push('[estado] ' + p.numero + ': la entrega local no tiene recojo en agencia');
+  let nota = typeof datos.nota === 'string' ? datos.nota : '';
+  if (nuevo === 'enviado') {
+    const agencia = datos.agencia || p.envio.opcion;
+    const v = validarCodigoSeguimiento(agencia, datos.codigo, site);
+    if (!v.ok) errores.push(v.error);
+    else {
+      p.seguimiento = { agencia: agencia, codigo: v.codigo };
+      if (v.url) p.seguimiento.url = v.url;
+      const o = opcionEnvio(site, agencia, true);
+      if (!nota) nota = 'Enviado con ' + (o ? o.nombre : agencia) + (v.codigo ? '. Código: ' + v.codigo : '');
+      if (agencia !== p.envio.opcion) avisos.push('[seguimiento] el cliente eligió ' + p.envio.opcion + ' y se envía con ' + agencia);
+    }
+  }
+  if (nuevo === 'cancelado' && p.pago.estado === 'aprobado') avisos.push('[reembolso] ' + p.numero + ' estaba pagado: haz la devolución desde Mercado Pago');
+  if (errores.length) return { ok: false, errores: errores, avisos: avisos, pedido: pedido, cambio: false };
+  const notas = { pagado: 'Pago aprobado por Mercado Pago', preparando: 'Estamos preparando tu pedido', listo_recojo: 'Tu pedido llegó a la agencia de destino: recógelo con tu DNI', entregado: 'Pedido entregado', cancelado: 'Pedido cancelado' };
+  p.estado = nuevo;
+  p.actualizado = fecha;
+  p.historial.push({ estado: nuevo, fecha: fecha, nota: textoSeguro(nota || notas[nuevo] || ESTADO_PEDIDO_TEXTO[nuevo], 200) });
+  return { ok: true, errores: errores, avisos: avisos, pedido: p, cambio: true };
+}
+// status de Mercado Pago -> { pago_estado, estado_pedido (null si el pedido no cambia de estado) }
+function mapearPagoMP(status) {
+  const pago = MAPA_PAGO_MP[String(status === null || status === undefined ? '' : status).toLowerCase()] || 'pendiente';
+  return { pago_estado: pago, estado_pedido: pago === 'aprobado' ? 'pagado' : pago === 'reembolsado' ? 'cancelado' : null };
+}
+// Compara la respuesta de GET /v1/payments/{id} con el pedido (referencia, moneda y monto). Solo se cree ESTO;
+// nunca el cuerpo del aviso (webhook) ni el ?status= de la URL de vuelta.
+function verificarPagoMP(pedido, pagoMP) {
+  const errores = [];
+  const m = esObjeto(pagoMP) ? pagoMP : {};
+  if (!esObjeto(pedido)) return { ok: false, errores: ['[pago_mp] pedido: no es un objeto'], pago_estado: null, estado_pedido: null, payment_id: null, detalle: '' };
+  if (m.external_reference !== pedido.numero) errores.push('[pago_mp] external_reference: ' + corto(m.external_reference) + ' no es ' + pedido.numero);
+  if (m.currency_id !== 'PEN') errores.push('[pago_mp] currency_id: ' + corto(m.currency_id) + ' (debe ser PEN)');
+  if (!esNumero(m.transaction_amount) || aCentimos(m.transaction_amount) !== aCentimos(pedido.total)) errores.push('[pago_mp] transaction_amount: ' + corto(m.transaction_amount) + ' no es el total ' + soles(pedido.total));
+  const id = m.id === undefined || m.id === null ? '' : String(m.id);
+  if (!regex(RE.mp_id).test(id)) errores.push('[pago_mp] id: falta el id del pago');
+  const map = mapearPagoMP(m.status);
+  return { ok: errores.length === 0, errores: errores, pago_estado: map.pago_estado, estado_pedido: map.estado_pedido, payment_id: id || null, detalle: textoSeguro(m.status_detail, 80) };
+}
+// Aplica un pago de Mercado Pago (ya consultado con GET /v1/payments/{id}) al pedido. Idempotente (avisos repetidos no duplican el historial).
+// opciones: { fecha?, site? } -> { ok, errores[], avisos[], pedido, cambio, notificar ("pagado" | "cancelado" | "rechazado" | null) }
+function aplicarPagoMP(pedido, pagoMP, opciones) {
+  opciones = opciones || {};
+  const v = verificarPagoMP(pedido, pagoMP);
+  if (!v.ok) return { ok: false, errores: v.errores, avisos: [], pedido: pedido, cambio: false, notificar: null };
+  const fecha = typeof opciones.fecha === 'string' ? opciones.fecha : fechaLima();
+  const pago = { estado: v.pago_estado, payment_id: v.payment_id, detalle: v.detalle };
+  const avisos = [];
+  if (pedido.pago && pedido.pago.estado === 'aprobado' && v.pago_estado !== 'aprobado' && v.pago_estado !== 'reembolsado') {
+    return { ok: true, errores: [], avisos: ['[pago] se ignora un pago ' + v.pago_estado + ': ' + pedido.numero + ' ya tiene un pago aprobado'], pedido: pedido, cambio: false, notificar: null };
+  }
+  let r;
+  if (v.estado_pedido === 'pagado' && pedido.estado === 'pendiente_pago') r = transicionPedido(pedido, 'pagado', { fecha: fecha, pago: pago, nota: 'Pago aprobado por Mercado Pago (operación ' + v.payment_id + ')' }, opciones.site);
+  else if (v.estado_pedido === 'cancelado' && (TRANSICIONES_PEDIDO[pedido.estado] || []).indexOf('cancelado') >= 0) r = transicionPedido(pedido, 'cancelado', { fecha: fecha, pago: pago, nota: 'Pago devuelto en Mercado Pago' }, opciones.site);
+  else {
+    if (v.estado_pedido === 'cancelado') avisos.push('[pago] ' + pedido.numero + ' está en "' + pedido.estado + '" y Mercado Pago informa una devolución: revísalo');
+    r = transicionPedido(pedido, pedido.estado, { fecha: fecha, pago: pago }, opciones.site);
+  }
+  if (!r.ok) return { ok: false, errores: r.errores, avisos: avisos.concat(r.avisos), pedido: pedido, cambio: false, notificar: null };
+  const cambioEstado = r.pedido.estado !== pedido.estado;
+  const notificar = cambioEstado ? r.pedido.estado : r.cambio && (v.pago_estado === 'rechazado' || v.pago_estado === 'cancelado') ? 'rechazado' : null;
+  return { ok: true, errores: [], avisos: avisos.concat(r.avisos.filter(function (a) { return a.indexOf('[sin_cambio]') !== 0; })), pedido: r.pedido, cambio: r.cambio, notificar: notificar };
+}
+// Cuerpo de POST https://api.mercadopago.com/checkout/preferences (Checkout Pro). El Access Token va SOLO en la credencial de n8n.
+// opciones: { urlBase (GitHub Pages, con "/" final), notificationUrl (https del túnel), vence (ISO con zona), nombreEnvio }
+function preferenciaMercadoPago(pedido, opciones) {
+  const o = opciones || {};
+  const base = typeof o.urlBase === 'string' && /^https:\/\/[^\s<>"'?#]+\/$/.test(o.urlBase) ? o.urlBase : 'https://abnercayao.github.io/tienda-tarapoto/';
+  const vuelta = function (estado) { return base + '?mp=' + estado + '&pedido=' + encodeURIComponent(pedido.numero); };
+  const items = pedido.items.map(function (it) {
+    return { id: it.id, title: textoSeguro(it.nombre + ' - ' + it.color + ' - talla ' + (it.talla === 'UNICA' ? 'única' : it.talla), 250), quantity: it.cantidad, currency_id: 'PEN', unit_price: it.precio_unit };
+  });
+  if (pedido.envio_costo > 0) items.push({ id: 'ENVIO-' + String(pedido.envio.opcion).toUpperCase(), title: textoSeguro('Envío ' + (o.nombreEnvio || pedido.envio.opcion), 250), quantity: 1, currency_id: 'PEN', unit_price: pedido.envio_costo });
+  const partes = String(esObjeto(pedido.cliente) && pedido.cliente.nombre || '').trim().split(/\s+/);
+  const cuerpo = {
+    items: items,
+    payer: { name: partes[0] || 'Cliente', surname: partes.slice(1).join(' ') || 'Palmera Brava' }, // sin correo real en modo prueba
+    external_reference: pedido.numero,
+    back_urls: { success: vuelta('ok'), pending: vuelta('pend'), failure: vuelta('err') },
+    auto_return: 'approved',
+    statement_descriptor: 'PALMERABRAVA',
+    binary_mode: false,
+    metadata: { pedido: pedido.numero }
+  };
+  if (typeof o.notificationUrl === 'string' && /^https:\/\/[^\s<>"']+$/.test(o.notificationUrl)) cuerpo.notification_url = o.notificationUrl;
+  if (typeof o.vence === 'string' && regex(RE.fecha).test(o.vence)) { cuerpo.expires = true; cuerpo.expiration_date_to = o.vence; }
+  return cuerpo;
+}
+// Lo que ve el cliente en #/seguimiento, #/pedido/<num> y en el chat Vale: SIN correo, teléfono, DNI ni dirección.
+function vistaPublicaPedido(pedido, site) {
+  if (!esObjeto(pedido)) return null;
+  const textos = esObjeto(site) && esObjeto(site.textos) && esObjeto(site.textos.estados_pedido) ? site.textos.estados_pedido : {};
+  const etiqueta = function (e) { return textos[e] || ESTADO_PEDIDO_TEXTO[e] || e; };
+  const envio = esObjeto(pedido.envio) ? pedido.envio : {};
+  const o = opcionEnvio(site, envio.opcion, true);
+  const seg = esObjeto(pedido.seguimiento) ? pedido.seguimiento : null;
+  const oSeg = seg ? opcionEnvio(site, seg.agencia, true) : null;
+  return {
+    numero: pedido.numero, fecha: pedido.fecha, estado: pedido.estado, estado_texto: etiqueta(pedido.estado),
+    cliente: { nombre: String(esObjeto(pedido.cliente) && pedido.cliente.nombre || '').trim().split(/\s+/)[0] || '' },
+    items: (Array.isArray(pedido.items) ? pedido.items : []).map(function (it) { return { id: it.id, nombre: it.nombre, color: it.color, talla: it.talla, cantidad: it.cantidad, precio_unit: it.precio_unit }; }),
+    subtotal: pedido.subtotal, envio_costo: pedido.envio_costo, total: pedido.total, moneda: pedido.moneda,
+    envio: { opcion: envio.opcion, opcion_nombre: o ? o.nombre : envio.opcion, departamento: envio.departamento, distrito: envio.distrito, tiempo_estimado: envio.tiempo_estimado },
+    pago: { estado: esObjeto(pedido.pago) ? pedido.pago.estado : null, init_point: esObjeto(pedido.pago) && pedido.estado === 'pendiente_pago' && pedido.pago.init_point ? pedido.pago.init_point : null },
+    seguimiento: seg ? { agencia: seg.agencia, agencia_nombre: oSeg ? oSeg.nombre : seg.agencia, codigo: seg.codigo, url: seg.url || null } : null,
+    historial: (Array.isArray(pedido.historial) ? pedido.historial : []).map(function (h) { return { estado: h.estado, estado_texto: etiqueta(h.estado), fecha: h.fecha, nota: h.nota || '' }; })
+  };
+}
+function numeroPedido(n) { return 'PB-' + String(n).padStart(6, '0'); }
+// Siguiente número a partir del último usado ("PB-000123" o vacío). El primero es PB-000101.
+function siguienteNumeroPedido(ultimo) {
+  const m = typeof ultimo === 'string' ? /^PB-(\d{6})$/.exec(ultimo.trim()) : null;
+  return numeroPedido(Math.max(m ? parseInt(m[1], 10) + 1 : PRIMER_PEDIDO, PRIMER_PEDIDO));
+}
+// Fila de la Data Table pb_pedidos (COLUMNAS_PB_PEDIDOS) y vuelta.
+function filaPedido(pedido) {
+  const seg = esObjeto(pedido.seguimiento) ? pedido.seguimiento : {};
+  return {
+    numero: pedido.numero, correo: pedido.cliente.correo, estado: pedido.estado, pago_estado: pedido.pago.estado, total: pedido.total,
+    fecha: pedido.fecha, actualizado: pedido.actualizado || pedido.fecha, opcion_envio: pedido.envio.opcion, departamento: pedido.envio.departamento,
+    preference_id: pedido.pago.preference_id || '', payment_id: pedido.pago.payment_id || '', codigo_seguimiento: seg.codigo || '',
+    pedido_json: JSON.stringify(pedido)
+  };
+}
+function pedidoDesdeFila(fila) {
+  if (!esObjeto(fila) || typeof fila.pedido_json !== 'string') return null;
+  try { return JSON.parse(fila.pedido_json); } catch (e) { return null; }
+}
+// Stock tras un pedido pagado (opcional, se publica con WF5): resta las cantidades por color. -> { ok, errores[], cambios[{id, stock_por_color, stock}] }
+function stockTrasPedido(productos, pedido) {
+  const catalogo = porId(productos);
+  const errores = [], cambios = [], porProducto = {};
+  (esObjeto(pedido) && Array.isArray(pedido.items) ? pedido.items : []).forEach(function (it) { (porProducto[it.id] = porProducto[it.id] || []).push({ color: it.color, cantidad: it.cantidad }); });
+  Object.keys(porProducto).forEach(function (id) {
+    if (!catalogo[id]) { errores.push('[producto] ' + corto(id) + ' no existe'); return; }
+    const r = aplicarStockColor(catalogo[id], porProducto[id], 'restar');
+    if (!r.ok) r.errores.forEach(function (e) { errores.push(e); });
+    else cambios.push({ id: id, stock_por_color: r.stock_por_color, stock: r.stock });
+  });
+  return { ok: errores.length === 0, errores: errores, cambios: cambios };
+}
 // ---------- Prompts del LLM (D4) y cuerpo de la petición a Ollama /api/chat ----------
 // {{CATALOGO}} se reemplaza por líneas "id | nombre | categoria | precio" (máx. 200 productos activos).
 const PROMPT_PRODUCTO = `Eres el asistente de catálogo de la tienda de ropa "Palmera Brava" (Tarapoto, Perú). Conviertes UN mensaje del dueño (texto y, a veces, una foto) en UNA operación JSON. No publicas nada: un programa revisa tu respuesta y el dueño la aprueba.
@@ -1276,14 +2122,19 @@ OPERACIONES (op)
 
 CATEGORÍA (categoria). Aplica la PRIMERA regla que coincida:
 1. niño, niña, niños, infantil, bebé, nene, nena, escolar -> "ninos" (aunque sea gorro o sandalia).
-2. gorra, gorro, sombrero, bolso, cartera, lentes, gafas, mochila, correa -> "accesorios".
+2. gorra, gorro, sombrero, bolso, cartera, lentes, gafas, mochila, correa, cinturón -> "accesorios".
 3. dama, damas, mujer, señora, señorita, femenino -> "mujeres".
 4. caballero, hombre, varón, masculino -> "hombres".
 5. sandalias sin género o "unisex" -> "accesorios".
 6. Si no hay ninguna de esas palabras, deduce por la prenda (vestido, blusa, falda -> "mujeres"; guayabera -> "hombres") y añade "categoria" a campos_inferidos. Si no se puede saber, null y "categoria" en faltantes.
 Ejemplos: "polo para dama" -> mujeres. "polo de caballero" -> hombres. "vestido para niña" -> ninos. "gorro UV para niños" -> ninos. "gorra de dama" -> accesorios. "sandalias de cuero unisex" -> accesorios. "camisa de lino para hombre" -> hombres.
 
-SUBCATEGORÍA: una de polos, camisas, blusas, vestidos, faldas, shorts, bermudas, pantalones, conjuntos, ropa-de-bano, pijamas, sombreros, gorros, gorras, sandalias, lentes, bolsos, otros. La guayabera es "camisas".
+SUBCATEGORÍA, según la categoría (si ninguna encaja, "otros"):
+- hombres: camisas, polos, pantalones, shorts (también bermudas), calzado (zapatillas, mocasines, zapatos), conjuntos, ropa-de-bano, pijamas.
+- mujeres: vestidos, blusas, polos, camisas, pantalones, shorts, faldas, conjuntos, ropa-de-bano, pijamas, sandalias, calzado.
+- ninos: polos, camisas, blusas, vestidos, faldas, shorts (también bermudas), pantalones, conjuntos, ropa-de-bano, pijamas, gorros (también sombreros y gorras), sandalias.
+- accesorios: sombreros (también gorras y gorros), lentes, cinturones, bolsos, sandalias.
+La guayabera es "camisas". Una línea elegante "old money" se marca con la etiqueta "old-money", no con la subcategoría.
 
 TALLAS (tallas): adultos XS S M L XL XXL; niños 2 4 6 8 10 12 14 16; calzado 35 a 44; talla única = "UNICA". "de la 38 a la 42" -> 38 39 40 41 42.
 - stock_tallas: una entrada {talla, cantidad} por talla, solo si el dueño da cantidades POR TALLA. Si no, [] (no lo pongas en faltantes).
@@ -1351,7 +2202,14 @@ const API = {
   PROHIBIDO_MARKETING, ESQUEMAS, ESQUEMA_LLM_PRODUCTO, ESQUEMA_LLM_ARTICULO, OPS_LLM, WHATSAPP_EJEMPLO,
   MAX_STOCK_COLOR, STOCK_COLOR_ASUMIDO, ZONAS_MEDIDA, TABLA_FRESCURA, FRESCURA_PUBLICA, RE,
   validar, validarEsquema, validarOperacion, inferirCategoria, pideCambio, puede, slugificar, siguienteId, colorHex, COLORES, textoSeguro, bloquesDesdeLLM, PROMPT_PRODUCTO, PROMPT_ARTICULO, cuerpoOllama, serializar, bytesUtf8,
-  frescuraPorMaterial, inferirFrescura, claveColor, stockTotal, aplicarStockColor, tablaDeTallas
+  frescuraPorMaterial, inferirFrescura, claveColor, stockTotal, aplicarStockColor, tablaDeTallas,
+  // v3
+  SUBCATEGORIAS_POR_CATEGORIA, ALIAS_SUBCATEGORIA, normalizarSubcategoria, ROLES_ASIGNABLES, puedeAsignarRol,
+  OPCIONES_ENVIO, ENTREGAS_ENVIO, ZONAS_ENVIO, DEPARTAMENTOS, ESTADOS_PEDIDO, TRANSICIONES_PEDIDO, ESTADO_PEDIDO_TEXTO, ESTADOS_PAGO, MAPA_PAGO_MP,
+  MAX_ITEMS_PEDIDO, MAX_CANTIDAD_LINEA, PRIMER_PEDIDO, RE_SEGUIMIENTO, COLUMNAS_PB_PEDIDOS,
+  fechaLima, departamentoValido, normalizarTelefono, correoValido, mismoCorreo, normalizarTalla, precioVigente, opcionEnvio, zonaEnvio, cotizarEnvio,
+  opcionesDeEnvio, textoOpcionesEnvio, calcularTotales, crearPedido, validarPedido, validarCodigoSeguimiento, transicionPedido, mapearPagoMP,
+  verificarPagoMP, aplicarPagoMP, preferenciaMercadoPago, vistaPublicaPedido, numeroPedido, siguienteNumeroPedido, filaPedido, pedidoDesdeFila, stockTrasPedido
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 
@@ -1369,7 +2227,8 @@ function cli(argv) {
     else if (a === '--ids') opt.ids = (args.shift() || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
     else if (a === '--rol') opt.rol = args.shift();
     else if (a === '--escribir-esquemas') opt.escribir = true;
-    else if (a === '-h' || a === '--help') { console.log('Uso: node tools/validar.js data/products.json data/articles.json data/site.json data/chat.json [--anterior carpeta] [--ids a,b] [--limpieza] [--rol r] [--json]\n     node tools/validar.js --escribir-esquemas'); return 0; }
+    else if (a === '--pedido') opt.pedido = args.shift();
+    else if (a === '-h' || a === '--help') { console.log('Uso: node tools/validar.js data/products.json data/articles.json data/site.json data/chat.json [--anterior carpeta] [--ids a,b] [--limpieza] [--rol r] [--json]\n     node tools/validar.js --escribir-esquemas\n     node tools/validar.js --pedido pedido.json [--json]'); return 0; }
     else if (a.indexOf('--') === 0) { console.error('Opción desconocida: ' + a); return 2; }
     else opt.archivos.push(a);
   }
@@ -1378,11 +2237,24 @@ function cli(argv) {
     fs.mkdirSync(dir, { recursive: true });
     const salida = {
       'products.schema.json': ESQUEMAS.products, 'articles.schema.json': ESQUEMAS.articles, 'site.schema.json': ESQUEMAS.site,
-      'chat.schema.json': ESQUEMAS.chat, 'frescura-materiales.json': FRESCURA_PUBLICA,
+      'chat.schema.json': ESQUEMAS.chat, 'pedido.schema.json': ESQUEMAS.pedido, 'frescura-materiales.json': FRESCURA_PUBLICA,
       'ollama-format-producto.json': ESQUEMA_LLM_PRODUCTO, 'ollama-format-articulo.json': ESQUEMA_LLM_ARTICULO
     };
     for (const f of Object.keys(salida)) { fs.writeFileSync(path.join(dir, f), serializar(salida[f])); console.log('escrito data/schema/' + f); }
-    if (!opt.archivos.length) return 0;
+    if (!opt.archivos.length && !opt.pedido) return 0;
+  }
+  if (opt.pedido) {
+    // v3: valida un pedido (JSON) contra data/products.json y data/site.json. Los pedidos NO se guardan en el repo.
+    let ped, prods, sitio;
+    try {
+      ped = fs.readFileSync(opt.pedido, 'utf8');
+      prods = JSON.parse(fs.readFileSync(path.join(raiz, 'data', 'products.json'), 'utf8')).productos;
+      sitio = JSON.parse(fs.readFileSync(path.join(raiz, 'data', 'site.json'), 'utf8'));
+    } catch (e) { console.error('No se puede leer: ' + e.message); return 2; }
+    const rp = validarPedido(ped, { productos: prods, site: sitio });
+    if (opt.json) console.log(JSON.stringify(rp, null, 2));
+    else { rp.errores.forEach(function (e) { console.log('ERROR ' + e); }); rp.avisos.forEach(function (a) { console.log('aviso ' + a); }); console.log(rp.ok ? 'OK: el pedido cumple el contrato.' : 'FALLA: ' + rp.errores.length + ' error(es).'); }
+    return rp.ok ? 0 : 1;
   }
   if (!opt.archivos.length) {
     opt.archivos = ['data/products.json', 'data/articles.json', 'data/site.json', 'data/chat.json'].map(function (f) { return path.join(raiz, f); })
@@ -1431,6 +2303,7 @@ function cli(argv) {
       ((s.hero && s.hero.imagenes) || []).forEach(function (i) { revisarSrc(i.src); });
       (s.categorias || []).forEach(function (c) { if (c.imagen) revisarSrc(c.imagen.src); });
       (s.lookbook || []).forEach(function (l) { if (l.imagen) revisarSrc(l.imagen.src); });
+      (s.colecciones || []).forEach(function (c) { if (c.imagen) revisarSrc(c.imagen.src); });
     }
   } catch (e) { /* JSON inválido: ya está en errores */ }
   if (faltan.length) r.avisos.push('[archivo] ' + faltan.length + ' imagen(es) aún no existen en disco: ' + faltan.slice(0, 5).join(', ') + (faltan.length > 5 ? ', ...' : ''));

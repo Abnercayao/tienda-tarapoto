@@ -28,7 +28,13 @@
     "lookbook",
     "testimonios",
     "guia_tallas",
-    "mensajes"
+    "mensajes",
+    "temperatura_promedio",
+    "asistente",
+    "colecciones",
+    "envios",
+    "pagos",
+    "textos"
   ],
   "properties": {
     "$schema": {
@@ -36,7 +42,7 @@
       "pattern": "^\\./schema/[a-z-]+\\.schema\\.json$"
     },
     "schema_version": {
-      "const": 2,
+      "const": 3,
       "description": "Versión del contrato (cambia solo si cambia el esquema). v2 desde 2026-10-07."
     },
     "version": {
@@ -274,6 +280,17 @@
           "items": {
             "$ref": "#/$defs/imagen"
           }
+        },
+        "producto_destacado": {
+          "type": "string",
+          "pattern": "^prd-\\d{4,6}$",
+          "description": "v3, opcional: producto de la portada (debe existir y estar activo)."
+        },
+        "etiqueta_destacado": {
+          "type": "string",
+          "maxLength": 40,
+          "pattern": "^[^<>]*$",
+          "description": "v3, opcional: etiqueta corta junto al producto de la portada."
         }
       }
     },
@@ -288,7 +305,8 @@
           "id",
           "nombre",
           "descripcion",
-          "imagen"
+          "imagen",
+          "subcategorias"
         ],
         "properties": {
           "id": {
@@ -312,7 +330,388 @@
           },
           "imagen": {
             "$ref": "#/$defs/imagen"
+          },
+          "subcategorias": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 12,
+            "items": {
+              "$ref": "#/$defs/entrada_menu"
+            },
+            "description": "v3: menú de la categoría en orden. Sin \"etiqueta\" = subcategoría (filtra por producto.subcategoria = id); con \"etiqueta\" = colección (filtra por esa etiqueta dentro de la categoría). Ruta web: #/c/<categoria>/<id>."
           }
+        }
+      }
+    },
+    "colecciones": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "$ref": "#/$defs/coleccion"
+      },
+      "description": "v3: colecciones transversales (p. ej. \"old money\"): agrupan productos por etiqueta. Ruta web: #/coleccion/<id>."
+    },
+    "temperatura_promedio": {
+      "type": "string",
+      "pattern": "^\\d{1,2}°$",
+      "description": "v3: temperatura promedio de Tarapoto que muestra la web (p. ej. \"38°\")."
+    },
+    "asistente": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nombre",
+        "rol",
+        "saludo",
+        "acciones"
+      ],
+      "description": "v3: asistente virtual del chat de la web.",
+      "properties": {
+        "nombre": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 20,
+          "pattern": "^[^<>]*$"
+        },
+        "rol": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60,
+          "pattern": "^[^<>]*$"
+        },
+        "saludo": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 300,
+          "pattern": "^[^<>]*$"
+        },
+        "acciones": {
+          "type": "array",
+          "maxItems": 6,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 48,
+            "pattern": "^[^<>]*$"
+          },
+          "description": "Chips de acción rápida del chat; la primera es \"Hacer seguimiento de mi pedido\"."
+        }
+      }
+    },
+    "envios": {
+      "$ref": "#/$defs/envios"
+    },
+    "pagos": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mercadopago"
+      ],
+      "properties": {
+        "mercadopago": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "activo",
+            "modo",
+            "public_key"
+          ],
+          "properties": {
+            "activo": {
+              "type": "boolean",
+              "description": "false = la web vuelve al pedido por WhatsApp."
+            },
+            "modo": {
+              "enum": [
+                "prueba",
+                "produccion"
+              ],
+              "description": "Demo: \"prueba\" (Checkout Pro con cuentas y tarjetas de prueba)."
+            },
+            "public_key": {
+              "type": "string",
+              "pattern": "^((APP_USR|TEST)-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$",
+              "description": "Opcional (vacío): no se usa al redirigir a init_point. NUNCA el Access Token: vive solo en la credencial n8n pbCredMercPago01."
+            },
+            "nota": {
+              "type": "string",
+              "maxLength": 200,
+              "pattern": "^[^<>]*$"
+            }
+          }
+        }
+      }
+    },
+    "textos": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checkout",
+        "pedido",
+        "seguimiento",
+        "cuenta",
+        "estados_pedido"
+      ],
+      "description": "v3: textos de las vistas de compra, seguimiento y cuenta.",
+      "properties": {
+        "checkout": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "titulo",
+            "paso_contacto",
+            "paso_envio",
+            "paso_pago",
+            "nota_envio",
+            "boton_pagar",
+            "aviso_prueba",
+            "guardar_datos",
+            "privacidad"
+          ],
+          "properties": {
+            "titulo": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 240,
+              "pattern": "^[^<>]*$"
+            },
+            "paso_contacto": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 240,
+              "pattern": "^[^<>]*$"
+            },
+            "paso_envio": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 240,
+              "pattern": "^[^<>]*$"
+            },
+            "paso_pago": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 240,
+              "pattern": "^[^<>]*$"
+            },
+            "nota_envio": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 240,
+              "pattern": "^[^<>]*$"
+            },
+            "boton_pagar": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 240,
+              "pattern": "^[^<>]*$"
+            },
+            "aviso_prueba": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 240,
+              "pattern": "^[^<>]*$"
+            },
+            "guardar_datos": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 240,
+              "pattern": "^[^<>]*$"
+            },
+            "privacidad": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 240,
+              "pattern": "^[^<>]*$"
+            }
+          }
+        },
+        "pedido": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "titulo_pagado",
+            "texto_pagado",
+            "titulo_pendiente",
+            "texto_pendiente",
+            "titulo_rechazado",
+            "texto_rechazado"
+          ],
+          "properties": {
+            "titulo_pagado": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 240,
+              "pattern": "^[^<>]*$"
+            },
+            "texto_pagado": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 240,
+              "pattern": "^[^<>]*$"
+            },
+            "titulo_pendiente": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 240,
+              "pattern": "^[^<>]*$"
+            },
+            "texto_pendiente": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 240,
+              "pattern": "^[^<>]*$"
+            },
+            "titulo_rechazado": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 240,
+              "pattern": "^[^<>]*$"
+            },
+            "texto_rechazado": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 240,
+              "pattern": "^[^<>]*$"
+            }
+          }
+        },
+        "seguimiento": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "titulo",
+            "intro",
+            "boton",
+            "no_encontrado",
+            "ayuda"
+          ],
+          "properties": {
+            "titulo": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 240,
+              "pattern": "^[^<>]*$"
+            },
+            "intro": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 240,
+              "pattern": "^[^<>]*$"
+            },
+            "boton": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 240,
+              "pattern": "^[^<>]*$"
+            },
+            "no_encontrado": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 240,
+              "pattern": "^[^<>]*$"
+            },
+            "ayuda": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 240,
+              "pattern": "^[^<>]*$"
+            }
+          }
+        },
+        "cuenta": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "titulo",
+            "intro",
+            "vacio",
+            "olvidar"
+          ],
+          "properties": {
+            "titulo": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 240,
+              "pattern": "^[^<>]*$"
+            },
+            "intro": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 240,
+              "pattern": "^[^<>]*$"
+            },
+            "vacio": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 240,
+              "pattern": "^[^<>]*$"
+            },
+            "olvidar": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 240,
+              "pattern": "^[^<>]*$"
+            }
+          }
+        },
+        "estados_pedido": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "pendiente_pago",
+            "pagado",
+            "preparando",
+            "enviado",
+            "listo_recojo",
+            "entregado",
+            "cancelado"
+          ],
+          "properties": {
+            "pendiente_pago": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 40,
+              "pattern": "^[^<>]*$"
+            },
+            "pagado": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 40,
+              "pattern": "^[^<>]*$"
+            },
+            "preparando": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 40,
+              "pattern": "^[^<>]*$"
+            },
+            "enviado": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 40,
+              "pattern": "^[^<>]*$"
+            },
+            "listo_recojo": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 40,
+              "pattern": "^[^<>]*$"
+            },
+            "entregado": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 40,
+              "pattern": "^[^<>]*$"
+            },
+            "cancelado": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 40,
+              "pattern": "^[^<>]*$"
+            }
+          },
+          "description": "Nombre visible de cada estado del pedido."
         }
       }
     },
@@ -524,16 +923,16 @@
                     "vestidos",
                     "faldas",
                     "shorts",
-                    "bermudas",
                     "pantalones",
                     "conjuntos",
                     "ropa-de-bano",
                     "pijamas",
+                    "calzado",
+                    "sandalias",
                     "sombreros",
                     "gorros",
-                    "gorras",
-                    "sandalias",
                     "lentes",
+                    "cinturones",
                     "bolsos",
                     "otros"
                   ]
@@ -668,6 +1067,370 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 6000
+        }
+      }
+    },
+    "entrada_menu": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "nombre",
+        "orden"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 30,
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "description": "Slug: una subcategoría permitida para la categoría o el id de una colección."
+        },
+        "nombre": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 40,
+          "pattern": "^[^<>]*$"
+        },
+        "orden": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 99
+        },
+        "etiqueta": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 24,
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "description": "Solo en colecciones: etiqueta de producto que filtra (igual a la de site.colecciones)."
+        }
+      }
+    },
+    "coleccion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "nombre",
+        "descripcion",
+        "etiqueta",
+        "categorias"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 30,
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "nombre": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 40,
+          "pattern": "^[^<>]*$"
+        },
+        "descripcion": {
+          "type": "string",
+          "maxLength": 240,
+          "pattern": "^[^<>]*$"
+        },
+        "etiqueta": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 24,
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "description": "Los productos con esta etiqueta forman la colección."
+        },
+        "categorias": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "hombres",
+              "mujeres",
+              "ninos",
+              "accesorios"
+            ]
+          },
+          "description": "Categorías en cuyo menú aparece."
+        },
+        "imagen": {
+          "$ref": "#/$defs/imagen"
+        }
+      }
+    },
+    "envios": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cobertura",
+        "resumen",
+        "despacho",
+        "nota",
+        "gratis_desde",
+        "zonas",
+        "opciones"
+      ],
+      "description": "v3: envíos a todo el Perú desde Tarapoto (web, chat Vale y bot usan estos datos).",
+      "properties": {
+        "cobertura": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 40,
+          "pattern": "^[^<>]*$"
+        },
+        "resumen": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 200,
+          "pattern": "^[^<>]*$"
+        },
+        "despacho": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 240,
+          "pattern": "^[^<>]*$"
+        },
+        "nota": {
+          "type": "string",
+          "maxLength": 240,
+          "pattern": "^[^<>]*$"
+        },
+        "gratis_desde": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 9999,
+          "description": "Envío gratis cuando el subtotal llega a este monto (S/); null = nunca."
+        },
+        "zonas": {
+          "type": "array",
+          "minItems": 6,
+          "maxItems": 6,
+          "items": {
+            "$ref": "#/$defs/zona_envio"
+          }
+        },
+        "opciones": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/opcion_envio"
+          }
+        }
+      }
+    },
+    "zona_envio": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "nombre",
+        "departamentos"
+      ],
+      "properties": {
+        "id": {
+          "enum": [
+            "lima",
+            "costa_norte",
+            "costa_sur",
+            "sierra",
+            "selva",
+            "tarapoto"
+          ]
+        },
+        "nombre": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60,
+          "pattern": "^[^<>]*$"
+        },
+        "departamentos": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 25,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "Amazonas",
+              "Áncash",
+              "Apurímac",
+              "Arequipa",
+              "Ayacucho",
+              "Cajamarca",
+              "Callao",
+              "Cusco",
+              "Huancavelica",
+              "Huánuco",
+              "Ica",
+              "Junín",
+              "La Libertad",
+              "Lambayeque",
+              "Lima",
+              "Loreto",
+              "Madre de Dios",
+              "Moquegua",
+              "Pasco",
+              "Piura",
+              "Puno",
+              "San Martín",
+              "Tacna",
+              "Tumbes",
+              "Ucayali"
+            ]
+          }
+        },
+        "distritos": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 40,
+            "pattern": "^[^<>]*$"
+          },
+          "description": "Solo zonas locales: la zona aplica a ESTOS distritos de sus departamentos (tiene prioridad)."
+        }
+      }
+    },
+    "opcion_envio": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "nombre",
+        "descripcion",
+        "entrega",
+        "costo_desde",
+        "tiempo_promedio",
+        "tiempos",
+        "activa"
+      ],
+      "properties": {
+        "id": {
+          "enum": [
+            "shalom",
+            "olva",
+            "bus",
+            "local"
+          ]
+        },
+        "nombre": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 40,
+          "pattern": "^[^<>]*$"
+        },
+        "descripcion": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 240,
+          "pattern": "^[^<>]*$"
+        },
+        "entrega": {
+          "enum": [
+            "agencia",
+            "domicilio"
+          ],
+          "description": "agencia = el cliente recoge con DNI (pide agencia_destino); domicilio = pide direccion."
+        },
+        "costo_desde": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 999,
+          "description": "Tarifa plana nacional que se cobra en la demo (S/), salvo envío gratis."
+        },
+        "tiempo_promedio": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60,
+          "pattern": "^[^<>]*$",
+          "description": "Resumen corto para el chat y el bot."
+        },
+        "tiempos": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "lima",
+            "costa_norte",
+            "costa_sur",
+            "sierra",
+            "selva",
+            "tarapoto"
+          ],
+          "properties": {
+            "lima": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 2,
+              "maxLength": 80,
+              "pattern": "^[^<>]*$"
+            },
+            "costa_norte": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 2,
+              "maxLength": 80,
+              "pattern": "^[^<>]*$"
+            },
+            "costa_sur": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 2,
+              "maxLength": 80,
+              "pattern": "^[^<>]*$"
+            },
+            "sierra": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 2,
+              "maxLength": 80,
+              "pattern": "^[^<>]*$"
+            },
+            "selva": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 2,
+              "maxLength": 80,
+              "pattern": "^[^<>]*$"
+            },
+            "tarapoto": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 2,
+              "maxLength": 80,
+              "pattern": "^[^<>]*$"
+            }
+          },
+          "description": "Tiempo promedio por zona (texto, p. ej. \"2–3 días hábiles\"); null = esta opción no llega a esa zona."
+        },
+        "rastreo_url": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "^https://[^\\s<>\"'`]+$",
+          "description": "Opcional. {codigo} se reemplaza por el código de seguimiento."
+        },
+        "activa": {
+          "type": "boolean"
         }
       }
     }

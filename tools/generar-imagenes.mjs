@@ -13,7 +13,8 @@
 //   node tools/generar-imagenes.mjs --only hero-1 --seed 1201 --force --salida %TEMP%\cand
 //
 // Las imágenes que no pasaron el control de calidad con su seed del JSON se
-// regeneran con los AJUSTES_QA de este archivo (ver más abajo y docs/IMAGENES.md).
+// regeneran con los AJUSTES_QA de este archivo (ver más abajo y docs/IMAGENES.md):
+// seed nueva + `extra`, `prompt` o `sustituir` (reemplazos sobre el prompt).
 //
 // Opciones:
 //   --force              Regenera aunque el archivo exista.
@@ -43,7 +44,10 @@
 // (`generar`), en PNG (intermedio sin pérdida), y se recortan por arriba y se
 // codifican a WebP con el GraphicsMagick del contenedor n8n, por tubería
 // (docker exec -i n8n gm convert png:- ... webp:-). No se escribe nada en el
-// volumen del contenedor ni se cambia su configuración. Las demás se piden en
+// volumen del contenedor ni se cambia su configuración. Recomendado: no tocar
+// el n8n real y pasar --container con uno desechable de la misma imagen
+// (docker run -d --rm --name pb-gm-desechable --entrypoint sleep
+// docker.n8n.io/n8nio/n8n:2.40.7 1800). Las demás se piden en
 // WebP directo a sd-server (output_format webp, output_compression 80).
 
 import fs from 'node:fs';
@@ -174,6 +178,12 @@ async function vramActual() {
 // (`seed_original`); si alguien actualiza el JSON, manda el JSON. Así
 // `--force` reproduce exactamente las imágenes aprobadas (comprobado byte a byte).
 // Se ignoran con --sin-ajustes. Detalle en docs/IMAGENES.md.
+// Frase de paleta del sufijo "quiet luxury" del JSON. En productos de un solo
+// color, el azul y el verde oliva de la paleta acababan pintados en la prenda
+// (franjas, parches): esos ajustes la cambian por PALETA_NEUTRA con `sustituir`.
+const PALETA_OLD_MONEY = 'restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta';
+const PALETA_NEUTRA = 'restrained color palette of warm neutrals (cream, sand and warm beige), with the product as the only colored object';
+
 const AJUSTES_QA = {
   "assets/img/products/prd-0002-1.webp": {
     seed_original: 102,
@@ -241,13 +251,139 @@ const AJUSTES_QA = {
     seed: 1503,
     motivo: "intento anterior: frasco de bloqueador sin etiqueta ni texto",
     extra: "The sunscreen bottle is plain and completely blank: pure white plastic with no label, no printing, no letters, no symbols. The garments have no tags or labels."
+  },
+  // v3 (2026-10-07): línea old money y nuevas subcategorías. Seed +20000 sobre
+  // la del JSON (las variantes, +20000 sobre su seed 1xx0y).
+  "assets/img/products/prd-0021-camel.webp": {
+    seed_original: 121,
+    seed: 60121,
+    motivo: "etiqueta con letras en el cuello de la camisa (seeds 121 y 20121), letras en la plantilla y franja verde en el pantalón: se quita la camisa de la escena; con 40121 y 80121 el ante salía arena, no camel",
+    extra: "The suede is a warm medium camel tan, like caramel, clearly darker than sand. The insoles are plain smooth unbranded tan leather with no stamp, no print and no lettering.",
+    sustituir: [["next to a folded linen shirt", "next to a few fallen palm leaves"], [PALETA_OLD_MONEY, PALETA_NEUTRA]]
+  },
+  "assets/img/products/prd-0021-azul-marino.webp": {
+    seed_original: 12101,
+    seed: 72101,
+    motivo: "etiqueta en el cuello de la camisa (seeds 12101 y 32101): se quita la camisa; con 52101 y 92101 quedaban sellos tenues en las plantillas",
+    extra: "The insoles are plain smooth unbranded tan leather with no stamp, no print and no lettering.",
+    sustituir: [["next to a folded linen shirt", "next to a few fallen palm leaves"], [PALETA_OLD_MONEY, PALETA_NEUTRA]]
+  },
+  "assets/img/products/prd-0024-champan.webp": {
+    seed_original: 124,
+    seed: 40124,
+    motivo: "franjas/bloques azul y verde oliva en las mangas (seeds 124 y 20124): paleta neutra",
+    extra: "The blouse is one plain solid champagne color all over: no stripes, no prints, no color blocks on the sleeves, no tags.",
+    sustituir: [[PALETA_OLD_MONEY, PALETA_NEUTRA]]
+  },
+  "assets/img/products/prd-0024-blanco-hueso.webp": {
+    seed_original: 12401,
+    seed: 32401,
+    motivo: "marca negra con forma de número en el puño",
+    extra: "Plain blank cuffs and fabric with no embroidery, no monogram, no marks, no tags."
+  },
+  "assets/img/products/prd-0026-camel.webp": {
+    seed_original: 126,
+    seed: 80126,
+    motivo: "salía beige o con parches azul/verde/naranja (seeds 126 y 20126): paleta neutra; con 40126 salían hebillas y con 60126 letras en las plantillas",
+    extra: "The straps and insoles are entirely one warm camel tan leather color, no other colors, no buckles, no metal, no tags; the insoles are plain smooth unbranded leather with no stamp, no print and no lettering.",
+    sustituir: [[PALETA_OLD_MONEY, PALETA_NEUTRA]]
+  },
+  "assets/img/products/prd-0026-negro.webp": {
+    seed_original: 12602,
+    seed: 32602,
+    motivo: "plantilla verde oliva y tiras que tiraban a azul",
+    extra: "The straps, insoles and soles are all solid black leather, no other colors; the insoles are plain blank black leather with no printing."
+  },
+  "assets/img/products/prd-0028-blanco-hueso.webp": {
+    seed_original: 128,
+    seed: 40128,
+    motivo: "mancha turquesa en la camisa, bermuda naranja (no es conjunto) y etiqueta con letras en el cuello (seed 128): camisa abotonada hasta arriba; 20128 y 60128 dejaban letras en la etiqueta interior",
+    extra: "A matching set: both the shirt and the shorts are the same plain off-white linen, with no prints, no patches, no tags and no labels.",
+    sustituir: [["a off-white short-sleeve linen shirt with a Cuban collar", "an off-white short-sleeve linen shirt with a Cuban collar, buttoned all the way up to the top so the collar lies closed and flat"]]
+  },
+
+  "assets/img/products/prd-0033-carey.webp": {
+    seed_original: 133,
+    seed: 20133,
+    motivo: "posible marca grabada en la luna izquierda",
+    extra: "Full round tortoiseshell acetate frame with a keyhole bridge and small metal hinge rivets; plain dark green lenses with no markings, no logos, no text."
+  },
+  "assets/img/products/prd-0033-negro.webp": {
+    seed_original: 13301,
+    seed: 33301,
+    motivo: "puente metálico: no coincidía con la montura de acetato del modelo carey",
+    extra: "Full round glossy black acetate frame with a keyhole bridge, no metal bridge, small metal hinge rivets; plain dark lenses with no markings, no logos, no text."
+  },
+  "assets/img/products/prd-0034-camel.webp": {
+    seed_original: 134,
+    seed: 60134,
+    motivo: "trenzado bicolor camel y azul (seeds 134 y 20134): paleta neutra; con 40134 y 80134 la punta tenía agujeros (la ficha dice que no tiene)",
+    extra: "The belt is one single solid color, braided along its entire length right up to the buckle, with no punched holes and no plain leather tab; nothing else on the bench but the belt.",
+    sustituir: [[PALETA_OLD_MONEY, PALETA_NEUTRA]]
+  },
+  "assets/img/products/prd-0034-cacao.webp": {
+    seed_original: 13401,
+    seed: 33401,
+    motivo: "servilleta con estampado azul y naranja; agujeros en la punta",
+    extra: "The belt is one single solid color, braided along its entire length right up to the buckle, with no punched holes and no plain leather tab; nothing else on the bench but the belt."
+  },
+  "assets/img/products/prd-0034-azul-marino.webp": {
+    seed_original: 13402,
+    seed: 33402,
+    motivo: "agujeros en la punta (la ficha dice que no tiene); coherencia con camel y cacao",
+    extra: "The belt is one single solid color, braided along its entire length right up to the buckle, with no punched holes and no plain leather tab; nothing else on the bench but the belt."
+  },
+  "assets/img/products/prd-0035-natural.webp": {
+    seed_original: 135,
+    seed: 40135,
+    motivo: "franjas azul, terracota y verde que la ficha no tiene (seeds 135 y 20135): paleta neutra",
+    extra: "The raffia is one plain solid natural straw color, with no stripes, no bands and no pattern; plain tan leather handles.",
+    sustituir: [[PALETA_OLD_MONEY, PALETA_NEUTRA]]
+  },
+  "assets/img/products/prd-0035-crema.webp": {
+    seed_original: 13501,
+    seed: 33501,
+    motivo: "franjas de colores y tono igual al natural",
+    extra: "The raffia is one plain solid pale cream color, clearly lighter than natural straw, with no stripes, no bands and no pattern; cream leather handles."
+  },
+  "assets/img/products/prd-0036-beige.webp": {
+    seed_original: 136,
+    seed: 20136,
+    motivo: "etiqueta blanca asomando por el lateral",
+    extra: "Plain cap with no tags, no labels, no logos, nothing sticking out."
+  },
+  "assets/img/products/prd-0037-natural.webp": {
+    seed_original: 137,
+    seed: 20137,
+    motivo: "cinta con estampado de camuflaje",
+    extra: "The hat band is a thin plain solid navy blue cotton ribbon with no pattern, no stripes and no tag."
+  },
+  "assets/img/products/prd-0037-blanco-hueso.webp": {
+    seed_original: 13701,
+    seed: 33701,
+    motivo: "cinta a rayas con etiqueta roja; debe coincidir con la del natural",
+    extra: "The hat band is a thin plain solid navy blue cotton ribbon with no pattern, no stripes and no tag."
+  },
+  "assets/img/brand/col-old-money.webp": {
+    seed_original: 305,
+    seed: 40305,
+    motivo: "etiqueta con letras en el cuello del polo (seeds 305 y 20305) y marcas en las plantillas: polo abotonado con el cuello cerrado",
+    extra: "No tags or labels on any garment; the loafer insoles are plain blank leather; the belt is a single braided camel belt lying straight.",
+    sustituir: [["a folded cream open-knit polo shirt,", "a folded cream open-knit polo shirt buttoned up to the top with its collar closed flat,"]]
   }
 };
 
 function aplicarAjustes(e) {
   const a = AJUSTES_QA[e.path];
   if (!a || e.seed !== a.seed_original) return e;
-  return { ...e, seed: a.seed, prompt: a.prompt ?? e.prompt, extra_qa: a.extra || '', ajuste_qa: a.motivo };
+  let prompt = a.prompt ?? e.prompt;
+  // sustituir: [[texto del prompt, reemplazo], ...]; si un texto no aparece es
+  // un error (el JSON cambió y el ajuste quedó viejo).
+  for (const [de, por] of a.sustituir || []) {
+    if (!prompt.includes(de)) throw new Error(`AJUSTES_QA ${e.path}: no aparece "${de}" en el prompt`);
+    prompt = prompt.split(de).join(por);
+  }
+  return { ...e, seed: a.seed, prompt, extra_qa: a.extra || '', ajuste_qa: a.motivo };
 }
 
 // ---------- servicios ----------

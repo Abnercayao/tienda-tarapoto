@@ -18,7 +18,7 @@
       "pattern": "^\\./schema/[a-z-]+\\.schema\\.json$"
     },
     "schema_version": {
-      "const": 2,
+      "const": 3,
       "description": "Versión del contrato (cambia solo si cambia el esquema). v2 desde 2026-10-07."
     },
     "version": {
@@ -109,16 +109,16 @@
             "vestidos",
             "faldas",
             "shorts",
-            "bermudas",
             "pantalones",
             "conjuntos",
             "ropa-de-bano",
             "pijamas",
+            "calzado",
+            "sandalias",
             "sombreros",
             "gorros",
-            "gorras",
-            "sandalias",
             "lentes",
+            "cinturones",
             "bolsos",
             "otros"
           ]

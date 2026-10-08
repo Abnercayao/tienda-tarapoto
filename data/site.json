@@ -1,8 +1,8 @@
 {
   "$schema": "./schema/site.schema.json",
-  "schema_version": 2,
-  "version": 2,
-  "actualizado": "2026-10-07T06:34:49-05:00",
+  "schema_version": 3,
+  "version": 3,
+  "actualizado": "2026-10-07T10:00:00-05:00",
   "borradores_aplicados": [],
   "nombre": "Palmera Brava",
   "lema": "Ropa fresca para el calor de la selva",
@@ -30,12 +30,15 @@
       }
     ]
   },
-  "envio": "Coordinamos la entrega por WhatsApp. Delivery en motocarro dentro de Tarapoto; el costo y las demás zonas se confirman al momento del pedido.",
+  "envio": "Enviamos a todo el Perú con Shalom, Olva Courier o la agencia de bus que prefieras. En Tarapoto, Morales y La Banda de Shilcayo entregamos el mismo día.",
   "zonas_reparto": [
-    "Tarapoto"
+    "Todo el Perú"
   ],
-  "metodos_pago": [],
-  "anuncio": "Pide por WhatsApp · Atendemos todos los días de 8:00 a. m. a 8:00 p. m.",
+  "metodos_pago": [
+    "Mercado Pago",
+    "Tarjetas de crédito y débito"
+  ],
+  "anuncio": "Envíos a todo el Perú · Paga seguro con Mercado Pago · Atendemos todos los días de 8:00 a. m. a 8:00 p. m.",
   "redes": [],
   "mapa": {
     "embed": "https://www.openstreetmap.org/export/embed.html?bbox=-76.3900%2C-6.5100%2C-76.3400%2C-6.4650&layer=mapnik",
@@ -46,6 +49,13 @@
   },
   "hero": {
     "imagenes": [
+      {
+        "src": "assets/img/brand/hero-old-money.webp",
+        "alt": "Polo de punto calado crema con pantalón de lino plisado beige en un modelo adulto, encuadre sin rostro, frente a una pared colonial con sombras de palmera",
+        "origen": "ia_local",
+        "ancho": 1344,
+        "alto": 768
+      },
       {
         "src": "assets/img/brand/hero-1.webp",
         "alt": "Camisa de lino arena y vestido terracota en modelos adultos, encuadre sin rostro, frente a una pared cálida con sombras de palmera",
@@ -60,32 +70,105 @@
         "ancho": 1344,
         "alto": 768
       }
-    ]
+    ],
+    "producto_destacado": "prd-0019",
+    "etiqueta_destacado": "Nuevo · Línea old money"
   },
   "categorias": [
     {
       "id": "hombres",
       "nombre": "Hombres",
-      "descripcion": "Camisas de lino, guayaberas, polos pima y bermudas frescas.",
+      "descripcion": "Camisas de lino, polos, pantalones, shorts y calzado; también la línea old money.",
       "imagen": {
         "src": "assets/img/brand/cat-hombres.webp",
         "alt": "Guayabera blanca en un modelo adulto, encuadre de hombros a cintura sin rostro",
         "origen": "ia_local",
         "ancho": 768,
         "alto": 1024
-      }
+      },
+      "subcategorias": [
+        {
+          "id": "camisas",
+          "nombre": "Camisas",
+          "orden": 1
+        },
+        {
+          "id": "polos",
+          "nombre": "Polos",
+          "orden": 2
+        },
+        {
+          "id": "pantalones",
+          "nombre": "Pantalones",
+          "orden": 3
+        },
+        {
+          "id": "shorts",
+          "nombre": "Shorts y bermudas",
+          "orden": 4
+        },
+        {
+          "id": "calzado",
+          "nombre": "Zapatillas y mocasines",
+          "orden": 5
+        },
+        {
+          "id": "old-money",
+          "nombre": "Old money",
+          "orden": 6,
+          "etiqueta": "old-money"
+        }
+      ]
     },
     {
       "id": "mujeres",
       "nombre": "Mujeres",
-      "descripcion": "Vestidos, blusas, shorts y palazzos ligeros.",
+      "descripcion": "Vestidos, blusas, pantalones, faldas y sandalias ligeras; también la línea old money.",
       "imagen": {
         "src": "assets/img/brand/cat-mujeres.webp",
         "alt": "Vestido de lino en una modelo adulta, encuadre desde los hombros sin rostro",
         "origen": "ia_local",
         "ancho": 768,
         "alto": 1024
-      }
+      },
+      "subcategorias": [
+        {
+          "id": "vestidos",
+          "nombre": "Vestidos",
+          "orden": 1
+        },
+        {
+          "id": "blusas",
+          "nombre": "Blusas",
+          "orden": 2
+        },
+        {
+          "id": "pantalones",
+          "nombre": "Pantalones",
+          "orden": 3
+        },
+        {
+          "id": "shorts",
+          "nombre": "Shorts",
+          "orden": 4
+        },
+        {
+          "id": "faldas",
+          "nombre": "Faldas",
+          "orden": 5
+        },
+        {
+          "id": "sandalias",
+          "nombre": "Sandalias",
+          "orden": 6
+        },
+        {
+          "id": "old-money",
+          "nombre": "Old money",
+          "orden": 7,
+          "etiqueta": "old-money"
+        }
+      ]
     },
     {
       "id": "ninos",
@@ -97,15 +180,100 @@
         "origen": "ia_local",
         "ancho": 768,
         "alto": 1024
-      }
+      },
+      "subcategorias": [
+        {
+          "id": "polos",
+          "nombre": "Polos",
+          "orden": 1
+        },
+        {
+          "id": "vestidos",
+          "nombre": "Vestidos",
+          "orden": 2
+        },
+        {
+          "id": "shorts",
+          "nombre": "Shorts y bermudas",
+          "orden": 3
+        },
+        {
+          "id": "conjuntos",
+          "nombre": "Conjuntos",
+          "orden": 4
+        },
+        {
+          "id": "ropa-de-bano",
+          "nombre": "Ropa de baño UV",
+          "orden": 5
+        },
+        {
+          "id": "gorros",
+          "nombre": "Gorros y sombreros",
+          "orden": 6
+        }
+      ]
     },
     {
       "id": "accesorios",
       "nombre": "Accesorios",
-      "descripcion": "Sombreros, gorros, sandalias y bolsos para el calor.",
+      "descripcion": "Sombreros, lentes de sol, cinturones, bolsos y sandalias para el calor.",
       "imagen": {
         "src": "assets/img/brand/cat-accesorios.webp",
         "alt": "Sombrero de palma, sandalias de cuero y bolso de yute sobre un banco de madera",
+        "origen": "ia_local",
+        "ancho": 768,
+        "alto": 1024
+      },
+      "subcategorias": [
+        {
+          "id": "sombreros",
+          "nombre": "Sombreros y gorras",
+          "orden": 1
+        },
+        {
+          "id": "lentes",
+          "nombre": "Lentes de sol",
+          "orden": 2
+        },
+        {
+          "id": "cinturones",
+          "nombre": "Cinturones",
+          "orden": 3
+        },
+        {
+          "id": "bolsos",
+          "nombre": "Bolsos",
+          "orden": 4
+        },
+        {
+          "id": "sandalias",
+          "nombre": "Sandalias",
+          "orden": 5
+        },
+        {
+          "id": "old-money",
+          "nombre": "Old money",
+          "orden": 6,
+          "etiqueta": "old-money"
+        }
+      ]
+    }
+  ],
+  "colecciones": [
+    {
+      "id": "old-money",
+      "nombre": "Old money",
+      "descripcion": "Elegancia tranquila para el trópico: lino, punto calado, seda lavada y cuero en crema, beige, azul marino y verde oliva.",
+      "etiqueta": "old-money",
+      "categorias": [
+        "hombres",
+        "mujeres",
+        "accesorios"
+      ],
+      "imagen": {
+        "src": "assets/img/brand/col-old-money.webp",
+        "alt": "Polo de punto calado crema, pantalón de lino azul marino, lentes carey, cinturón trenzado y mocasines de ante sobre una superficie de ratán, sin personas",
         "origen": "ia_local",
         "ancho": 768,
         "alto": 1024
@@ -297,7 +465,6 @@
         "categoria": "hombres",
         "subcategorias": [
           "shorts",
-          "bermudas",
           "pantalones",
           "ropa-de-bano"
         ],
@@ -351,6 +518,60 @@
           ]
         ],
         "nota": "Las bermudas con cordón y pretina elástica se ajustan unos 4 cm a la cintura."
+      },
+      {
+        "id": "hombres-calzado",
+        "categoria": "hombres",
+        "subcategorias": [
+          "calzado"
+        ],
+        "titulo": "Hombres · Zapatillas y mocasines",
+        "medidas": [
+          "pie"
+        ],
+        "columnas": [
+          "Talla (Perú)",
+          "EU",
+          "Largo del pie (cm)"
+        ],
+        "filas": [
+          [
+            "38",
+            "38",
+            "24.5"
+          ],
+          [
+            "39",
+            "39",
+            "25"
+          ],
+          [
+            "40",
+            "40",
+            "25.5"
+          ],
+          [
+            "41",
+            "41",
+            "26.5"
+          ],
+          [
+            "42",
+            "42",
+            "27"
+          ],
+          [
+            "43",
+            "43",
+            "27.5"
+          ],
+          [
+            "44",
+            "44",
+            "28.5"
+          ]
+        ],
+        "nota": "Los mocasines de ante ceden un poco con el uso: si estás entre dos tallas, elige la menor. En zapatillas, la mayor."
       },
       {
         "id": "mujeres-blusas-vestidos",
@@ -422,7 +643,6 @@
         "categoria": "mujeres",
         "subcategorias": [
           "shorts",
-          "bermudas",
           "faldas",
           "pantalones"
         ],
@@ -478,6 +698,56 @@
         "nota": "Shorts de tiro alto: mide la cintura a la altura del ombligo."
       },
       {
+        "id": "mujeres-calzado",
+        "categoria": "mujeres",
+        "subcategorias": [
+          "sandalias",
+          "calzado"
+        ],
+        "titulo": "Mujeres · Sandalias y calzado",
+        "medidas": [
+          "pie"
+        ],
+        "columnas": [
+          "Talla (Perú)",
+          "EU",
+          "Largo del pie (cm)"
+        ],
+        "filas": [
+          [
+            "35",
+            "35",
+            "22.5"
+          ],
+          [
+            "36",
+            "36",
+            "23"
+          ],
+          [
+            "37",
+            "37",
+            "23.5"
+          ],
+          [
+            "38",
+            "38",
+            "24.5"
+          ],
+          [
+            "39",
+            "39",
+            "25"
+          ],
+          [
+            "40",
+            "40",
+            "25.5"
+          ]
+        ],
+        "nota": "En sandalias planas abiertas, si tu pie mide entre dos tallas, elige la mayor."
+      },
+      {
         "id": "ninos-por-edad",
         "categoria": "ninos",
         "subcategorias": [
@@ -487,14 +757,11 @@
           "vestidos",
           "faldas",
           "shorts",
-          "bermudas",
           "pantalones",
           "conjuntos",
           "ropa-de-bano",
           "pijamas",
           "gorros",
-          "gorras",
-          "sombreros",
           "sandalias",
           "otros"
         ],
@@ -575,11 +842,9 @@
         "id": "accesorios-sombreros",
         "categoria": "accesorios",
         "subcategorias": [
-          "sombreros",
-          "gorros",
-          "gorras"
+          "sombreros"
         ],
-        "titulo": "Sombreros y gorros · Por contorno de cabeza",
+        "titulo": "Sombreros y gorras · Por contorno de cabeza",
         "medidas": [
           "cabeza"
         ],
@@ -675,11 +940,256 @@
           ]
         ],
         "nota": "En nuestra tienda la talla peruana equivale a la numeración europea (EU). En sandalias abiertas, si tu pie mide entre dos tallas, elige la mayor."
+      },
+      {
+        "id": "accesorios-cinturones",
+        "categoria": "accesorios",
+        "subcategorias": [
+          "cinturones"
+        ],
+        "titulo": "Cinturones · Por contorno de cintura",
+        "medidas": [
+          "cintura"
+        ],
+        "columnas": [
+          "Talla",
+          "Cintura (cm)",
+          "Largo total (cm)"
+        ],
+        "filas": [
+          [
+            "S",
+            "70–80",
+            "100"
+          ],
+          [
+            "M",
+            "80–90",
+            "110"
+          ],
+          [
+            "L",
+            "90–100",
+            "120"
+          ]
+        ],
+        "nota": "Mide tu cintura a la altura donde usas el pantalón. Los cinturones trenzados se ajustan en cualquier punto."
       }
     ]
   },
   "mensajes": {
     "pedido": "Hola Palmera Brava, quiero hacer un pedido:",
     "consulta": "Hola Palmera Brava, quisiera hacer una consulta."
+  },
+  "temperatura_promedio": "38°",
+  "asistente": {
+    "nombre": "Vale",
+    "rol": "Asesora de Palmera Brava",
+    "saludo": "¡Hola! Soy Vale, asesora de Palmera Brava. ¿Buscas algo fresco para los 38° de Tarapoto? Te ayudo con tallas, envíos a todo el Perú y el seguimiento de tu pedido.",
+    "acciones": [
+      "Hacer seguimiento de mi pedido",
+      "Opciones de envío y tiempos",
+      "Ayúdame con mi talla",
+      "Ver la línea old money"
+    ]
+  },
+  "envios": {
+    "cobertura": "Todo el Perú",
+    "resumen": "Envíos a todo el Perú desde Tarapoto con Shalom, Olva Courier o la agencia de bus que prefieras.",
+    "despacho": "Despachamos de lunes a sábado. Si tu pago se confirma antes de la 1:00 p. m., tu pedido sale el mismo día; si no, el siguiente día hábil.",
+    "nota": "Los tiempos son promedios en días hábiles desde el despacho y pueden variar por lluvias o el estado de las carreteras.",
+    "gratis_desde": 299,
+    "zonas": [
+      {
+        "id": "lima",
+        "nombre": "Lima y Callao",
+        "departamentos": [
+          "Lima",
+          "Callao"
+        ]
+      },
+      {
+        "id": "costa_norte",
+        "nombre": "Costa norte",
+        "departamentos": [
+          "Tumbes",
+          "Piura",
+          "Lambayeque",
+          "La Libertad",
+          "Áncash"
+        ]
+      },
+      {
+        "id": "costa_sur",
+        "nombre": "Costa sur",
+        "departamentos": [
+          "Ica",
+          "Arequipa",
+          "Moquegua",
+          "Tacna"
+        ]
+      },
+      {
+        "id": "sierra",
+        "nombre": "Sierra",
+        "departamentos": [
+          "Cajamarca",
+          "Huánuco",
+          "Pasco",
+          "Junín",
+          "Huancavelica",
+          "Ayacucho",
+          "Apurímac",
+          "Cusco",
+          "Puno"
+        ]
+      },
+      {
+        "id": "selva",
+        "nombre": "Selva",
+        "departamentos": [
+          "San Martín",
+          "Amazonas",
+          "Loreto",
+          "Ucayali",
+          "Madre de Dios"
+        ]
+      },
+      {
+        "id": "tarapoto",
+        "nombre": "Tarapoto, Morales y La Banda de Shilcayo",
+        "departamentos": [
+          "San Martín"
+        ],
+        "distritos": [
+          "Tarapoto",
+          "Morales",
+          "La Banda de Shilcayo"
+        ]
+      }
+    ],
+    "opciones": [
+      {
+        "id": "shalom",
+        "nombre": "Shalom",
+        "entrega": "agencia",
+        "costo_desde": 15,
+        "activa": true,
+        "descripcion": "Recoges en la agencia Shalom de tu ciudad con tu DNI y la clave de 4 dígitos que te enviamos por privado.",
+        "tiempo_promedio": "2 a 6 días hábiles según el destino",
+        "tiempos": {
+          "lima": "2–3 días hábiles",
+          "costa_norte": "2–4 días hábiles",
+          "costa_sur": "4–6 días hábiles",
+          "sierra": "4–6 días hábiles",
+          "selva": "1–2 días hábiles en San Martín; 3–6 al resto de la selva",
+          "tarapoto": "1 día hábil (agencia Shalom Tarapoto)"
+        },
+        "rastreo_url": "https://shalom.com.pe/rastrea"
+      },
+      {
+        "id": "olva",
+        "nombre": "Olva Courier",
+        "entrega": "domicilio",
+        "costo_desde": 22,
+        "activa": true,
+        "descripcion": "Te lo llevan a tu domicilio; si no estás, lo dejan en la tienda Olva más cercana.",
+        "tiempo_promedio": "2 a 5 días hábiles según el destino",
+        "tiempos": {
+          "lima": "2–3 días hábiles",
+          "costa_norte": "2–4 días hábiles",
+          "costa_sur": "3–5 días hábiles",
+          "sierra": "3–5 días hábiles",
+          "selva": "2–5 días hábiles",
+          "tarapoto": "1 día hábil"
+        },
+        "rastreo_url": "https://tracking.olvacourier.com/?q={codigo}"
+      },
+      {
+        "id": "bus",
+        "nombre": "Agencia de bus de tu preferencia",
+        "entrega": "agencia",
+        "costo_desde": 12,
+        "activa": true,
+        "descripcion": "Lo dejamos en la empresa de buses que elijas (por ejemplo Movil Bus o Civa) y lo recoges en su terminal con tu DNI y el número de guía.",
+        "tiempo_promedio": "1 a 5 días hábiles según la ruta",
+        "tiempos": {
+          "lima": "1–2 días hábiles",
+          "costa_norte": "1–2 días hábiles",
+          "costa_sur": "3–5 días hábiles (con transbordo)",
+          "sierra": "3–5 días hábiles (con transbordo)",
+          "selva": "1 día hábil en San Martín; 2–4 al resto de la selva",
+          "tarapoto": null
+        }
+      },
+      {
+        "id": "local",
+        "nombre": "Entrega local en Tarapoto",
+        "entrega": "domicilio",
+        "costo_desde": 7,
+        "activa": true,
+        "descripcion": "Te lo llevamos a tu casa en Tarapoto, Morales o La Banda de Shilcayo.",
+        "tiempo_promedio": "el mismo día",
+        "tiempos": {
+          "lima": null,
+          "costa_norte": null,
+          "costa_sur": null,
+          "sierra": null,
+          "selva": null,
+          "tarapoto": "el mismo día si pagas antes de las 3:00 p. m.; si no, en 24 horas"
+        }
+      }
+    ]
+  },
+  "pagos": {
+    "mercadopago": {
+      "activo": true,
+      "modo": "prueba",
+      "public_key": "",
+      "nota": "Paga con tarjeta de crédito o débito, Yape o PagoEfectivo a través de Mercado Pago."
+    }
+  },
+  "textos": {
+    "checkout": {
+      "titulo": "Finalizar compra",
+      "paso_contacto": "Tus datos",
+      "paso_envio": "Envío",
+      "paso_pago": "Pago",
+      "nota_envio": "Despachamos desde Tarapoto de lunes a sábado. El tiempo de entrega se cuenta desde que confirmamos tu pago.",
+      "boton_pagar": "Pagar con Mercado Pago",
+      "aviso_prueba": "Modo de prueba: paga con las tarjetas de prueba de Mercado Pago. No se hace ningún cobro real.",
+      "guardar_datos": "Guardar mis datos en este dispositivo para comprar más rápido",
+      "privacidad": "Usamos tus datos solo para preparar, enviar y darle seguimiento a tu pedido."
+    },
+    "pedido": {
+      "titulo_pagado": "¡Gracias! Recibimos tu pago",
+      "texto_pagado": "Ya estamos preparando tu pedido. Guarda tu número para hacerle seguimiento cuando quieras.",
+      "titulo_pendiente": "Tu pedido está reservado",
+      "texto_pendiente": "Completa el pago con Mercado Pago para que lo preparemos. Si ya pagaste, la confirmación puede tardar unos minutos.",
+      "titulo_rechazado": "El pago no se completó",
+      "texto_rechazado": "No se hizo ningún cobro. Puedes intentarlo de nuevo con otra tarjeta o escribirnos por WhatsApp."
+    },
+    "seguimiento": {
+      "titulo": "Seguimiento de pedido",
+      "intro": "Escribe tu número de pedido (por ejemplo, PB-000123) y el correo con el que compraste.",
+      "boton": "Consultar",
+      "no_encontrado": "No encontramos un pedido con ese número y correo. Revisa los datos o escríbenos por WhatsApp.",
+      "ayuda": "Tu número de pedido aparece al finalizar la compra y queda guardado en Mi cuenta en este dispositivo."
+    },
+    "cuenta": {
+      "titulo": "Mi cuenta",
+      "intro": "Guardamos tus datos de envío y tus números de pedido solo en este dispositivo, sin contraseña.",
+      "vacio": "Aún no tienes pedidos guardados en este dispositivo.",
+      "olvidar": "Olvidar mis datos en este dispositivo"
+    },
+    "estados_pedido": {
+      "pendiente_pago": "Pendiente de pago",
+      "pagado": "Pagado",
+      "preparando": "Preparando tu pedido",
+      "enviado": "Enviado",
+      "listo_recojo": "Listo para recoger",
+      "entregado": "Entregado",
+      "cancelado": "Cancelado"
+    }
   }
 }

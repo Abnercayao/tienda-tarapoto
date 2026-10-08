@@ -320,12 +320,12 @@ async function flujoWF4(t, o) {
   N = await op('marketing', { op: 'eliminar', entidad: 'producto', id: 'prd-0001', campos: {} });
   caso('marketing no puede /borrar ni aunque llegue a WF3', N['Armar borrador'][0].accion === 'mensaje' && /no puede/.test(N['Mensajes'][0].cuerpo.text));
   N = await op('dueno', { op: 'limpiar_muestras', entidad: 'producto', id: null, campos: { cantidad_confirmada: null } });
-  caso('/limpiar_muestras sin número: dice cuántos hay (16) y pide el número exacto', N['Armar borrador'][0].accion === 'mensaje' && /Hay 16 productos de muestra/.test(N['Mensajes'][0].cuerpo.text) && /\/limpiar_muestras 16/.test(N['Mensajes'][0].cuerpo.text));
+  caso('/limpiar_muestras sin número: dice cuántos hay (36) y pide el número exacto', N['Armar borrador'][0].accion === 'mensaje' && /Hay 36 productos de muestra/.test(N['Mensajes'][0].cuerpo.text) && /\/limpiar_muestras 36/.test(N['Mensajes'][0].cuerpo.text));
   N = await op('dueno', { op: 'limpiar_muestras', entidad: 'producto', id: null, campos: { cantidad_confirmada: 15 } });
   caso('/limpiar_muestras 15 (no coincide) -> sin borrador', N['Armar borrador'][0].accion === 'mensaje' && /no coincide/.test(N['Mensajes'][0].cuerpo.text));
-  N = await op('admin', { op: 'limpiar_muestras', entidad: 'producto', id: null, campos: { cantidad_confirmada: 16 } });
+  N = await op('admin', { op: 'limpiar_muestras', entidad: 'producto', id: null, campos: { cantidad_confirmada: 36 } });
   a = N['Armar borrador'][0];
-  caso('/limpiar_muestras 16 -> borrador con cantidad 16 y doble confirmación', a.accion === 'crear' && JSON.parse(a.fila.campos).cantidad === 16 && a.fila.confirmaciones_requeridas === 2);
+  caso('/limpiar_muestras 36 -> borrador con cantidad 36 y doble confirmación', a.accion === 'crear' && JSON.parse(a.fila.campos).cantidad === 36 && a.fila.confirmaciones_requeridas === 2);
   N = await op('dueno', { op: 'whatsapp', entidad: 'sitio', id: 'site', campos: { whatsapp: '51987654321' } });
   caso('/whatsapp con número de ejemplo -> rechazado', N['Armar borrador'][0].accion === 'mensaje' && /ejemplo/.test(N['Mensajes'][0].cuerpo.text));
   N = await op('dueno', { op: 'whatsapp', entidad: 'sitio', id: 'site', campos: { whatsapp: '51955512345' } });
@@ -400,7 +400,7 @@ async function flujoWF4(t, o) {
   N4['Interpretar'] = [{ ruta: 'consulta', cmd: 'lista', filtro: 'hombres' }];
   N4['GET productos'] = [gh(DOCS.products)];
   let m = (await correr(W4, 'Consulta', [gh(DOCS.articles)], N4))[0];
-  caso('/lista hombres: 5 productos con precio y oferta', /Productos de hombres \(5\)/.test(m.cuerpo.text) && /prd-0001 · Camisa de lino manga corta · S\/ 89\.90 \(oferta S\/ 74\.90\)/.test(m.cuerpo.text) && terminaBien(m));
+  caso('/lista hombres: 10 productos con precio y oferta', /Productos de hombres \(10\)/.test(m.cuerpo.text) && /prd-0001 · Camisa de lino manga corta · S\/ 89\.90 \(oferta S\/ 74\.90\)/.test(m.cuerpo.text) && terminaBien(m));
   N4['Interpretar'] = [{ ruta: 'consulta', cmd: 'ver', id: 'prd-0001' }];
   m = (await correr(W4, 'Consulta', [gh(DOCS.articles)], N4))[0];
   caso('v2 /ver prd-0001: stock por color, frescura y comandos sugeridos', /stock por color: Arena 12, Blanco hueso 7 \(total 19\)/.test(m.cuerpo.text) && /frescura: 5\/5 hojitas/.test(m.cuerpo.text) && /\/stock prd-0001 Arena 5/.test(m.cuerpo.text) && /\/precio prd-0001/.test(m.cuerpo.text), m.cuerpo.text);

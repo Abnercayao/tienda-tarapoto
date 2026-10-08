@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- * n8n/src/chat/construir-wf11.js — Genera n8n/workflows/WF11-chat-vendedor.json (agente vendedor "Valeria" de la web).
+ * n8n/src/chat/construir-wf11.js — Genera n8n/workflows/WF11-chat-vendedor.json (agente vendedor "Vale" de la web).
  *   node n8n/src/chat/construir-wf11.js
  * Mismo patrón que n8n/tools/construir-negocio-b.js. Código de los nodos Code: n8n/src/chat/wf11.js (secciones "//// <Nodo>").
  *   "// @incluir validar.js"      -> bloque "COPIAR A N8N ... FIN" de tools/validar.js (frescura y stock con la misma regla que la web)
@@ -17,7 +17,7 @@ const crypto = require('crypto');
 const RAIZ = path.resolve(__dirname, '..', '..', '..');
 const SRC = __dirname;
 const SALIDA = path.join(RAIZ, 'n8n', 'workflows');
-const ID = { WF11: 'pbWf11ChatVend00', WF9: 'pbWf09Errores000' };
+const ID = { WF11: 'pbWf11ChatVend00', WF9: 'pbWf09Errores000', WF15: 'pbWf15PedSegui00' };
 const CRED_TELEGRAM = { telegramApi: { id: 'pbCredTelegram01', name: 'Telegram Palmera Brava' } };
 const ORIGENES_CHAT = 'https://abnercayao.github.io,http://127.0.0.1:8080,http://localhost:8080';
 const ARCHIVO = 'WF11-chat-vendedor.json';
@@ -166,6 +166,11 @@ function http(W, name, metodo, url, cuerpo, timeout, pos) {
   if (cuerpo) Object.assign(p, { sendBody: true, contentType: 'json', specifyBody: 'json', jsonBody: cuerpo });
   return W.nodo(name, 'httpRequest', 4.5, pos, p, { onError: 'continueRegularOutput', executeOnce: true });
 }
+function ejecutar(W, name, destino, pos) {
+  return W.nodo(name, 'executeWorkflow', 1.3, pos, { source: 'database', workflowId: { __rl: true, mode: 'id', value: destino },
+    workflowInputs: { mappingMode: 'defineBelow', value: {}, matchingColumns: [], schema: [], attemptToConvertTypes: false, convertFieldsToString: true },
+    mode: 'once', options: { waitForSubWorkflow: true } }, { onError: 'continueRegularOutput', alwaysOutputData: true });
+}
 const COMUNES = { executionOrder: 'v1', timezone: 'America/Lima', saveDataSuccessExecution: 'none', saveDataErrorExecution: 'all', errorWorkflow: ID.WF9 };
 const X = function (c) { return c * 240; };
 
@@ -176,7 +181,7 @@ function wf11() {
   // Ollama del chat 45 s (la web espera 60 s) + aprendizaje 90 s + Telegram: 5 min como techo.
   const W = workflow(ID.WF11, 'PB WF11 Chat-Vendedor', Object.assign({}, COMUNES, { executionTimeout: 300 }), 'wf11.js');
   const CFG = "$('Config').first().json";
-  W.nota('## WF11 · Chat-Vendedor ("Valeria", web)\n`POST /webhook/chat-tienda` **sin clave**: solo escucha en 127.0.0.1 y lo llama `tools/chat-proxy.py` (túnel Cloudflare). Allowed Origins `' + ORIGENES_CHAT + '`.\nCuerpo `{sessionId, mensaje, pagina}` → `{respuesta, escribiendo_ms, cita?}`. 400 = pedido inválido, 429 = límite (20/sesión y 40/IP en 10 min).\n1. Tablas propias (`createIfNotExists`): `pb_citas`, `pb_chat_mensajes`, `pb_chat_aprendizaje`.\n2. Historial (12), notas aprendidas, citas ocupadas y catálogo de la web (caché 10 min).\n3. Ollama `llama3.1:8b` con esquema JSON (45 s; si falla: respaldo con WhatsApp).\n4. **Reglas fijas** (`Interpretar`): valida datos, muestra resumen y agenda solo tras el "sí".\n5. Responde y DESPUÉS: aprendizaje (cada 6 mensajes o al agendar) y aviso a los admins por Telegram (mensaje + `.ics`).\nDetalle: `docs/CHAT-VENDEDOR.md`.', [X(0) - 40, -1000], 980, 460, 4);
+  W.nota('## WF11 · Chat-Vendedor ("Vale", web)\n`POST /webhook/chat-tienda` **sin clave**: solo escucha en 127.0.0.1 y lo llama `tools/chat-proxy.py` (túnel Cloudflare). Allowed Origins `' + ORIGENES_CHAT + '`.\nCuerpo `{sessionId, mensaje, pagina}` → `{respuesta, escribiendo_ms, cita?, accion?, pedido?}`. 400 = pedido inválido, 429 = límite (20/sesión y 40/IP en 10 min).\n1. Tablas propias (`createIfNotExists`): `pb_citas`, `pb_chat_mensajes`, `pb_chat_aprendizaje`.\n2. Historial (12), notas aprendidas, citas ocupadas y catálogo de la web (caché 10 min).\n3. Ollama `llama3.1:8b` con esquema JSON (45 s; si falla: respaldo con WhatsApp).\n4. **Reglas fijas** (`Interpretar`): valida datos, muestra resumen y agenda solo tras el "sí".\n5. Responde y DESPUÉS: aprendizaje (cada 6 mensajes o al agendar) y aviso a los admins por Telegram (mensaje + `.ics`).\nDetalle: `docs/CHAT-VENDEDOR.md`.', [X(0) - 40, -1000], 980, 460, 4);
   W.nodo('POST chat-tienda', 'webhook', 2.1, [X(0), 0], { httpMethod: 'POST', path: 'chat-tienda', responseMode: 'responseNode', options: { allowedOrigins: ORIGENES_CHAT } },
     { webhookId: uuid('webhook|' + ID.WF11 + '|chat-tienda') });
   W.code('Validar', [X(1), 0]);
@@ -194,6 +199,14 @@ function wf11() {
   W.code('Catálogo', [X(12), 0]);
   W.code('Preparar', [X(13), 0]);
   si(W, '¿Llamar IA?', '={{ $json.llamar_ia === true }}', [X(14), 0]);
+  W.nota('### v3 · Seguimiento de pedido (sin IA)\n"Hacer seguimiento de mi pedido", "¿dónde está mi pedido?", "PB-000123"… → con número y correo llama a **WF15** (sub-workflow, debe estar publicado) y responde el estado con la vista pública (sin datos personales). Si falta un dato, lo pide y devuelve `accion: "formulario_seguimiento"` (la web muestra el formulario dentro del chat).', [X(15) - 40, 560], 1700, 420, 5);
+  si(W, '¿Seguimiento?', '={{ $json.seguimiento === true }}', [X(15), 720]);
+  si(W, '¿Consultar pedido?', '={{ $json.consultar === true }}', [X(16), 720]);
+  ejecutar(W, 'WF15 Seguimiento', ID.WF15, [X(17), 640]);
+  W.code('Respuesta seguimiento', [X(18), 760]);
+  W.code('Filas seguimiento', [X(19), 760]);
+  dtInsertar(W, 'Guardar seguimiento', 'pb_chat_mensajes', [X(20), 760], { onError: 'continueRegularOutput' });
+  W.code('Cuerpo seguimiento', [X(21), 760]);
   W.nota('### 2 · IA y reglas fijas\nOllama `/api/chat` (`format` = esquema JSON, `num_ctx 8192`, `temperature 0.6`, `keep_alive 10m`, 45 s). `Interpretar`: honestidad (si preguntan, es IA), solo enlaces de wa.me y del sitio, datos de la cita validados; la cita se guarda solo tras el resumen y el "sí". `Revisar citas` vuelve a mirar choques y el tope de 2 citas futuras por contacto justo antes de guardar.', [X(15) - 40, -320], 1900, 500, 6);
   http(W, 'Ollama', 'POST', '={{ ' + CFG + '.OLLAMA_URL }}/api/chat', '={{ JSON.stringify($json.cuerpo) }}', 45000, [X(15), 0]);
   W.code('Interpretar', [X(16), 0]);
@@ -229,7 +242,10 @@ function wf11() {
   W.cadena('POST chat-tienda', 'Validar', '¿Válido?');
   W.con('¿Válido?', 'Crear pb_citas', 0); W.con('¿Válido?', 'Responder', 1);
   W.cadena('Crear pb_citas', 'Crear pb_chat_mensajes', 'Crear pb_chat_aprendizaje', 'Leer config', 'Config', 'Recientes', 'Historial', 'Aprendizaje', 'Citas', 'Catálogo', 'Preparar', '¿Llamar IA?');
-  W.con('¿Llamar IA?', 'Ollama', 0); W.con('¿Llamar IA?', 'Responder', 1);
+  W.con('¿Llamar IA?', 'Ollama', 0); W.con('¿Llamar IA?', '¿Seguimiento?', 1);
+  W.con('¿Seguimiento?', '¿Consultar pedido?', 0); W.con('¿Seguimiento?', 'Responder', 1);
+  W.con('¿Consultar pedido?', 'WF15 Seguimiento', 0); W.con('¿Consultar pedido?', 'Respuesta seguimiento', 1);
+  W.cadena('WF15 Seguimiento', 'Respuesta seguimiento', 'Filas seguimiento', 'Guardar seguimiento', 'Cuerpo seguimiento', 'Responder');
   W.cadena('Ollama', 'Interpretar', '¿Agendar?');
   W.con('¿Agendar?', 'Revisar citas', 0); W.con('¿Agendar?', 'Filas chat', 1);
   W.cadena('Revisar citas', 'Confirmar cita', '¿Guardar cita?');

@@ -1,9 +1,11 @@
 <#
- tools\iniciar-chat.ps1 - Publica el chat de Valeria (WF11) en internet con un tunel rapido de Cloudflare.
-   1) tools\chat-proxy.py en 127.0.0.1:8787 (solo POST/OPTIONS /chat y GET /salud; nunca el resto de n8n)
+ tools\iniciar-chat.ps1 - Publica el chat de Vale (WF11) y los pedidos (WF13-WF15) en internet con un tunel rapido de Cloudflare.
+   1) tools\chat-proxy.py en 127.0.0.1:8787 (allowlist: /chat, /pedido, /seguimiento, /pedido/consultar, /pedido/pago,
+      /mp-notificacion y GET /salud; nunca el resto de n8n)
    2) cloudflared tunnel --url http://127.0.0.1:8787 --no-autoupdate  ->  https://<algo>.trycloudflare.com
    3) registra esa URL en data/chat.json de GitHub llamando al webhook LOCAL de n8n "chat-url" (WF12),
-      que solo hace commit si la URL cambio. GitHub Pages la publica en 1-10 min.
+      que solo hace commit si la URL cambio. GitHub Pages la publica en 1-10 min. WF12 tambien la guarda en
+      pb_config.TUNEL_URL: es la notification_url de Mercado Pago de los pedidos nuevos (docs/PEDIDOS.md).
 
  Uso:   tools\iniciar-chat.bat     (doble clic)  = powershell -ExecutionPolicy Bypass -File tools\iniciar-chat.ps1
         tools\detener-chat.bat     (doble clic)  = ... iniciar-chat.ps1 -Detener   (apaga y marca el chat inactivo)
@@ -261,6 +263,9 @@ if ($SinPublicar) {
 }
 Write-Host ''
 Write-Host "Chat publico activo: $url/chat" -ForegroundColor Green
+Write-Host "Pedidos y pagos: $url/pedido, $url/seguimiento y $url/pedido/pago"
+Write-Host "Avisos de Mercado Pago (notification_url de cada pedido nuevo): $url/mp-notificacion"
+if ($SinPublicar) { Aviso '      -SinPublicar: pb_config.TUNEL_URL no se actualizo; los pedidos nuevos no recibiran avisos de Mercado Pago (la web los confirma al volver).' }
 Write-Host "Registros: $Estado"
 Write-Host 'Siguiente paso: deja esta PC encendida mientras muestres la demo. Para apagar el chat: tools\detener-chat.bat'
 exit 0

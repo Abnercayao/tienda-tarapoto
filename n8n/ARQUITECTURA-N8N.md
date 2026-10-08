@@ -79,6 +79,7 @@ Comunes: `executionOrder:"v1"`, `timezone:"America/Lima"`, `errorWorkflow:"pbWf0
 | `pbCredTelegram01` | Telegram Palmera Brava | `telegramApi` | nodos Telegram de WF3 (descargar fotos) y WF6 (sendPhoto) |
 | `pbCredGithub0001` | GitHub Palmera Brava | `githubApi` | HTTP Request (`authentication:"predefinedCredentialType"`, `nodeCredentialType:"githubApi"`) en WF3, WF4, WF5 y WF12 |
 | `pbCredHeader0001` | Header X-Tienda-Key | `httpHeaderAuth` (`name:"X-Tienda-Key"`) | Webhooks de WF8 y WF12 (`chat-url`) |
+| `pbCredMercPago01` | Mercado Pago Prueba | `httpHeaderAuth` (`name:"Authorization"`, value `Bearer PEGAR_ACCESS_TOKEN_DE_PRUEBA`) | HTTP Request (`authentication:"genericCredentialType"`, `genericAuthType:"httpHeaderAuth"`) a `MP_API_URL` en WF13 y WF14 (v3, §12). **Solo el usuario** pega su Access Token de PRUEBA en la UI |
 
 En el nodo: `"credentials": {"githubApi": {"id": "pbCredGithub0001", "name": "GitHub Palmera Brava"}}`.
 
@@ -98,7 +99,9 @@ Sistema: `id`, `createdAt`, `updatedAt` (no se escriben). Tiempos en **ms epoch*
 `pb_borradores.estado`: `pendiente → aprobado → publicando → publicado`; `cancelado`, `expirado` (v1.1), `error`. Cada transición es un `update` con filtro `draft_id eq X` **y** `estado eq <anterior>` (`allConditions`); 0 filas = no hacer nada.
 
 **Claves de `pb_config`** (WF0 inserta solo las que faltan; el usuario edita valores en la UI de Data Tables):
-`BOT_TOKEN` (""), `AUTORIZADOS` (CONTRATO §9, ids 0), `REPO` (`Abnercayao/tienda-tarapoto`), `REPO_BRANCH` (`main`), `SITIO_URL` (`https://abnercayao.github.io/tienda-tarapoto/`), `COMMIT_EMAIL` (`297644875+Abnercayao@users.noreply.github.com`), `PAUSA` (`0`), `MIN_ENTRE_COMMITS_MS` (`360000`), `ULTIMO_COMMIT_AT` (`0`), `ULTIMO_POLL_AT` (`0`), `FALLOS_SEGUIDOS` (`0`), `ULTIMA_ALERTA_AT` (`0`), `ALERTAS` (`{}`: clave `wf|nodo` → ms), `DESCONOCIDOS` (`[]`: últimos 10 `{id,nombre,fecha}` que escribieron sin estar autorizados), `OLLAMA_URL` (`http://host.docker.internal:11434`), `OLLAMA_MODELO` (`qwen3.5:4b-q4_K_M`), `SD_URL` (`http://host.docker.internal:1234`).
+`BOT_TOKEN` (""), `AUTORIZADOS` (CONTRATO §9, ids 0), `REPO` (`Abnercayao/tienda-tarapoto`), `REPO_BRANCH` (`main`), `SITIO_URL` (`https://abnercayao.github.io/tienda-tarapoto/`), `COMMIT_EMAIL` (`297644875+Abnercayao@users.noreply.github.com`), `PAUSA` (`0`), `MIN_ENTRE_COMMITS_MS` (`360000`), `ULTIMO_COMMIT_AT` (`0`), `ULTIMO_POLL_AT` (`0`), `FALLOS_SEGUIDOS` (`0`), `ULTIMA_ALERTA_AT` (`0`), `ALERTAS` (`{}`: clave `wf|nodo` → ms), `DESCONOCIDOS` (`[]`: últimos 10 `{id,nombre,fecha}` que escribieron sin estar autorizados), `OLLAMA_URL` (`http://host.docker.internal:11434`), `OLLAMA_MODELO` (`qwen3.5:4b-q4_K_M`), `SD_URL` (`http://host.docker.internal:1234`). v3 (§12): `PEDIDO_ULTIMO` (`PB-000100`), `MP_MODO` (`auto`), `MP_LINK` (`init_point`), `MP_WEBHOOK_SECRET` (""), `TUNEL_URL` ("", la escribe WF12); solo pruebas: `MP_API_URL`, `CATALOGO_URL`, `TELEGRAM_API_URL`.
+
+v3: `pb_pedidos` (columnas `COLUMNAS_PB_PEDIDOS` de `tools/validar.js`: `numero, correo, estado, pago_estado, total` n, `fecha, actualizado, opcion_envio, departamento, preference_id, payment_id, codigo_seguimiento, pedido_json`) la crean WF13–WF16 con `createIfNotExists`. **Los pedidos nunca van al repo** (datos personales).
 
 ## 5. Patrones comunes
 
@@ -205,7 +208,7 @@ HTTP 3–8 con `fullResponse:true`, `neverError:true` y un Code que mira `status
 
 ## 8. Bot: comandos y textos
 
-`setMyCommands` por rol (scope chat). Todos: `ayuda, lista, ver, estado, historial, precio, stock, ocultar, mostrar, foto, articulo, articulo_ocultar, imagen, cancelar`. **admin y dueno** además: `borrar, whatsapp, limpiar_muestras, deshacer, pausa, reanudar`. **admin**: `ids`. Marketing que intenta uno prohibido recibe el texto de permiso (validar.js `PROHIBIDO_MARKETING`).
+`setMyCommands` por rol (scope chat; lista única en `comandosDeRol()` de `n8n/src/nucleo/comun.js`, la usan WF0 y WF16). Todos: `ayuda, lista, ver, estado, historial, precio, stock, frescura, ocultar, mostrar, foto, articulo, articulo_ocultar, imagen, cancelar` y (v3) `envios, pedidos, pedido` (marketing sin datos de contacto). **admin y dueno** además: (v3) `preparando, enviar, recojo, entregado, cancelar_pedido, desconocidos, autorizar, desautorizar` y `borrar, whatsapp, limpiar_muestras, deshacer, pausa, reanudar`. **admin**: `ids`. Detalle v3: §12 y `docs/PEDIDOS.md`. Marketing que intenta uno prohibido recibe el texto de permiso (validar.js `PROHIBIDO_MARKETING`).
 
 Textos base (HTML escapado; `<…>` = dato):
 
@@ -235,8 +238,8 @@ Textos base (HTML escapado; `<…>` = dato):
 3. **Solo la primera vez:** `docker exec -u node n8n n8n import:credentials --input=/home/node/.n8n/import/credenciales.plantilla.json` (nunca reimportar: pisaría los secretos).
 4. `docker exec -u node n8n n8n import:workflow --separate --input=/home/node/.n8n/import/` → `n8n list:workflow`. Hecho el 2026-10-07 (9 workflows, sin publicar, credenciales enlazadas; respaldo `C:\Users\abner\backups\n8n-pre-import-20261007-0007\`). Pasos del usuario: `docs/N8N-PASOS-USUARIO.md`.
 5. El usuario pega en la UI: token (credencial Telegram), PAT (credencial GitHub), clave del panel (credencial Header). Ejecuta WF0 una vez (crea tablas) y pega el token también en `pb_config.BOT_TOKEN`; vuelve a correr WF0.
-6. Publicar en este orden: WF9, WF3, WF4, WF5, WF6, WF8, WF2, WF1 (UI, o `publish:workflow --id=…` + `docker restart n8n`). **Tras cada reimportación hay que volver a publicar todo.**
-7. Alta de usuarios: cada persona escribe `/start` → `/ids` o `pb_config.DESCONOCIDOS` → editar `AUTORIZADOS` → WF0.
+6. Publicar en este orden: WF9, WF3, WF16, WF4, WF5, WF6, WF8, WF14, WF15, WF13, WF11, WF12, WF2, WF1 (UI, o `publish:workflow --id=…` + `docker restart n8n`). **Tras cada reimportación hay que volver a publicar todo.** v3: los sub-workflows (WF14, WF15, WF16) se publican antes que quien los llama.
+7. Alta de usuarios: cada persona escribe `/start` → (v3) un admin o dueño usa `/desconocidos` y `/autorizar <id> dueno|marketing` + botón (efecto inmediato y menú publicado). `admin` solo a mano: `AUTORIZADOS` en `pb_config` → WF0.
 8. Borrar `C:\Users\abner\n8n\data\import\`.
 
 ## 10. Referencias verificadas (`n8n/reference/`)
@@ -267,3 +270,23 @@ Detalle completo, contrato HTTP, reglas y pruebas: `docs/CHAT-VENDEDOR.md`. Gene
 - **Sin lock `worker`**: el chat no espera a la GPU; Ollama se turna entre `qwen3.5:4b` (bot) y `llama3.1:8b` (chat). WF6 descarga ambos antes de sd-server. Timeout del chat 45 s → respaldo con WhatsApp (la web corta a los 60 s).
 - **Patrones nuevos verificados [V]** (n8n 2.40.7 desechable, 2026-10-07): `respondToWebhook` deja pasar el ítem y los nodos siguientes corren DESPUÉS de responder (aprendizaje y aviso no demoran al visitante); `$getWorkflowStaticData('global')` en un Code persiste entre ejecuciones de producción (caché del catálogo 10 min); Telegram 1.2 `sendDocument` con `binaryData` envía multipart con nombre y `text/calendar` (`.ics`); la credencial `telegramApi` respeta `baseUrl` (Telegram simulado en pruebas); Data Table `upsert` con expresiones por ítem; `get` con `orderBy` `DESC` + `limit`.
 - Errores → WF9 (`errorWorkflow`). Las ejecuciones con error guardan mensajes del visitante (igual que A10).
+
+## 12. Pedidos y Mercado Pago (WF13–WF16, v3)
+
+Detalle, flujo de pago, pasos del usuario y pruebas: `docs/PEDIDOS.md`. Generador `node n8n/src/pedidos/construir-pedidos.js` (código en `n8n/src/pedidos/wf13.js … wf16.js` + `comun-pedidos.js`; reglas del contrato v3 en el bloque de `tools/validar.js`: `crearPedido`, `preferenciaMercadoPago`, `aplicarPagoMP`, `transicionPedido`, `vistaPublicaPedido`).
+
+| WF | id | Nombre en n8n | Disparador | settings extra |
+|---|---|---|---|---|
+| WF13 | `pbWf13PedCrear00` | PB WF13 Pedido-Crear | Webhook `POST /webhook/pedido-crear` (proxy `/pedido`) | `executionTimeout:90` |
+| WF14 | `pbWf14MpNotif000` | PB WF14 MP-Notificacion | Webhooks `POST /webhook/mp-notificacion` (proxy `/mp-notificacion`) y `POST /webhook/pedido-pago` (proxy `/pedido/pago`) + Execute Workflow Trigger (WF16) | sub; `executionTimeout:120` |
+| WF15 | `pbWf15PedSegui00` | PB WF15 Pedido-Seguimiento | Webhook `POST /webhook/pedido-seguimiento` (proxy `/seguimiento` y `/pedido/consultar`) + Execute Workflow Trigger (WF11) | sub; `executionTimeout:30` |
+| WF16 | `pbWf16PedBot0000` | PB WF16 Pedidos-Bot | Execute Workflow Trigger (WF4) | sub; `executionTimeout:120` |
+
+- **Número correlativo atómico**: `UPDATE pb_config SET valor=<siguiente> WHERE clave=PEDIDO_ULTIMO AND valor=<actual>` (si otro pedido ganó, 503 "vuelve a intentarlo"); además nunca por debajo del último de `pb_pedidos`. El primero es `PB-000101` (`siguienteNumeroPedido`).
+- **Precios y stock**: WF13 lee `data/products.json` y `site.json` **publicados** (`CATALOGO_URL`, por defecto `SITIO_URL`; caché 60 s) y recalcula todo con `crearPedido` (revisión con el número de prueba `PB-999999` para no gastar números). El precio del navegador se ignora (`total_visto` distinto → aviso `aviso_total`).
+- **Mercado Pago**: `POST {MP_API_URL}/checkout/preferences` con `X-Idempotency-Key` = número; `MP_API_URL` solo acepta `https://api.mercadopago.com` o un simulador local (el token no puede salir a otro host; `n8n/validar-workflows.js` además exige que la credencial solo se use con esa URL). 401/403 o token inválido = credencial con placeholder → **pago simulado** marcado (`simulado:true`, `preference_id` `SIM-…`, `init_point` = vuelta a la web con `payment_id=SIMULADO`). `MP_MODO=simulado` lo fuerza.
+- **Confirmación**: solo `GET /v1/payments/{id}` (o `/v1/payments/search?external_reference=`) con la credencial. `x-signature` (HMAC-SHA256 en JS puro, probado contra Node crypto) solo si `pb_config.MP_WEBHOOK_SECRET`. Guardado con `UPDATE … WHERE numero AND actualizado=<previo>`: aviso y vuelta de la web simultáneos → un solo Telegram y un solo descuento de stock.
+- **Stock**: al pagarse, un borrador `stock` (modo `restar`, rol `dueno`, origen `pedido`, estado `aprobado`) por producto en `pb_borradores`; WF2 → WF5 lo publica en el siguiente lote como cualquier cambio aprobado (commit `data(products): stock … [pedido draft:…]`). Si el stock ya no alcanza, WF5 lo marca `error` y avisa al primer admin/dueño (`chat_id` del borrador).
+- **Webhooks y Respond to Webhook [V]**: un Webhook en `onReceived` que alcanza un Respond to Webhook hace fallar la ejecución ("Unused Respond to Webhook node"); por eso el aviso de MP usa `responseNode` y su propio `Responder MP` (200 inmediato) antes de procesar. `n8n/validar-workflows.js` lo comprueba. También admite Webhook(s) + **un** Execute Workflow Trigger en el mismo workflow (WF14, WF15).
+- **Bot**: WF2 manda los botones `ped:`/`usr:` como comando `boton_pedidos` a WF4 → WF16 (el resto de botones sigue yendo a WF5). WF16 recalcula el rol de quien toca; `/autorizar` y `/desautorizar` cambian `AUTORIZADOS` con `UPDATE … WHERE valor=<previo>` y publican el menú (`setMyCommands`/`deleteMyCommands`) de esa persona; nunca `admin`, nunca uno mismo.
+- **Proxy** (`tools/chat-proxy.py`): allowlist exacta `/chat`, `/pedido`, `/seguimiento`, `/pedido/consultar`, `/pedido/pago` (CORS de la web), `/mp-notificacion` y `/mp/notificacion` (sin CORS: Origin de navegador → 403; solo pasan `data.id/type/topic/id/source_news` y `x-signature/x-request-id`). JSON ≤ 8 KB, límites por IP y cupos separados del chat (la GPU no frena los pedidos).

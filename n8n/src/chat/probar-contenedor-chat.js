@@ -139,7 +139,7 @@ async function conversar(sesion, ip, mensaje, etiqueta) {
   const r = await http('POST', PROXY + '/chat', { sessionId: sesion, mensaje: mensaje, pagina: { seccion: 'catalogo' } }, { Origin: ORIGEN, 'CF-Connecting-IP': ip }, 90000);
   const resp = r.json && typeof r.json.respuesta === 'string' ? r.json.respuesta : r.status + ' ' + r.texto;
   tiempos.push({ etiqueta: etiqueta, ms: r.ms, status: r.status });
-  console.log('        [' + (r.ms / 1000).toFixed(1) + ' s] Visitante: ' + mensaje + '\n                  Valeria: ' + resp.replace(/\n/g, ' / '));
+  console.log('        [' + (r.ms / 1000).toFixed(1) + ' s] Visitante: ' + mensaje + '\n                  Vale: ' + resp.replace(/\n/g, ' / '));
   return r;
 }
 
@@ -155,7 +155,8 @@ async function principal() {
   // ---------- importación ----------
   const plantilla = JSON.parse(fs.readFileSync(path.join(RAIZ, 'n8n', 'reference', 'credenciales.plantilla.json'), 'utf8'));
   const datos = { telegramApi: { accessToken: TOKEN_FALSO, baseUrl: 'https://api.telegram.org' }, githubApi: { server: 'https://api.github.com', user: 'Abnercayao', accessToken: PAT_FALSO }, httpHeaderAuth: { name: 'X-Tienda-Key', value: CLAVE } };
-  fs.writeFileSync(path.join(tmp, 'cred.json'), JSON.stringify(plantilla.map(function (c) { return { id: c.id, name: c.name, type: c.type, data: datos[c.type] }; })));
+  // v3: la plantilla trae también "Mercado Pago Prueba" (httpHeaderAuth): aquí lleva un token falso (WF11/WF12 no la usan).
+  fs.writeFileSync(path.join(tmp, 'cred.json'), JSON.stringify(plantilla.map(function (c) { return { id: c.id, name: c.name, type: c.type, data: c.id === 'pbCredMercPago01' ? { name: 'Authorization', value: 'Bearer token-falso' } : datos[c.type] }; })));
   fs.mkdirSync(path.join(tmp, 'wf'));
   [['WF0', 'WF0-setup.json'], ['WF9', 'WF9-errores.json'], ['WF11', 'WF11-chat-vendedor.json'], ['WF12', 'WF12-chat-url.json']].forEach(function (x) {
     const wf = JSON.parse(fs.readFileSync(path.join(RAIZ, 'n8n', 'workflows', x[1]), 'utf8'));
@@ -170,7 +171,7 @@ async function principal() {
   docker(['cp', path.join(tmp, 'cred.json'), CONT + ':/tmp/imp/cred.json']);
   docker(['cp', path.join(tmp, 'mock-gh.js'), CONT + ':/tmp/mock-gh.js']);
   docker(['exec', '-u', 'root', CONT, 'chown', '-R', 'node:node', '/tmp/imp', '/tmp/mock-gh.js']);
-  caso('import:credentials (3 placeholder: Telegram token falso, GitHub PAT falso, X-Tienda-Key de prueba)', /imported 3 credentials/i.test(n8n(['import:credentials', '--input=/tmp/imp/cred.json'])));
+  caso('import:credentials (4 placeholder: Telegram token falso, GitHub PAT falso, X-Tienda-Key de prueba, Mercado Pago falso)', /imported 4 credentials/i.test(n8n(['import:credentials', '--input=/tmp/imp/cred.json'])));
   caso('import:workflow (WF0, WF9, WF11, WF12 + sembrador)', /imported 5 workflows/i.test(n8n(['import:workflow', '--separate', '--input=/tmp/imp/wf'])));
   [ID.WF9, ID.WF11, ID.WF12, ID.SEED].forEach(function (id) { n8n(['publish:workflow', '--id=' + id]); });
   docker(['restart', CONT]);

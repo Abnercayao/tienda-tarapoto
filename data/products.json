@@ -1,8 +1,8 @@
 {
   "$schema": "./schema/products.schema.json",
-  "schema_version": 2,
-  "version": 3,
-  "actualizado": "2026-10-07T06:34:49-05:00",
+  "schema_version": 3,
+  "version": 4,
+  "actualizado": "2026-10-07T10:00:00-05:00",
   "borradores_aplicados": [
     "drf-muxzhknxoc"
   ],
@@ -48,7 +48,7 @@
       "imagenes": [
         {
           "src": "assets/img/products/prd-0001-1.webp",
-          "alt": "Camisa de lino color arena de manga corta en un modelo adulto, encuadre de hombros a cintura sin rostro",
+          "alt": "Camisa de lino color arena de manga corta en un modelo adulto",
           "origen": "ia_local",
           "ancho": 768,
           "alto": 1024,
@@ -56,7 +56,7 @@
         },
         {
           "src": "assets/img/products/prd-0001-blanco-hueso.webp",
-          "alt": "Camisa de lino color blanco hueso de manga corta en un modelo adulto, encuadre de hombros a cintura sin rostro",
+          "alt": "Camisa de lino color blanco hueso de manga corta en un modelo adulto",
           "origen": "ia_local",
           "ancho": 768,
           "alto": 1024,
@@ -109,7 +109,7 @@
       "imagenes": [
         {
           "src": "assets/img/products/prd-0002-1.webp",
-          "alt": "Guayabera blanca de algodón con pliegues verticales en un modelo adulto, encuadre sin rostro",
+          "alt": "Guayabera blanca de algodón con pliegues verticales en un modelo adulto",
           "origen": "ia_local",
           "ancho": 768,
           "alto": 1024,
@@ -117,7 +117,7 @@
         },
         {
           "src": "assets/img/products/prd-0002-celeste.webp",
-          "alt": "Guayabera celeste de algodón con pliegues verticales en un modelo adulto, encuadre sin rostro",
+          "alt": "Guayabera celeste de algodón con pliegues verticales en un modelo adulto",
           "origen": "ia_local",
           "ancho": 768,
           "alto": 1024,
@@ -174,7 +174,7 @@
       "imagenes": [
         {
           "src": "assets/img/products/prd-0003-1.webp",
-          "alt": "Polo verde palma de algodón pima en un modelo adulto, encuadre de hombros a cintura sin rostro",
+          "alt": "Polo verde palma de algodón pima en un modelo adulto",
           "origen": "ia_local",
           "ancho": 768,
           "alto": 1024,
@@ -182,7 +182,7 @@
         },
         {
           "src": "assets/img/products/prd-0003-arena.webp",
-          "alt": "Polo color arena de algodón pima en un modelo adulto, encuadre de hombros a cintura sin rostro",
+          "alt": "Polo color arena de algodón pima en un modelo adulto",
           "origen": "ia_local",
           "ancho": 768,
           "alto": 1024,
@@ -190,7 +190,7 @@
         },
         {
           "src": "assets/img/products/prd-0003-azul-laguna.webp",
-          "alt": "Polo azul laguna de algodón pima en un modelo adulto, encuadre de hombros a cintura sin rostro",
+          "alt": "Polo azul laguna de algodón pima en un modelo adulto",
           "origen": "ia_local",
           "ancho": 768,
           "alto": 1024,
@@ -208,7 +208,7 @@
       "slug": "bermuda-lino-hombre",
       "nombre": "Bermuda de lino con cordón",
       "categoria": "hombres",
-      "subcategoria": "bermudas",
+      "subcategoria": "shorts",
       "precio": 59.9,
       "tallas": [
         "S",
@@ -242,7 +242,7 @@
       "imagenes": [
         {
           "src": "assets/img/products/prd-0004-1.webp",
-          "alt": "Bermuda beige de lino con cordón en un modelo adulto, encuadre de pecho a rodillas sin rostro",
+          "alt": "Bermuda beige de lino con cordón en un modelo adulto",
           "origen": "ia_local",
           "ancho": 768,
           "alto": 1024,
@@ -250,7 +250,7 @@
         },
         {
           "src": "assets/img/products/prd-0004-verde-oliva.webp",
-          "alt": "Bermuda verde oliva de lino con cordón en un modelo adulto, encuadre de pecho a rodillas sin rostro",
+          "alt": "Bermuda verde oliva de lino con cordón en un modelo adulto",
           "origen": "ia_local",
           "ancho": 768,
           "alto": 1024,
@@ -261,7 +261,7 @@
       "activo": true,
       "muestra": true,
       "fecha_creacion": "2026-09-15T10:00:00-05:00",
-      "fecha_actualizacion": "2026-10-07T06:34:49-05:00"
+      "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
     },
     {
       "id": "prd-0005",
@@ -303,7 +303,7 @@
       "imagenes": [
         {
           "src": "assets/img/products/prd-0005-1.webp",
-          "alt": "Vestido midi de lino color terracota en una modelo adulta, encuadre desde los hombros sin rostro",
+          "alt": "Vestido midi de lino color terracota en una modelo adulta",
           "origen": "ia_local",
           "ancho": 768,
           "alto": 1024,
@@ -311,7 +311,7 @@
         },
         {
           "src": "assets/img/products/prd-0005-arena.webp",
-          "alt": "Vestido midi de lino color arena en una modelo adulta, encuadre desde los hombros sin rostro",
+          "alt": "Vestido midi de lino color arena en una modelo adulta",
           "origen": "ia_local",
           "ancho": 768,
           "alto": 1024,
@@ -364,7 +364,7 @@
       "imagenes": [
         {
           "src": "assets/img/products/prd-0006-1.webp",
-          "alt": "Blusa blanca de gasa de algodón con escote en V en una modelo adulta, encuadre sin rostro",
+          "alt": "Blusa blanca de gasa de algodón con escote en V en una modelo adulta",
           "origen": "ia_local",
           "ancho": 768,
           "alto": 1024,
@@ -372,7 +372,7 @@
         },
         {
           "src": "assets/img/products/prd-0006-amarillo-sol.webp",
-          "alt": "Blusa amarillo sol de gasa de algodón con escote en V en una modelo adulta, encuadre sin rostro",
+          "alt": "Blusa amarillo sol de gasa de algodón con escote en V en una modelo adulta",
           "origen": "ia_local",
           "ancho": 768,
           "alto": 1024,
@@ -424,7 +424,7 @@
       "imagenes": [
         {
           "src": "assets/img/products/prd-0007-1.webp",
-          "alt": "Short de lino verde palma de tiro alto en una modelo adulta, encuadre de pecho a muslos sin rostro",
+          "alt": "Short de lino verde palma de tiro alto en una modelo adulta",
           "origen": "ia_local",
           "ancho": 768,
           "alto": 1024,
@@ -432,7 +432,7 @@
         },
         {
           "src": "assets/img/products/prd-0007-arena.webp",
-          "alt": "Short de lino color arena de tiro alto en una modelo adulta, encuadre de pecho a muslos sin rostro",
+          "alt": "Short de lino color arena de tiro alto en una modelo adulta",
           "origen": "ia_local",
           "ancho": 768,
           "alto": 1024,
@@ -485,7 +485,7 @@
       "imagenes": [
         {
           "src": "assets/img/products/prd-0008-1.webp",
-          "alt": "Pantalón palazzo azul laguna de caída fluida en una modelo adulta, encuadre de pecho a pies sin rostro",
+          "alt": "Pantalón palazzo azul laguna de caída fluida en una modelo adulta",
           "origen": "ia_local",
           "ancho": 768,
           "alto": 1024,
@@ -493,7 +493,7 @@
         },
         {
           "src": "assets/img/products/prd-0008-hibisco.webp",
-          "alt": "Pantalón palazzo color hibisco de caída fluida en una modelo adulta, encuadre de pecho a pies sin rostro",
+          "alt": "Pantalón palazzo color hibisco de caída fluida en una modelo adulta",
           "origen": "ia_local",
           "ancho": 768,
           "alto": 1024,
@@ -634,7 +634,7 @@
       "slug": "bermuda-drill-nino",
       "nombre": "Bermuda de drill para niño",
       "categoria": "ninos",
-      "subcategoria": "bermudas",
+      "subcategoria": "shorts",
       "precio": 34.9,
       "tallas": [
         "4",
@@ -689,7 +689,7 @@
       "activo": true,
       "muestra": true,
       "fecha_creacion": "2026-09-08T10:00:00-05:00",
-      "fecha_actualizacion": "2026-10-07T06:34:49-05:00"
+      "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
     },
     {
       "id": "prd-0012",
@@ -823,7 +823,7 @@
       "slug": "gorro-pescador-algodon",
       "nombre": "Gorro pescador de algodón",
       "categoria": "accesorios",
-      "subcategoria": "gorros",
+      "subcategoria": "sombreros",
       "precio": 29.9,
       "tallas": [
         "M",
@@ -874,7 +874,7 @@
       "activo": true,
       "muestra": true,
       "fecha_creacion": "2026-09-02T10:00:00-05:00",
-      "fecha_actualizacion": "2026-10-07T06:34:49-05:00"
+      "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
     },
     {
       "id": "prd-0015",
@@ -1045,6 +1045,1394 @@
       "muestra": false,
       "fecha_creacion": "2026-10-07T05:48:23-05:00",
       "fecha_actualizacion": "2026-10-07T06:34:49-05:00"
+    },
+    {
+      "id": "prd-0018",
+      "slug": "camisa-cubana-lino-hombre",
+      "nombre": "Camisa cubana de lino",
+      "categoria": "hombres",
+      "subcategoria": "camisas",
+      "precio": 119.9,
+      "tallas": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "stock_por_color": {
+        "Crema": 9,
+        "Azul marino": 6,
+        "Verde oliva": 0
+      },
+      "stock": 15,
+      "colores": [
+        {
+          "nombre": "Crema",
+          "hex": "#F3E9D2"
+        },
+        {
+          "nombre": "Azul marino",
+          "hex": "#1B2A4A"
+        },
+        {
+          "nombre": "Verde oliva",
+          "hex": "#6B7B3A"
+        }
+      ],
+      "material": "Lino 100%",
+      "frescura": 5,
+      "descripcion": "Camisa de cuello cubano y caída recta en lino lavado, con botones de nácar y bolsillo al pecho. Elegante con pantalón de lino y fresca con bermuda.",
+      "etiquetas": [
+        "old-money",
+        "lino",
+        "camisa-cubana",
+        "elegante"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0018-crema.webp",
+          "alt": "Camisa cubana de lino color crema en un modelo adulto, de hombros a cintura",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Crema"
+        },
+        {
+          "src": "assets/img/products/prd-0018-azul-marino.webp",
+          "alt": "Camisa cubana de lino color azul marino en un modelo adulto, de hombros a cintura",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Azul marino"
+        },
+        {
+          "src": "assets/img/products/prd-0018-verde-oliva.webp",
+          "alt": "Camisa cubana de lino color verde oliva en un modelo adulto, de hombros a cintura",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Verde oliva"
+        }
+      ],
+      "destacado": true,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-10-07T09:00:00-05:00",
+      "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
+    },
+    {
+      "id": "prd-0019",
+      "slug": "polo-punto-calado-hombre",
+      "nombre": "Polo de punto calado",
+      "categoria": "hombres",
+      "subcategoria": "polos",
+      "precio": 129.9,
+      "tallas": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "stock_por_color": {
+        "Crema": 11,
+        "Azul marino": 7
+      },
+      "stock": 18,
+      "colores": [
+        {
+          "nombre": "Crema",
+          "hex": "#F3E9D2"
+        },
+        {
+          "nombre": "Azul marino",
+          "hex": "#1B2A4A"
+        }
+      ],
+      "material": "Algodón pima 100%, tejido calado",
+      "frescura": 4,
+      "descripcion": "Polo tejido en punto calado de algodón pima, con cuello abierto sin botones. El tejido abierto deja pasar el aire: el clásico de club de playa, pensado para el calor de Tarapoto.",
+      "etiquetas": [
+        "old-money",
+        "punto-calado",
+        "pima",
+        "polo",
+        "elegante"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0019-crema.webp",
+          "alt": "Polo de punto calado color crema en un modelo adulto, de hombros a cintura",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Crema"
+        },
+        {
+          "src": "assets/img/products/prd-0019-azul-marino.webp",
+          "alt": "Polo de punto calado color azul marino en un modelo adulto, de hombros a cintura",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Azul marino"
+        }
+      ],
+      "destacado": true,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-10-07T09:00:00-05:00",
+      "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
+    },
+    {
+      "id": "prd-0020",
+      "slug": "pantalon-lino-plisado-hombre",
+      "nombre": "Pantalón de lino plisado",
+      "categoria": "hombres",
+      "subcategoria": "pantalones",
+      "precio": 139.9,
+      "precio_oferta": 119.9,
+      "tallas": [
+        "S",
+        "M",
+        "L",
+        "XL",
+        "XXL"
+      ],
+      "stock_por_color": {
+        "Beige": 10,
+        "Azul marino": 4,
+        "Blanco hueso": 7
+      },
+      "stock": 21,
+      "colores": [
+        {
+          "nombre": "Beige",
+          "hex": "#D9C7A7"
+        },
+        {
+          "nombre": "Azul marino",
+          "hex": "#1B2A4A"
+        },
+        {
+          "nombre": "Blanco hueso",
+          "hex": "#F4F1E8"
+        }
+      ],
+      "material": "Lino 100%",
+      "frescura": 5,
+      "descripcion": "Pantalón de lino con pinzas delanteras, tiro medio y bota recta. Pretina con botón y ajustadores laterales: con camisa por dentro para una cena o con polo un domingo.",
+      "etiquetas": [
+        "old-money",
+        "lino",
+        "pantalon",
+        "pinzas"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0020-beige.webp",
+          "alt": "Pantalón de lino plisado color beige en un modelo adulto, de cintura a tobillos",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Beige"
+        },
+        {
+          "src": "assets/img/products/prd-0020-azul-marino.webp",
+          "alt": "Pantalón de lino plisado color azul marino en un modelo adulto, de cintura a tobillos",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Azul marino"
+        },
+        {
+          "src": "assets/img/products/prd-0020-blanco-hueso.webp",
+          "alt": "Pantalón de lino plisado color blanco hueso en un modelo adulto, de cintura a tobillos",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Blanco hueso"
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-10-07T09:00:00-05:00",
+      "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
+    },
+    {
+      "id": "prd-0021",
+      "slug": "mocasines-ante-hombre",
+      "nombre": "Mocasines de ante",
+      "categoria": "hombres",
+      "subcategoria": "calzado",
+      "precio": 189.9,
+      "tallas": [
+        "39",
+        "40",
+        "41",
+        "42",
+        "43",
+        "44"
+      ],
+      "stock_por_color": {
+        "Camel": 6,
+        "Azul marino": 3,
+        "Cacao": 2
+      },
+      "stock": 11,
+      "colores": [
+        {
+          "nombre": "Camel",
+          "hex": "#C19A6B"
+        },
+        {
+          "nombre": "Azul marino",
+          "hex": "#1B2A4A"
+        },
+        {
+          "nombre": "Cacao",
+          "hex": "#5A3825"
+        }
+      ],
+      "material": "Ante sin forro y planta de goma",
+      "frescura": 2,
+      "descripcion": "Mocasines de ante sin forro con antifaz clásico y planta de goma flexible. Se usan sin medias con pantalón de lino o bermuda: el toque elegante del verano.",
+      "etiquetas": [
+        "old-money",
+        "mocasines",
+        "ante",
+        "calzado"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0021-camel.webp",
+          "alt": "Par de mocasines de ante color camel sobre baldosas de terracota, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Camel"
+        },
+        {
+          "src": "assets/img/products/prd-0021-azul-marino.webp",
+          "alt": "Par de mocasines de ante color azul marino sobre baldosas de terracota, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Azul marino"
+        },
+        {
+          "src": "assets/img/products/prd-0021-cacao.webp",
+          "alt": "Par de mocasines de ante color cacao sobre baldosas de terracota, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Cacao"
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-10-07T09:00:00-05:00",
+      "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
+    },
+    {
+      "id": "prd-0022",
+      "slug": "zapatillas-blancas-minimalistas",
+      "nombre": "Zapatillas blancas minimalistas",
+      "categoria": "hombres",
+      "subcategoria": "calzado",
+      "precio": 159.9,
+      "precio_oferta": 139.9,
+      "tallas": [
+        "38",
+        "39",
+        "40",
+        "41",
+        "42",
+        "43",
+        "44"
+      ],
+      "stock_por_color": {
+        "Blanco": 12,
+        "Blanco hueso": 5
+      },
+      "stock": 17,
+      "colores": [
+        {
+          "nombre": "Blanco",
+          "hex": "#FFFFFF"
+        },
+        {
+          "nombre": "Blanco hueso",
+          "hex": "#F4F1E8"
+        }
+      ],
+      "material": "Cuero napa perforado y suela de goma",
+      "frescura": 2,
+      "descripcion": "Zapatillas de cuero napa con perforaciones laterales para ventilar y suela de goma cosida. Diseño limpio y sin logos: combinan con lino, jean o bermuda.",
+      "etiquetas": [
+        "old-money",
+        "zapatillas",
+        "minimalistas",
+        "cuero"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0022-blanco.webp",
+          "alt": "Par de zapatillas minimalistas de cuero color blanco sobre un banco de madera, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Blanco"
+        },
+        {
+          "src": "assets/img/products/prd-0022-blanco-hueso.webp",
+          "alt": "Par de zapatillas minimalistas de cuero color blanco hueso sobre un banco de madera, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Blanco hueso"
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-10-07T09:00:00-05:00",
+      "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
+    },
+    {
+      "id": "prd-0023",
+      "slug": "vestido-camisero-lino",
+      "nombre": "Vestido camisero de lino",
+      "categoria": "mujeres",
+      "subcategoria": "vestidos",
+      "precio": 149.9,
+      "precio_oferta": 129.9,
+      "tallas": [
+        "XS",
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "stock_por_color": {
+        "Crema": 7,
+        "Azul marino": 5,
+        "Verde oliva": 3
+      },
+      "stock": 15,
+      "colores": [
+        {
+          "nombre": "Crema",
+          "hex": "#F3E9D2"
+        },
+        {
+          "nombre": "Azul marino",
+          "hex": "#1B2A4A"
+        },
+        {
+          "nombre": "Verde oliva",
+          "hex": "#6B7B3A"
+        }
+      ],
+      "material": "Lino 100%",
+      "frescura": 5,
+      "descripcion": "Vestido camisero midi de lino con botones al frente, mangas remangables y cinturón del mismo tejido. Elegante para el día y fresco cuando aprieta el calor.",
+      "etiquetas": [
+        "old-money",
+        "lino",
+        "vestido",
+        "camisero"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0023-crema.webp",
+          "alt": "Vestido camisero de lino color crema en una modelo adulta, de hombros a rodillas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Crema"
+        },
+        {
+          "src": "assets/img/products/prd-0023-azul-marino.webp",
+          "alt": "Vestido camisero de lino color azul marino en una modelo adulta, de hombros a rodillas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Azul marino"
+        },
+        {
+          "src": "assets/img/products/prd-0023-verde-oliva.webp",
+          "alt": "Vestido camisero de lino color verde oliva en una modelo adulta, de hombros a rodillas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Verde oliva"
+        }
+      ],
+      "destacado": true,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-10-07T09:00:00-05:00",
+      "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
+    },
+    {
+      "id": "prd-0024",
+      "slug": "blusa-seda-lavada",
+      "nombre": "Blusa de seda lavada",
+      "categoria": "mujeres",
+      "subcategoria": "blusas",
+      "precio": 169.9,
+      "precio_oferta": 149.9,
+      "tallas": [
+        "XS",
+        "S",
+        "M",
+        "L"
+      ],
+      "stock_por_color": {
+        "Champán": 6,
+        "Blanco hueso": 4,
+        "Azul marino": 0
+      },
+      "stock": 10,
+      "colores": [
+        {
+          "nombre": "Champán",
+          "hex": "#E9DCC0"
+        },
+        {
+          "nombre": "Blanco hueso",
+          "hex": "#F4F1E8"
+        },
+        {
+          "nombre": "Azul marino",
+          "hex": "#1B2A4A"
+        }
+      ],
+      "material": "Seda lavada 100%",
+      "frescura": 4,
+      "descripcion": "Blusa de seda lavada de caída suave, escote en V y puños con botón. Liviana y mate: por dentro de un pantalón de lino o suelta sobre un short.",
+      "etiquetas": [
+        "old-money",
+        "seda",
+        "blusa",
+        "elegante"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0024-champan.webp",
+          "alt": "Blusa de seda lavada color champán en una modelo adulta, de hombros a cintura",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Champán"
+        },
+        {
+          "src": "assets/img/products/prd-0024-blanco-hueso.webp",
+          "alt": "Blusa de seda lavada color blanco hueso en una modelo adulta, de hombros a cintura",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Blanco hueso"
+        },
+        {
+          "src": "assets/img/products/prd-0024-azul-marino.webp",
+          "alt": "Blusa de seda lavada color azul marino en una modelo adulta, de hombros a cintura",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Azul marino"
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-10-07T09:00:00-05:00",
+      "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
+    },
+    {
+      "id": "prd-0025",
+      "slug": "pantalon-palazzo-lino",
+      "nombre": "Pantalón palazzo de lino",
+      "categoria": "mujeres",
+      "subcategoria": "pantalones",
+      "precio": 129.9,
+      "tallas": [
+        "XS",
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "stock_por_color": {
+        "Beige": 9,
+        "Blanco hueso": 6,
+        "Azul marino": 4
+      },
+      "stock": 19,
+      "colores": [
+        {
+          "nombre": "Beige",
+          "hex": "#D9C7A7"
+        },
+        {
+          "nombre": "Blanco hueso",
+          "hex": "#F4F1E8"
+        },
+        {
+          "nombre": "Azul marino",
+          "hex": "#1B2A4A"
+        }
+      ],
+      "material": "Lino 100%",
+      "frescura": 5,
+      "descripcion": "Palazzo de lino de tiro alto con pinzas y pierna amplia que se mueve con el viento. Pretina ancha con cierre lateral: estiliza y no se pega al cuerpo.",
+      "etiquetas": [
+        "old-money",
+        "lino",
+        "palazzo",
+        "tiro-alto"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0025-beige.webp",
+          "alt": "Pantalón palazzo de lino color beige en una modelo adulta, de cintura a tobillos",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Beige"
+        },
+        {
+          "src": "assets/img/products/prd-0025-blanco-hueso.webp",
+          "alt": "Pantalón palazzo de lino color blanco hueso en una modelo adulta, de cintura a tobillos",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Blanco hueso"
+        },
+        {
+          "src": "assets/img/products/prd-0025-azul-marino.webp",
+          "alt": "Pantalón palazzo de lino color azul marino en una modelo adulta, de cintura a tobillos",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Azul marino"
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-10-07T09:00:00-05:00",
+      "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
+    },
+    {
+      "id": "prd-0026",
+      "slug": "sandalias-cuero-trenzado-mujer",
+      "nombre": "Sandalias de cuero trenzado",
+      "categoria": "mujeres",
+      "subcategoria": "sandalias",
+      "precio": 119.9,
+      "precio_oferta": 99.9,
+      "tallas": [
+        "35",
+        "36",
+        "37",
+        "38",
+        "39",
+        "40"
+      ],
+      "stock_por_color": {
+        "Camel": 8,
+        "Blanco hueso": 5,
+        "Negro": 3
+      },
+      "stock": 16,
+      "colores": [
+        {
+          "nombre": "Camel",
+          "hex": "#C19A6B"
+        },
+        {
+          "nombre": "Blanco hueso",
+          "hex": "#F4F1E8"
+        },
+        {
+          "nombre": "Negro",
+          "hex": "#1F1F1F"
+        }
+      ],
+      "material": "Cuero trenzado a mano y suela antideslizante",
+      "frescura": 4,
+      "descripcion": "Sandalias planas de tiras de cuero trenzado a mano, con plantilla acolchada y suela antideslizante. Abiertas y livianas para caminar todo el día por Tarapoto.",
+      "etiquetas": [
+        "old-money",
+        "sandalias",
+        "cuero",
+        "trenzado"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0026-camel.webp",
+          "alt": "Par de sandalias planas de cuero trenzado color camel sobre baldosas de terracota, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Camel"
+        },
+        {
+          "src": "assets/img/products/prd-0026-blanco-hueso.webp",
+          "alt": "Par de sandalias planas de cuero trenzado color blanco hueso sobre baldosas de terracota, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Blanco hueso"
+        },
+        {
+          "src": "assets/img/products/prd-0026-negro.webp",
+          "alt": "Par de sandalias planas de cuero trenzado color negro sobre baldosas de terracota, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Negro"
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-10-07T09:00:00-05:00",
+      "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
+    },
+    {
+      "id": "prd-0027",
+      "slug": "falda-midi-plisada",
+      "nombre": "Falda midi plisada",
+      "categoria": "mujeres",
+      "subcategoria": "faldas",
+      "precio": 99.9,
+      "tallas": [
+        "XS",
+        "S",
+        "M",
+        "L"
+      ],
+      "stock_por_color": {
+        "Verde oliva": 6,
+        "Arena": 8
+      },
+      "stock": 14,
+      "colores": [
+        {
+          "nombre": "Verde oliva",
+          "hex": "#6B7B3A"
+        },
+        {
+          "nombre": "Arena",
+          "hex": "#E8DCC4"
+        }
+      ],
+      "material": "Viscosa 100%",
+      "frescura": 4,
+      "descripcion": "Falda midi plisada de viscosa con pretina elástica oculta. Se mueve con cada paso y no marca: combínala con una blusa de seda o con un polo básico.",
+      "etiquetas": [
+        "falda",
+        "plisada",
+        "midi",
+        "fluida"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0027-verde-oliva.webp",
+          "alt": "Falda midi plisada color verde oliva en una modelo adulta, de cintura a tobillos",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Verde oliva"
+        },
+        {
+          "src": "assets/img/products/prd-0027-arena.webp",
+          "alt": "Falda midi plisada color arena en una modelo adulta, de cintura a tobillos",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Arena"
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-10-07T09:00:00-05:00",
+      "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
+    },
+    {
+      "id": "prd-0028",
+      "slug": "conjunto-lino-nino",
+      "nombre": "Conjunto de lino para niño",
+      "categoria": "ninos",
+      "subcategoria": "conjuntos",
+      "precio": 89.9,
+      "precio_oferta": 79.9,
+      "tallas": [
+        "2",
+        "4",
+        "6",
+        "8",
+        "10"
+      ],
+      "stock_por_color": {
+        "Blanco hueso": 7,
+        "Celeste": 5
+      },
+      "stock": 12,
+      "colores": [
+        {
+          "nombre": "Blanco hueso",
+          "hex": "#F4F1E8"
+        },
+        {
+          "nombre": "Celeste",
+          "hex": "#A9D8E8"
+        }
+      ],
+      "material": "Lino 55%, algodón 45%",
+      "frescura": 5,
+      "descripcion": "Conjunto de camisa de cuello cubano y bermuda con pretina elástica, en lino con algodón. Fresco para fiestas y paseos, y fácil de lavar.",
+      "etiquetas": [
+        "lino",
+        "conjunto",
+        "ninos",
+        "fiesta"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0028-blanco-hueso.webp",
+          "alt": "Conjunto infantil de camisa y bermuda de lino color blanco hueso extendido sobre una tela clara, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Blanco hueso"
+        },
+        {
+          "src": "assets/img/products/prd-0028-celeste.webp",
+          "alt": "Conjunto infantil de camisa y bermuda de lino color celeste extendido sobre una tela clara, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Celeste"
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-10-07T09:00:00-05:00",
+      "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
+    },
+    {
+      "id": "prd-0029",
+      "slug": "vestido-lino-tirantes-nina",
+      "nombre": "Vestido de lino con tirantes para niña",
+      "categoria": "ninos",
+      "subcategoria": "vestidos",
+      "precio": 69.9,
+      "tallas": [
+        "2",
+        "4",
+        "6",
+        "8",
+        "10",
+        "12"
+      ],
+      "stock_por_color": {
+        "Verde agua": 6,
+        "Blanco hueso": 4,
+        "Mango": 0
+      },
+      "stock": 10,
+      "colores": [
+        {
+          "nombre": "Verde agua",
+          "hex": "#7FD1C1"
+        },
+        {
+          "nombre": "Blanco hueso",
+          "hex": "#F4F1E8"
+        },
+        {
+          "nombre": "Mango",
+          "hex": "#FF8A1F"
+        }
+      ],
+      "material": "Lino 100%",
+      "frescura": 5,
+      "descripcion": "Vestido de lino con tirantes anchos que se cruzan en la espalda y falda con vuelo. Fresco para jugar al aire libre sin que la tela se pegue.",
+      "etiquetas": [
+        "vestido",
+        "lino",
+        "nina",
+        "tirantes"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0029-verde-agua.webp",
+          "alt": "Vestido infantil de lino con tirantes color verde agua extendido sobre una tela clara, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Verde agua"
+        },
+        {
+          "src": "assets/img/products/prd-0029-blanco-hueso.webp",
+          "alt": "Vestido infantil de lino con tirantes color blanco hueso extendido sobre una tela clara, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Blanco hueso"
+        },
+        {
+          "src": "assets/img/products/prd-0029-mango.webp",
+          "alt": "Vestido infantil de lino con tirantes color mango extendido sobre una tela clara, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Mango"
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-10-07T09:00:00-05:00",
+      "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
+    },
+    {
+      "id": "prd-0030",
+      "slug": "ropa-bano-uv-enteriza-ninos",
+      "nombre": "Ropa de baño UV enteriza para niños",
+      "categoria": "ninos",
+      "subcategoria": "ropa-de-bano",
+      "precio": 64.9,
+      "precio_oferta": 54.9,
+      "tallas": [
+        "2",
+        "4",
+        "6",
+        "8",
+        "10"
+      ],
+      "stock_por_color": {
+        "Azul laguna": 8,
+        "Coral": 6
+      },
+      "stock": 14,
+      "colores": [
+        {
+          "nombre": "Azul laguna",
+          "hex": "#14A3A0"
+        },
+        {
+          "nombre": "Coral",
+          "hex": "#F07C6C"
+        }
+      ],
+      "material": "Poliamida 80%, elastano 20% (UPF 50+)",
+      "frescura": 3,
+      "descripcion": "Enterizo de baño de manga larga con protección UPF 50+ y cierre en la espalda. Seca rápido y cubre hombros y brazos en la piscina o en la cocha.",
+      "etiquetas": [
+        "uv",
+        "upf-50",
+        "ropa-de-bano",
+        "ninos"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0030-azul-laguna.webp",
+          "alt": "Enterizo de baño infantil de manga larga color azul laguna extendido sobre una tela clara, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Azul laguna"
+        },
+        {
+          "src": "assets/img/products/prd-0030-coral.webp",
+          "alt": "Enterizo de baño infantil de manga larga color coral extendido sobre una tela clara, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Coral"
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-10-07T09:00:00-05:00",
+      "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
+    },
+    {
+      "id": "prd-0031",
+      "slug": "sombrero-uv-ala-ancha-ninos",
+      "nombre": "Sombrero UV de ala ancha para niños",
+      "categoria": "ninos",
+      "subcategoria": "gorros",
+      "precio": 34.9,
+      "tallas": [
+        "UNICA"
+      ],
+      "stock_por_color": {
+        "Arena": 10,
+        "Azul laguna": 7,
+        "Verde palma": 0
+      },
+      "stock": 17,
+      "colores": [
+        {
+          "nombre": "Arena",
+          "hex": "#E8DCC4"
+        },
+        {
+          "nombre": "Azul laguna",
+          "hex": "#14A3A0"
+        },
+        {
+          "nombre": "Verde palma",
+          "hex": "#0F5C46"
+        }
+      ],
+      "material": "Algodón con protección UPF 50+",
+      "frescura": 4,
+      "descripcion": "Sombrero de algodón con ala ancha de 7 cm, cordón ajustable bajo el mentón y protección UPF 50+. Se lava a mano y se dobla en la mochila.",
+      "etiquetas": [
+        "sombrero",
+        "uv",
+        "ninos",
+        "ala-ancha"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0031-arena.webp",
+          "alt": "Sombrero infantil de ala ancha color arena sobre una tela clara, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Arena"
+        },
+        {
+          "src": "assets/img/products/prd-0031-azul-laguna.webp",
+          "alt": "Sombrero infantil de ala ancha color azul laguna sobre una tela clara, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Azul laguna"
+        },
+        {
+          "src": "assets/img/products/prd-0031-verde-palma.webp",
+          "alt": "Sombrero infantil de ala ancha color verde palma sobre una tela clara, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Verde palma"
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-10-07T09:00:00-05:00",
+      "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
+    },
+    {
+      "id": "prd-0032",
+      "slug": "short-lino-elastico-ninos",
+      "nombre": "Short de lino con elástico para niños",
+      "categoria": "ninos",
+      "subcategoria": "shorts",
+      "precio": 39.9,
+      "tallas": [
+        "2",
+        "4",
+        "6",
+        "8",
+        "10",
+        "12"
+      ],
+      "stock_por_color": {
+        "Arena": 9,
+        "Verde oliva": 5,
+        "Azul marino": 3
+      },
+      "stock": 17,
+      "colores": [
+        {
+          "nombre": "Arena",
+          "hex": "#E8DCC4"
+        },
+        {
+          "nombre": "Verde oliva",
+          "hex": "#6B7B3A"
+        },
+        {
+          "nombre": "Azul marino",
+          "hex": "#1B2A4A"
+        }
+      ],
+      "material": "Lino 55%, algodón 45%",
+      "frescura": 5,
+      "descripcion": "Short de lino con pretina elástica y cordón, dos bolsillos laterales y largo a media pierna. Fácil de poner y fresco para el recreo.",
+      "etiquetas": [
+        "short",
+        "lino",
+        "ninos",
+        "elastico"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0032-arena.webp",
+          "alt": "Short infantil de lino color arena extendido sobre una tela clara, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Arena"
+        },
+        {
+          "src": "assets/img/products/prd-0032-verde-oliva.webp",
+          "alt": "Short infantil de lino color verde oliva extendido sobre una tela clara, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Verde oliva"
+        },
+        {
+          "src": "assets/img/products/prd-0032-azul-marino.webp",
+          "alt": "Short infantil de lino color azul marino extendido sobre una tela clara, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Azul marino"
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-10-07T09:00:00-05:00",
+      "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
+    },
+    {
+      "id": "prd-0033",
+      "slug": "lentes-sol-carey",
+      "nombre": "Lentes de sol carey",
+      "categoria": "accesorios",
+      "subcategoria": "lentes",
+      "precio": 89.9,
+      "precio_oferta": 74.9,
+      "tallas": [
+        "UNICA"
+      ],
+      "stock_por_color": {
+        "Carey": 9,
+        "Negro": 6
+      },
+      "stock": 15,
+      "colores": [
+        {
+          "nombre": "Carey",
+          "hex": "#7A4A2A"
+        },
+        {
+          "nombre": "Negro",
+          "hex": "#1F1F1F"
+        }
+      ],
+      "material": "Acetato y lunas polarizadas UV400",
+      "frescura": 3,
+      "descripcion": "Lentes de sol de acetato con lunas polarizadas UV400 y bisagras de metal. Montura redonda clásica que favorece a casi todos los rostros; incluye estuche de tela.",
+      "etiquetas": [
+        "old-money",
+        "lentes",
+        "carey",
+        "polarizados"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0033-carey.webp",
+          "alt": "Lentes de sol de montura redonda color carey sobre una mesa de ratán, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Carey"
+        },
+        {
+          "src": "assets/img/products/prd-0033-negro.webp",
+          "alt": "Lentes de sol de montura redonda color negro sobre una mesa de ratán, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Negro"
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-10-07T09:00:00-05:00",
+      "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
+    },
+    {
+      "id": "prd-0034",
+      "slug": "cinturon-cuero-trenzado",
+      "nombre": "Cinturón de cuero trenzado",
+      "categoria": "accesorios",
+      "subcategoria": "cinturones",
+      "precio": 69.9,
+      "tallas": [
+        "S",
+        "M",
+        "L"
+      ],
+      "stock_por_color": {
+        "Camel": 8,
+        "Cacao": 5,
+        "Azul marino": 0
+      },
+      "stock": 13,
+      "colores": [
+        {
+          "nombre": "Camel",
+          "hex": "#C19A6B"
+        },
+        {
+          "nombre": "Cacao",
+          "hex": "#5A3825"
+        },
+        {
+          "nombre": "Azul marino",
+          "hex": "#1B2A4A"
+        }
+      ],
+      "material": "Cuero trenzado y hebilla de latón",
+      "frescura": 3,
+      "descripcion": "Cinturón de tiras de cuero trenzado, sin agujeros: la hebilla de latón cepillado se ajusta en cualquier punto del tejido. Ancho de 3,5 cm.",
+      "etiquetas": [
+        "old-money",
+        "cinturon",
+        "cuero",
+        "trenzado"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0034-camel.webp",
+          "alt": "Cinturón de cuero trenzado color camel enrollado sobre un banco de madera, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Camel"
+        },
+        {
+          "src": "assets/img/products/prd-0034-cacao.webp",
+          "alt": "Cinturón de cuero trenzado color cacao enrollado sobre un banco de madera, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Cacao"
+        },
+        {
+          "src": "assets/img/products/prd-0034-azul-marino.webp",
+          "alt": "Cinturón de cuero trenzado color azul marino enrollado sobre un banco de madera, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Azul marino"
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-10-07T09:00:00-05:00",
+      "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
+    },
+    {
+      "id": "prd-0035",
+      "slug": "bolso-rafia-estructurado",
+      "nombre": "Bolso de rafia estructurado",
+      "categoria": "accesorios",
+      "subcategoria": "bolsos",
+      "precio": 109.9,
+      "precio_oferta": 94.9,
+      "tallas": [
+        "UNICA"
+      ],
+      "stock_por_color": {
+        "Natural": 7,
+        "Crema": 4
+      },
+      "stock": 11,
+      "colores": [
+        {
+          "nombre": "Natural",
+          "hex": "#D8C3A0"
+        },
+        {
+          "nombre": "Crema",
+          "hex": "#F3E9D2"
+        }
+      ],
+      "material": "Rafia natural tejida y asas de cuero",
+      "frescura": 5,
+      "descripcion": "Bolso tote de rafia tejida con base rectangular que mantiene su forma, asas cortas de cuero y bolsillo interior con cierre. Entran la billetera, los lentes y el bloqueador.",
+      "etiquetas": [
+        "old-money",
+        "bolso",
+        "rafia",
+        "tejido"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0035-natural.webp",
+          "alt": "Bolso tote de rafia tejida color natural sobre un banco de madera, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Natural"
+        },
+        {
+          "src": "assets/img/products/prd-0035-crema.webp",
+          "alt": "Bolso tote de rafia tejida color crema sobre un banco de madera, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Crema"
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-10-07T09:00:00-05:00",
+      "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
+    },
+    {
+      "id": "prd-0036",
+      "slug": "gorra-lino",
+      "nombre": "Gorra de lino",
+      "categoria": "accesorios",
+      "subcategoria": "sombreros",
+      "precio": 49.9,
+      "tallas": [
+        "UNICA"
+      ],
+      "stock_por_color": {
+        "Beige": 10,
+        "Azul marino": 6,
+        "Verde oliva": 4
+      },
+      "stock": 20,
+      "colores": [
+        {
+          "nombre": "Beige",
+          "hex": "#D9C7A7"
+        },
+        {
+          "nombre": "Azul marino",
+          "hex": "#1B2A4A"
+        },
+        {
+          "nombre": "Verde oliva",
+          "hex": "#6B7B3A"
+        }
+      ],
+      "material": "Lino 100%",
+      "frescura": 5,
+      "descripcion": "Gorra de seis paneles en lino lavado, con visera curva y cierre de hebilla metálica. Liviana, se lava a mano y protege del sol del mediodía.",
+      "etiquetas": [
+        "old-money",
+        "gorra",
+        "lino",
+        "ajustable"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0036-beige.webp",
+          "alt": "Gorra de lino color beige sobre una silla de ratán, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Beige"
+        },
+        {
+          "src": "assets/img/products/prd-0036-azul-marino.webp",
+          "alt": "Gorra de lino color azul marino sobre una silla de ratán, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Azul marino"
+        },
+        {
+          "src": "assets/img/products/prd-0036-verde-oliva.webp",
+          "alt": "Gorra de lino color verde oliva sobre una silla de ratán, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Verde oliva"
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-10-07T09:00:00-05:00",
+      "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
+    },
+    {
+      "id": "prd-0037",
+      "slug": "sombrero-panama-paja-toquilla",
+      "nombre": "Sombrero panamá de paja toquilla",
+      "categoria": "accesorios",
+      "subcategoria": "sombreros",
+      "precio": 159.9,
+      "tallas": [
+        "S",
+        "M",
+        "L"
+      ],
+      "stock_por_color": {
+        "Natural": 5,
+        "Blanco hueso": 3
+      },
+      "stock": 8,
+      "colores": [
+        {
+          "nombre": "Natural",
+          "hex": "#D8C3A0"
+        },
+        {
+          "nombre": "Blanco hueso",
+          "hex": "#F4F1E8"
+        }
+      ],
+      "material": "Paja toquilla tejida a mano",
+      "frescura": 5,
+      "descripcion": "Sombrero tipo panamá de paja toquilla tejida a mano, con ala media y cinta de algodón. Fresco, liviano y con la elegancia de siempre.",
+      "etiquetas": [
+        "old-money",
+        "sombrero",
+        "panama",
+        "toquilla"
+      ],
+      "imagenes": [
+        {
+          "src": "assets/img/products/prd-0037-natural.webp",
+          "alt": "Sombrero panamá de paja toquilla color natural sobre una mesa de madera, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Natural"
+        },
+        {
+          "src": "assets/img/products/prd-0037-blanco-hueso.webp",
+          "alt": "Sombrero panamá de paja toquilla color blanco hueso sobre una mesa de madera, sin personas",
+          "origen": "ia_local",
+          "ancho": 768,
+          "alto": 1024,
+          "color": "Blanco hueso"
+        }
+      ],
+      "destacado": false,
+      "activo": true,
+      "muestra": true,
+      "fecha_creacion": "2026-10-07T09:00:00-05:00",
+      "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
     }
   ]
 }

@@ -297,7 +297,7 @@ tienda-tarapoto/
 2. Marquee
 3. Categorías
 4. Beneficios
-5. **Cómo comprar** (el "proceso": eliges → bolsa → WhatsApp → entrega en motocarro)
+5. **Cómo comprar** (el "proceso": eliges → bolsa → pago con Mercado Pago → envío a todo el Perú (Shalom, Olva Courier, agencia de bus o entrega local en Tarapoto))
 6. Catálogo
 7. **Evidencia** (lookbook y testimonios, estos solo si son reales)
 8. Blog
