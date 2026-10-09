@@ -52,7 +52,8 @@ function debeRechazar(docs, opciones, codigo, fragmento) {
 console.log('1) Muestras');
 caso('las muestras de data/ pasan sin errores', () => {
   const r = debePasar(copia(), {});
-  afirmar(r.resumen.productos === 37 && r.resumen.productos_muestra === 36, 'deben ser 36 productos de muestra (16 v2 + 20 v3) + prd-0017 (real, creado por el bot)');
+  // Los dueños agregan prendas reales desde Telegram (prd-0017, prd-0038…): las 36 de muestra se mantienen y el total solo crece.
+  afirmar(r.resumen.productos >= 37 && r.resumen.productos_muestra === 36, 'deben ser 36 productos de muestra (16 v2 + 20 v3) + al menos 1 real creado por el bot');
   afirmar(r.resumen.articulos === 3, 'deben ser 3 artículos');
   // chat.json lo actualiza WF12 al encender/apagar el túnel: puede estar activo o no, pero siempre debe ser coherente.
   afirmar(typeof r.resumen.chat_activo === 'boolean', 'chat.json tiene "activo" booleano (lo cambia WF12 con el túnel)');
@@ -92,7 +93,8 @@ caso('F1-12 borrado masivo (6 productos de una vez)', () => {
   const d = copia(); d.products.productos = d.products.productos.filter((p) => ['prd-0008', 'prd-0011', 'prd-0014', 'prd-0002', 'prd-0003', 'prd-0010'].indexOf(p.id) < 0);
   // quitamos también las referencias para que el único motivo sea el borrado masivo
   d.articles.articulos.forEach((a) => { a.productos_relacionados = a.productos_relacionados.filter((id) => prd(d, id)); a.bloques.forEach((b) => { if (b.ids) b.ids = b.ids.filter((id) => prd(d, id)); }); });
-  const r = debeRechazar(d, { anterior: copia() }, 'borrado_masivo', 'de 37 a 31');
+  const total = BASE.products.productos.length;
+  const r = debeRechazar(d, { anterior: copia() }, 'borrado_masivo', 'de ' + total + ' a ' + (total - 6));
   afirmar(!r.errores.some((e) => e.indexOf('[referencia]') === 0), 'no debía haber errores de referencia');
 });
 caso('F1-13 JSON de más de 1 MB', () => {
@@ -203,9 +205,9 @@ caso('un producto real no puede volver a ser muestra, ni cambiar su fecha_creaci
 });
 caso('un producto real con foto propia pasa (y sin imagen solo deja aviso)', () => {
   const d = copia(); const nuevo = JSON.parse(JSON.stringify(prd(d, 'prd-0014')));
-  Object.assign(nuevo, { id: 'prd-0038', slug: 'polo-real-de-prueba', nombre: 'Polo real de prueba', muestra: false, imagenes: [{ src: 'assets/img/products/polo-real-de-prueba-1-0a1b2c3d.webp', alt: 'Foto real del polo de prueba', origen: 'foto', ancho: 1200, alto: 1500 }] });
+  Object.assign(nuevo, { id: 'prd-0999', slug: 'polo-real-de-prueba', nombre: 'Polo real de prueba', muestra: false, imagenes: [{ src: 'assets/img/products/polo-real-de-prueba-1-0a1b2c3d.webp', alt: 'Foto real del polo de prueba', origen: 'foto', ancho: 1200, alto: 1500 }] });
   d.products.productos.push(nuevo);
-  debePasar(d, { anterior: copia(), idsLote: ['prd-0038'], rol: 'marketing' });
+  debePasar(d, { anterior: copia(), idsLote: ['prd-0999'], rol: 'marketing' });
   nuevo.imagenes = [];
   const r = debePasar(d, {});
   afirmar(r.avisos.some((a) => a.indexOf('[sin_imagen]') === 0), 'debía avisar sin_imagen');
@@ -375,7 +377,7 @@ caso('hay un prompt por cada imagen de data/, con el mismo tamaño y reglas de p
 console.log('9) Contrato v2 (frescura, stock por color, imágenes por color, guía de tallas, chat)');
 caso('v2: datos completos (frescura, stock_por_color 0..20, una foto por color, 2–3 colores en referencias)', () => {
   let agotados = 0;
-  for (const p of BASE.products.productos) {
+  for (const p of BASE.products.productos.filter((x) => x.muestra)) {
     afirmar(Number.isInteger(p.frescura) && p.frescura >= 1 && p.frescura <= 5, p.id + ' sin frescura');
     afirmar(p.stock_por_color && p.stock_por_talla === undefined, p.id + ': stock_por_color es la fuente de verdad (sin stock_por_talla)');
     const nombres = p.colores.map((c) => c.nombre);

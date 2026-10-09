@@ -21,22 +21,22 @@ Catálogo web de una tienda de ropa de verano en **Tarapoto (San Martín, Perú)
 <!-- KPIS:INICIO (generado con: node tools/kpis.js --readme; no editar a mano) -->
 | Cifra | Valor |
 |---|---|
-| Productos visibles (`activo: true`) | 37 |
-| Hombres / Mujeres / Niños / Accesorios | 10 / 9 / 9 / 9 (suman 37) |
+| Productos visibles (`activo: true`) | 38 |
+| Hombres / Mujeres / Niños / Accesorios | 10 / 10 / 9 / 9 (suman 38) |
 | ¿Las categorías suman el total? | Sí |
-| De muestra / reales | 36 / 1 |
+| De muestra / reales | 36 / 2 |
 | Productos ocultos (`activo: false`) | 0 |
 | En oferta (descuento máximo) | 14 (-19 %) |
 | Agotados | 0 |
-| Unidades en stock | 541 |
+| Unidades en stock | 542 |
 | Rango de precios (con la oferta aplicada) | S/ 24.90 a S/ 189.90 |
-| Imágenes de productos (IA local / foto / provisional) | 86 / 1 / 0 |
+| Imágenes de productos (IA local / foto / provisional) | 86 / 2 / 0 |
 | Artículos del blog publicados | 3 de 3 |
 | Looks del lookbook | 4 |
 | Testimonios verificados | 0 |
 | WhatsApp configurado | Sí |
-| Versión de los datos (productos / artículos / tienda) | 4 / 2 / 3 |
-| Datos actualizados | 2026-10-08T10:00:00-05:00 |
+| Versión de los datos (productos / artículos / tienda) | 5 / 2 / 3 |
+| Datos actualizados | 2026-10-08T18:26:33-05:00 |
 
 Cifras calculadas por `tools/kpis.js` sobre `data/*.json` (las mismas que responde `/estado` y muestra el panel local).
 <!-- KPIS:FIN -->
