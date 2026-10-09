@@ -51,3 +51,6 @@ _crudo/
 .vscode/
 .idea/
 .claude/settings.local.json
+
+# Grafo local de graphify (no se publica)
+graphify-out/
