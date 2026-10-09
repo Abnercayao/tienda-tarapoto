@@ -2,7 +2,7 @@
   "$schema": "./schema/site.schema.json",
   "schema_version": 3,
   "version": 3,
-  "actualizado": "2026-10-07T10:00:00-05:00",
+  "actualizado": "2026-10-08T10:00:00-05:00",
   "borradores_aplicados": [],
   "nombre": "Palmera Brava",
   "lema": "Ropa fresca para el calor de la selva",
@@ -30,7 +30,7 @@
       }
     ]
   },
-  "envio": "Enviamos a todo el Perú con Shalom, Olva Courier o la agencia de bus que prefieras. En Tarapoto, Morales y La Banda de Shilcayo entregamos el mismo día.",
+  "envio": "Enviamos a todo el Perú con Shalom, Olva Courier o la agencia de bus que prefieras. En Tarapoto, Morales y La Banda de Shilcayo la entrega es gratis y el mismo día.",
   "zonas_reparto": [
     "Todo el Perú"
   ],
@@ -72,13 +72,13 @@
       }
     ],
     "producto_destacado": "prd-0019",
-    "etiqueta_destacado": "Nuevo · Línea old money"
+    "etiqueta_destacado": "Nuevo de la temporada"
   },
   "categorias": [
     {
       "id": "hombres",
       "nombre": "Hombres",
-      "descripcion": "Camisas de lino, polos, pantalones, shorts y calzado; también la línea old money.",
+      "descripcion": "Camisas de lino, polos, pantalones, shorts y calzado.",
       "imagen": {
         "src": "assets/img/brand/cat-hombres.webp",
         "alt": "Guayabera blanca en un modelo adulto",
@@ -111,19 +111,13 @@
           "id": "calzado",
           "nombre": "Zapatillas y mocasines",
           "orden": 5
-        },
-        {
-          "id": "old-money",
-          "nombre": "Old money",
-          "orden": 6,
-          "etiqueta": "old-money"
         }
       ]
     },
     {
       "id": "mujeres",
       "nombre": "Mujeres",
-      "descripcion": "Vestidos, blusas, pantalones, faldas y sandalias ligeras; también la línea old money.",
+      "descripcion": "Vestidos, blusas, pantalones, faldas y sandalias ligeras.",
       "imagen": {
         "src": "assets/img/brand/cat-mujeres.webp",
         "alt": "Vestido de lino en una modelo adulta",
@@ -161,12 +155,6 @@
           "id": "sandalias",
           "nombre": "Sandalias",
           "orden": 6
-        },
-        {
-          "id": "old-money",
-          "nombre": "Old money",
-          "orden": 7,
-          "etiqueta": "old-money"
         }
       ]
     },
@@ -250,36 +238,11 @@
           "id": "sandalias",
           "nombre": "Sandalias",
           "orden": 5
-        },
-        {
-          "id": "old-money",
-          "nombre": "Old money",
-          "orden": 6,
-          "etiqueta": "old-money"
         }
       ]
     }
   ],
-  "colecciones": [
-    {
-      "id": "old-money",
-      "nombre": "Old money",
-      "descripcion": "Elegancia tranquila para el trópico: lino, punto calado, seda lavada y cuero en crema, beige, azul marino y verde oliva.",
-      "etiqueta": "old-money",
-      "categorias": [
-        "hombres",
-        "mujeres",
-        "accesorios"
-      ],
-      "imagen": {
-        "src": "assets/img/brand/col-old-money.webp",
-        "alt": "Polo de punto calado crema, pantalón de lino azul marino, lentes carey, cinturón trenzado y mocasines de ante sobre una superficie de ratán, sin personas",
-        "origen": "ia_local",
-        "ancho": 768,
-        "alto": 1024
-      }
-    }
-  ],
+  "colecciones": [],
   "lookbook": [
     {
       "id": "look-1",
@@ -990,7 +953,7 @@
       "Hacer seguimiento de mi pedido",
       "Opciones de envío y tiempos",
       "Ayúdame con mi talla",
-      "Ver la línea old money"
+      "Recomiéndame un look elegante"
     ]
   },
   "envios": {
@@ -1126,9 +1089,9 @@
         "id": "local",
         "nombre": "Entrega local en Tarapoto",
         "entrega": "domicilio",
-        "costo_desde": 7,
+        "costo_desde": 0,
         "activa": true,
-        "descripcion": "Te lo llevamos a tu casa en Tarapoto, Morales o La Banda de Shilcayo.",
+        "descripcion": "Te lo llevamos a tu casa en Tarapoto, Morales o La Banda de Shilcayo, sin costo de envío.",
         "tiempo_promedio": "el mismo día",
         "tiempos": {
           "lima": null,

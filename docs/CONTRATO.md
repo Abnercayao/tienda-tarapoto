@@ -19,8 +19,8 @@ Este documento define **qué forma tienen los datos**, **qué reglas los protege
 | Asistente | Se llama **Vale** (`site.asistente`). En ningún texto público, prompt ni documento queda "Valeria". |
 | Temperatura | `site.temperatura_promedio` = **"38°"**. La web no escribe la cifra a mano: la lee de aquí. |
 | Envíos | Se elimina toda mención a "motocarro". **"Envíos a todo el Perú"** con Shalom, Olva Courier, agencia de bus elegida por el cliente y entrega local en Tarapoto, cada una con **costo y tiempo promedio** (`site.envios`, 00.4). |
-| Menú | Cada categoría trae su menú `site.categorias[].subcategorias` (subcategorías + colección "Old money"). Las subcategorías permitidas por categoría están en el código (`SUBCATEGORIAS_POR_CATEGORIA`). |
-| Catálogo | +20 productos (`prd-0018`…`prd-0037`, 5 por categoría), con una línea **old money** (etiqueta `old-money`). La portada muestra `site.hero.producto_destacado` = `prd-0019` (Polo de punto calado). |
+| Menú | Cada categoría trae su menú `site.categorias[].subcategorias` (solo subcategorías; "old money" ya no es sección). Las subcategorías permitidas por categoría están en el código (`SUBCATEGORIAS_POR_CATEGORIA`). |
+| Catálogo | +20 productos (`prd-0018`…`prd-0037`, 5 por categoría), algunos con la etiqueta interna `old-money` (solo para el chat; no es sección ni subcategoría). La portada muestra `site.hero.producto_destacado` = `prd-0019` (Polo de punto calado). |
 | Pagos | **Mercado Pago Checkout Pro en modo prueba** (`site.pagos.mercadopago`). El Access Token vive solo en la credencial n8n `pbCredMercPago01` (00.6). |
 | Pedidos | Número `PB-000101`…, estados con historial, seguimiento por número + correo. **Los pedidos NO se guardan en el repo**: viven en la Data Table `pb_pedidos` de n8n (00.5). |
 
@@ -30,13 +30,13 @@ Lista global (`SUBCATEGORIAS`, enum del esquema y del LLM): `polos camisas blusa
 
 | Categoría | Subcategorías permitidas (`SUBCATEGORIAS_POR_CATEGORIA`) | Menú publicado (`site.categorias[].subcategorias`, en orden) |
 |---|---|---|
-| hombres | camisas, polos, pantalones, shorts, calzado, conjuntos, ropa-de-bano, pijamas, otros | Camisas · Polos · Pantalones · Shorts y bermudas · Zapatillas y mocasines (`calzado`) · **Old money** |
-| mujeres | vestidos, blusas, polos, camisas, pantalones, shorts, faldas, conjuntos, ropa-de-bano, pijamas, sandalias, calzado, otros | Vestidos · Blusas · Pantalones · Shorts · Faldas · Sandalias · **Old money** |
+| hombres | camisas, polos, pantalones, shorts, calzado, conjuntos, ropa-de-bano, pijamas, otros | Camisas · Polos · Pantalones · Shorts y bermudas · Zapatillas y mocasines (`calzado`) |
+| mujeres | vestidos, blusas, polos, camisas, pantalones, shorts, faldas, conjuntos, ropa-de-bano, pijamas, sandalias, calzado, otros | Vestidos · Blusas · Pantalones · Shorts · Faldas · Sandalias |
 | ninos | polos, camisas, blusas, vestidos, faldas, shorts, pantalones, conjuntos, ropa-de-bano, pijamas, gorros, sandalias, otros | Polos · Vestidos · Shorts y bermudas · Conjuntos · Ropa de baño UV · Gorros y sombreros |
-| accesorios | sombreros, lentes, cinturones, bolsos, sandalias, otros | Sombreros y gorras · Lentes de sol · Cinturones · Bolsos · Sandalias · **Old money** |
+| accesorios | sombreros, lentes, cinturones, bolsos, sandalias, otros | Sombreros y gorras · Lentes de sol · Cinturones · Bolsos · Sandalias |
 
 - **Entrada de menú** `{id, nombre, orden, etiqueta?}`. Sin `etiqueta`: subcategoría (la web filtra `producto.categoria = cat` y `producto.subcategoria = id`). Con `etiqueta`: colección (filtra `categoria = cat` y `etiquetas` contiene la etiqueta). Ruta web: `#/c/<categoria>/<id>`; "Ver todo" = `#/c/<categoria>`.
-- **`site.colecciones[]`** `{id, nombre, descripcion, etiqueta, categorias[], imagen?}`: página propia `#/coleccion/<id>` (todas las categorías). Hoy: `old-money` (hombres, mujeres, accesorios; imagen `assets/img/brand/col-old-money.webp`).
+- **`site.colecciones[]`** `{id, nombre, descripcion, etiqueta, categorias[], imagen?}`: página propia `#/coleccion/<id>` (todas las categorías). Hoy: ninguna (`[]`); old money es solo una etiqueta de producto y los enlaces `#/coleccion/old-money` y `#/c/<cat>/old-money` redirigen a la tienda.
 - Reglas (código `[taxonomia]`, error): subcategoría de menú no permitida en esa categoría; entrada con etiqueta sin colección del mismo id y etiqueta, o colección que no incluye esa categoría; id de colección igual a una subcategoría (comparten ruta); ids repetidos. Avisos: `[menu_vacio]` (entrada o colección sin productos activos: la web la oculta) y `[menu]` (producto cuya subcategoría no está en el menú: solo sale en "Ver todo").
 - **Producto** (código `[subcategoria]`, error): `subcategoria` debe estar en `SUBCATEGORIAS_POR_CATEGORIA[categoria]`.
 - **Bot y LLM:** `normalizarSubcategoria(categoria, sub)` convierte sinónimos (`bermudas`→`shorts`, `zapatillas/mocasines`→`calzado`, `gorras`→`sombreros`, `correa`→`cinturones`…) y equivalentes por categoría (`hombres+sandalias`→`calzado`, `ninos+sombreros`→`gorros`, `accesorios+gorros`→`sombreros`); si nada encaja, `otros`. `validarOperacion` ya la aplica (aviso `[subcategoria]`) y, si `actualizar` cambia la categoría, ajusta la subcategoría actual. El `PROMPT_PRODUCTO` y el `format` (`data/schema/ollama-format-producto.json`) tienen la lista por categoría.
@@ -60,7 +60,7 @@ Cada uno: 2–3 colores, `stock_por_color` 0–20 (agotados: prd-0018 Verde oliv
 |---|---|
 | `temperatura_promedio` | `"38°"` (patrón `^\d{1,2}°$`). |
 | `asistente` | `{nombre: "Vale", rol, saludo, acciones[]}`. `acciones` son los chips del chat; la primera es **"Hacer seguimiento de mi pedido"**. |
-| `hero.producto_destacado`, `hero.etiqueta_destacado` | Producto de la portada (`prd-0019`, debe existir y estar activo; error `[referencia]` si no existe) y su etiqueta ("Nuevo · Línea old money"). `hero.imagenes[0]` = `brand/hero-old-money.webp`. **`/limpiar_muestras` debe borrar `producto_destacado` si apunta a una muestra que quita.** |
+| `hero.producto_destacado`, `hero.etiqueta_destacado` | Producto de la portada (`prd-0019`, debe existir y estar activo; error `[referencia]` si no existe) y su etiqueta ("Nuevo de la temporada"). `hero.imagenes[0]` = `brand/hero-old-money.webp`. **`/limpiar_muestras` debe borrar `producto_destacado` si apunta a una muestra que quita.** |
 | `categorias[].subcategorias`, `colecciones` | 00.2. |
 | `envio` (texto), `zonas_reparto`, `metodos_pago`, `anuncio` | Sin "motocarro": "Enviamos a todo el Perú con Shalom, Olva Courier o la agencia de bus…"; `zonas_reparto: ["Todo el Perú"]`; `metodos_pago: ["Mercado Pago", "Tarjetas de crédito y débito"]`. |
 | `envios` | `{cobertura: "Todo el Perú", resumen, despacho, nota, gratis_desde: 299, zonas[], opciones[]}` (00.4.1). |
@@ -78,7 +78,7 @@ El rol `marketing` no puede cambiar `temperatura_promedio`, `asistente`, `envios
 | shalom | Shalom | agencia (DNI + clave de 4 dígitos por privado) | S/ 15 | 2 a 6 días hábiles | 2–3 | 2–4 | 4–6 | 4–6 | 1–2 San Martín; 3–6 resto | 1 día (agencia) | `https://shalom.com.pe/rastrea` |
 | olva | Olva Courier | domicilio | S/ 22 | 2 a 5 días hábiles | 2–3 | 2–4 | 3–5 | 3–5 | 2–5 | 1 día | `https://tracking.olvacourier.com/?q={codigo}` |
 | bus | Agencia de bus de tu preferencia | agencia (terminal, DNI y guía) | S/ 12 | 1 a 5 días hábiles | 1–2 | 1–2 | 3–5 (transbordo) | 3–5 (transbordo) | 1 San Martín; 2–4 resto | — | — |
-| local | Entrega local en Tarapoto | domicilio | S/ 7 | el mismo día | — | — | — | — | — | mismo día si paga antes de las 3 p. m.; si no, 24 h | — |
+| local | Entrega local en Tarapoto | domicilio | **Gratis** (`costo_desde` 0) | el mismo día | — | — | — | — | — | mismo día si paga antes de las 3 p. m.; si no, 24 h | — |
 
 Días hábiles desde el despacho (valores **estimados**, ver `docs/investigacion/mercadopago-envios.md`). `null` en `tiempos` = no llega. **Envío gratis** cuando el subtotal ≥ `gratis_desde` (S/ 299). La entrega local solo puede llegar a zonas con `distritos` y es a domicilio (error `[envios]`).
 

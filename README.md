@@ -36,7 +36,7 @@ Catálogo web de una tienda de ropa de verano en **Tarapoto (San Martín, Perú)
 | Testimonios verificados | 0 |
 | WhatsApp configurado | Sí |
 | Versión de los datos (productos / artículos / tienda) | 4 / 2 / 3 |
-| Datos actualizados | 2026-10-07T10:00:00-05:00 |
+| Datos actualizados | 2026-10-08T10:00:00-05:00 |
 
 Cifras calculadas por `tools/kpis.js` sobre `data/*.json` (las mismas que responde `/estado` y muestra el panel local).
 <!-- KPIS:FIN -->

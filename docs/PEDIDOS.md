@@ -89,7 +89,7 @@ Claves de `pb_config` (WF0 las crea si faltan): `PEDIDO_ULTIMO` (`PB-000100`; el
 | Shalom | agencia (DNI + clave de 4 dígitos por privado) | S/ 15 | 2 a 6 según el destino (Lima 2–3, costa norte 2–4, sur y sierra 4–6, San Martín 1–2) |
 | Olva Courier | domicilio | S/ 22 | 2 a 5 según el destino (Lima 2–3) |
 | Agencia de bus de tu preferencia | terminal (DNI y guía) | S/ 12 | 1 a 5 según la ruta (Lima y costa norte 1–2) |
-| Entrega local en Tarapoto, Morales y La Banda de Shilcayo | domicilio | S/ 7 | el mismo día si se paga antes de las 3 p. m.; si no, 24 h |
+| Entrega local en Tarapoto, Morales y La Banda de Shilcayo | domicilio | Gratis | el mismo día si se paga antes de las 3 p. m.; si no, 24 h |
 
 Envío gratis desde S/ 299. El envío se cobra como un ítem más en Mercado Pago (`ENVIO-SHALOM`…), así los ítems suman exactamente el total.
 

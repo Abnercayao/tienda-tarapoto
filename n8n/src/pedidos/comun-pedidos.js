@@ -99,7 +99,7 @@ function pdTextoPedido(p, site, detallado) {
   L.push('<b>' + h(p.numero) + '</b> · ' + h(pdEstadoTexto(p.estado)) + ' · ' + h(pdSoles(p.total)) + (p.pago && p.pago.preference_id && /^SIM-/.test(p.pago.preference_id) ? ' · <i>pago simulado (demo)</i>' : ''));
   L.push('Fecha: ' + h(String(p.fecha || '').slice(0, 16).replace('T', ' ')));
   (p.items || []).forEach(function (it) { L.push('• ' + h(it.cantidad + ' × ' + it.nombre + ' (' + it.color + ', ' + pdTalla(it.talla) + ') ' + pdSoles(it.precio_unit))); });
-  L.push('Subtotal ' + h(pdSoles(p.subtotal)) + ' + envío ' + h(pdSoles(p.envio_costo)));
+  L.push('Subtotal ' + h(pdSoles(p.subtotal)) + ' + envío ' + (Math.round(Number(p.envio_costo) * 100) === 0 ? 'gratis' : h(pdSoles(p.envio_costo))));
   const e = p.envio || {};
   L.push('Envío: ' + h(pdOpcionNombre(site, e.opcion)) + ' → ' + h([e.distrito, e.provincia, e.departamento].filter(Boolean).join(', ')) + (e.tiempo_estimado ? ' (' + h(e.tiempo_estimado) + ')' : ''));
   if (detallado) {

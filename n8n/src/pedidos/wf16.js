@@ -64,7 +64,7 @@ if (c === 'envios') {
   const E = site.envios;
   const L = ['<b>Envíos a todo el Perú</b> (lo mismo que ven Vale y la web)'];
   (E.opciones || []).filter(function (o) { return o && o.activa === true; }).forEach(function (o) {
-    L.push('• <b>' + h(o.nombre) + '</b>: desde ' + h(pdSoles(o.costo_desde)) + ' · ' + h(o.tiempo_promedio) + (o.entrega === 'agencia' ? ' · recojo en agencia con DNI' : ' · a domicilio'));
+    L.push('• <b>' + h(o.nombre) + '</b>: ' + (Math.round(Number(o.costo_desde) * 100) === 0 ? 'gratis' : 'desde ' + h(pdSoles(o.costo_desde))) + ' · ' + h(o.tiempo_promedio) + (o.entrega === 'agencia' ? ' · recojo en agencia con DNI' : ' · a domicilio'));
   });
   if (typeof E.gratis_desde === 'number') L.push('Envío gratis desde ' + h(pdSoles(E.gratis_desde)) + ' de compra.');
   if (E.despacho) L.push(h(E.despacho));

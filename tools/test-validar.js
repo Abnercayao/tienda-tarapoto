@@ -54,7 +54,8 @@ caso('las muestras de data/ pasan sin errores', () => {
   const r = debePasar(copia(), {});
   afirmar(r.resumen.productos === 37 && r.resumen.productos_muestra === 36, 'deben ser 36 productos de muestra (16 v2 + 20 v3) + prd-0017 (real, creado por el bot)');
   afirmar(r.resumen.articulos === 3, 'deben ser 3 artículos');
-  afirmar(r.resumen.chat_activo === false, 'chat.json empieza inactivo');
+  // chat.json lo actualiza WF12 al encender/apagar el túnel: puede estar activo o no, pero siempre debe ser coherente.
+  afirmar(typeof r.resumen.chat_activo === 'boolean', 'chat.json tiene "activo" booleano (lo cambia WF12 con el túnel)');
   const porCat = {};
   BASE.products.productos.filter((p) => p.muestra).forEach((p) => { porCat[p.categoria] = (porCat[p.categoria] || 0) + 1; });
   afirmar(V.CATEGORIAS.every((c) => porCat[c] === 9), '9 productos de muestra por categoría (4 v2 + 5 v3): ' + JSON.stringify(porCat));
@@ -528,7 +529,7 @@ const crear = (sol, extra) => V.crearPedido(sol, Object.assign({ productos: P3, 
 const pedidoOk = () => { const r = crear(SOLICITUD()); afirmar(r.ok, 'el pedido de referencia debía crearse: ' + r.errores.join(' | ')); return r.pedido; };
 const tieneError = (r, cod, frag) => r.errores.some((e) => e.indexOf('[' + cod + ']') === 0 && (!frag || e.indexOf(frag) >= 0));
 
-caso('v3: datos (20 productos nuevos, taxonomía, old money en portada, 38°, Vale, sin motocarro)', () => {
+caso('v3: datos (20 productos nuevos, taxonomía, old money como etiqueta, 38°, Vale, sin motocarro)', () => {
   const nuevos = P3.filter((p) => /^prd-00(1[89]|2\d|3[0-7])$/.test(p.id));
   afirmar(nuevos.length === 20, '20 productos prd-0018..prd-0037 (hay ' + nuevos.length + ')');
   V.CATEGORIAS.forEach((c) => afirmar(nuevos.filter((p) => p.categoria === c).length === 5, '5 nuevos en ' + c));
@@ -544,16 +545,22 @@ caso('v3: datos (20 productos nuevos, taxonomía, old money en portada, 38°, Va
   const r = V.validar(copia(), {});
   afirmar(!r.avisos.some((a) => /^\[(menu|menu_vacio|taxonomia|envios)\]/.test(a)), 'avisos de menú o envíos: ' + r.avisos.join(' | '));
   S3.categorias.forEach((c) => afirmar(c.subcategorias.length >= 5, c.id + ': al menos 5 entradas en el menú'));
-  afirmar(S3.categorias.find((c) => c.id === 'hombres').subcategorias.map((e) => e.id).join(' ') === 'camisas polos pantalones shorts calzado old-money', 'menú de Hombres');
+  afirmar(S3.categorias.find((c) => c.id === 'hombres').subcategorias.map((e) => e.id).join(' ') === 'camisas polos pantalones shorts calzado', 'menú de Hombres');
+  // v3.1: old money NO es sección (sin colecciones ni entradas con etiqueta en el menú); la etiqueta queda para el chat.
+  afirmar(Array.isArray(S3.colecciones) && S3.colecciones.length === 0 && S3.categorias.every((c) => c.subcategorias.every((e) => e.etiqueta === undefined && e.id !== 'old-money')), 'old money no es sección del menú');
+  afirmar(!/l[ií]nea old money/i.test(JSON.stringify(S3)), 'site.json ya no habla de la "línea old money"');
 });
 caso('v3: subcategoría inexistente o de otra categoría se rechaza (productos y menú)', () => {
   const d = copia(); prd(d, 'prd-0018').subcategoria = 'zapatos-de-tacon'; debeRechazar(d, {}, 'esquema', '.subcategoria');
   const d2 = copia(); prd(d2, 'prd-0018').subcategoria = 'vestidos'; debeRechazar(d2, {}, 'subcategoria', 'prd-0018');
   const d3 = copia(); prd(d3, 'prd-0013').subcategoria = 'bermudas'; debeRechazar(d3, {}, 'esquema', '.subcategoria');
   const d4 = copia(); d4.site.categorias[0].subcategorias.push({ id: 'cinturones', nombre: 'Cinturones', orden: 9 }); debeRechazar(d4, {}, 'taxonomia', 'cinturones');
-  const d5 = copia(); d5.site.categorias[0].subcategorias.find((e) => e.etiqueta).etiqueta = 'otra'; debeRechazar(d5, {}, 'taxonomia', 'etiqueta');
-  const d6 = copia(); d6.site.colecciones[0].id = 'polos'; debeRechazar(d6, {}, 'taxonomia', 'choca');
-  const d7 = copia(); d7.site.colecciones[0].categorias = ['hombres']; debeRechazar(d7, {}, 'taxonomia', 'no incluye');
+  // Las reglas de colecciones siguen vigentes por si se vuelve a crear una (hoy site.colecciones está vacío).
+  const col = (id, cats) => ({ id: id, nombre: 'Colección de prueba', descripcion: 'Prueba', etiqueta: 'old-money', categorias: cats });
+  const d5 = copia(); d5.site.colecciones = [col('old-money', ['hombres'])]; d5.site.categorias[0].subcategorias.push({ id: 'old-money', nombre: 'Old money', orden: 9, etiqueta: 'otra' }); debeRechazar(d5, {}, 'taxonomia', 'etiqueta');
+  const d5b = copia(); d5b.site.categorias[0].subcategorias.push({ id: 'old-money', nombre: 'Old money', orden: 9, etiqueta: 'old-money' }); debeRechazar(d5b, {}, 'taxonomia', 'no hay una colección');
+  const d6 = copia(); d6.site.colecciones = [col('polos', ['hombres'])]; debeRechazar(d6, {}, 'taxonomia', 'choca');
+  const d7 = copia(); d7.site.colecciones = [col('old-money', ['hombres'])]; d7.site.categorias[1].subcategorias.push({ id: 'old-money', nombre: 'Old money', orden: 9, etiqueta: 'old-money' }); debeRechazar(d7, {}, 'taxonomia', 'no incluye');
   const d8 = copia(); d8.site.hero.producto_destacado = 'prd-0999'; debeRechazar(d8, {}, 'referencia', 'prd-0999');
   const d9 = copia(); delete d9.site.categorias[1].subcategorias; debeRechazar(d9, {}, 'esquema', 'subcategorias');
   const d10 = copia(); d10.site.temperatura_promedio = '38 grados'; debeRechazar(d10, {}, 'esquema', 'temperatura_promedio');
@@ -573,7 +580,9 @@ caso('v3: normalizarSubcategoria y validarOperacion corrigen la subcategoría', 
 caso('v3: zonas y opciones de envío (cotizarEnvio, opcionesDeEnvio, textoOpcionesEnvio)', () => {
   const c = V.cotizarEnvio(S3, 'shalom', 'Lima', 'Miraflores', 100);
   afirmar(c.ok && c.zona === 'lima' && c.costo === 15 && /2–3 días/.test(c.tiempo_estimado), 'Shalom a Lima: ' + JSON.stringify(c));
-  afirmar(V.cotizarEnvio(S3, 'local', 'san martin', 'morales', 50).costo === 7 && V.zonaEnvio(S3, 'San Martín', 'La Banda de Shilcayo') === 'tarapoto', 'entrega local en Morales y La Banda');
+  const cl = V.cotizarEnvio(S3, 'local', 'san martin', 'morales', 50);
+  afirmar(cl.costo === 0 && cl.gratis === true && V.zonaEnvio(S3, 'San Martín', 'La Banda de Shilcayo') === 'tarapoto', 'entrega local GRATIS en Morales y La Banda: ' + JSON.stringify(cl));
+  afirmar(V.cotizarEnvio(S3, 'shalom', 'San Martín', 'Tarapoto', 50).gratis === false && V.costoEnvioTexto(0) === 'gratis' && V.costoEnvioTexto(15, true) === 'desde S/ 15.00', 'gratis solo cuando cuesta 0 o llega al monto');
   afirmar(V.zonaEnvio(S3, 'San Martín', 'Moyobamba') === 'selva' && V.zonaEnvio(S3, 'Cusco', 'Cusco') === 'sierra' && V.zonaEnvio(S3, 'Narnia', 'x') === null, 'zonas por departamento');
   afirmar(!V.cotizarEnvio(S3, 'local', 'Lima', 'Miraflores', 50).ok && !V.cotizarEnvio(S3, 'bus', 'San Martín', 'Tarapoto', 50).ok, 'local no llega a Lima; bus no reparte en Tarapoto');
   afirmar(V.cotizarEnvio(S3, 'olva', 'Piura', 'Piura', 299).costo === 0 && V.cotizarEnvio(S3, 'olva', 'Piura', 'Piura', 298.99).costo === 22, 'envío gratis desde S/ 299');
@@ -581,7 +590,7 @@ caso('v3: zonas y opciones de envío (cotizarEnvio, opcionesDeEnvio, textoOpcion
   afirmar(V.opcionesDeEnvio(S3, 'Loreto', 'Iquitos', 10).length === 3, 'opciones a Iquitos');
   const txt = V.textoOpcionesEnvio(S3, 'lima');
   afirmar(/Shalom: S\/ 15\.00, 2–3 días hábiles/.test(txt) && /Olva Courier/.test(txt) && /Agencia de bus/.test(txt) && !/Entrega local/.test(txt) && /gratis desde S\/ 299\.00/.test(txt), 'texto para Lima:\n' + txt);
-  afirmar(/Entrega local en Tarapoto: S\/ 7\.00, el mismo día/.test(V.textoOpcionesEnvio(S3)), 'texto general con tiempo promedio');
+  afirmar(/Entrega local en Tarapoto: gratis, el mismo día/.test(V.textoOpcionesEnvio(S3)) && !/S\/ 0\.00/.test(V.textoOpcionesEnvio(S3)) && !/S\/ 0\.00/.test(V.textoOpcionesEnvio(S3, 'tarapoto')), 'texto general con tiempo promedio y "gratis" (sin S/ 0.00)');
   const d = copia(); d.site.envios.zonas[0].departamentos = ['Lima']; debeRechazar(d, {}, 'envios', 'Callao');
   const d2 = copia(); d2.site.envios.opciones.find((o) => o.id === 'local').tiempos.lima = '2 días'; debeRechazar(d2, {}, 'envios', 'entrega local');
   const d3 = copia(); d3.site.envios.opciones[0].tiempos.marte = '1 año'; debeRechazar(d3, {}, 'esquema', 'marte');
@@ -607,7 +616,8 @@ caso('v3: pedido válido (crearPedido recalcula con el catálogo y validarPedido
   fs.rmSync(tmp, { recursive: true, force: true });
   afirmar(cli.status === 0 && cli2.status === 1 && cli2.stdout.indexOf('[total]') >= 0, 'CLI --pedido: ' + cli.stdout + cli2.stdout);
   const local = crear(Object.assign(SOLICITUD(), { envio: { opcion: 'local', departamento: 'San Martín', provincia: 'San Martín', distrito: 'Tarapoto', direccion: 'Jr. Lamas 123', referencia: 'Frente a la plaza' } }));
-  afirmar(local.ok && local.pedido.envio_costo === 7 && local.pedido.envio.zona === 'tarapoto' && /mismo día/.test(local.pedido.envio.tiempo_estimado), 'entrega local');
+  afirmar(local.ok && local.pedido.envio_costo === 0 && local.pedido.total === local.pedido.subtotal && local.pedido.envio.zona === 'tarapoto' && /mismo día/.test(local.pedido.envio.tiempo_estimado), 'entrega local gratis: total = subtotal');
+  afirmar(V.validarPedido(local.pedido, { productos: P3, site: S3 }).ok && !V.preferenciaMercadoPago(local.pedido, {}).items.some((it) => /^ENVIO/.test(it.id)), 'pedido local válido y sin línea de envío en Mercado Pago');
 });
 caso('v3: total manipulado se rechaza (y el navegador no puede fijar precios)', () => {
   const p = pedidoOk();

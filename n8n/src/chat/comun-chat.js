@@ -414,10 +414,12 @@ function tiendaTexto(site, sitioUrl) {
     '- Pagos: ' + (pagos.length ? pagos.join(', ') + '.' : 'se coordinan por WhatsApp al confirmar el pedido (no menciones métodos concretos).') +
       (s.pagos && s.pagos.mercadopago && s.pagos.mercadopago.activo ? ' Se paga con Mercado Pago al finalizar la compra en la web' + (s.pagos.mercadopago.modo === 'prueba' ? ' (tienda de demostración en modo de prueba: no se cobra dinero real)' : '') + '.' : ''),
     '- Seguimiento: cada compra tiene un número como PB-000123; con ese número y el correo de la compra se ve el estado en "Seguimiento de pedido" de la web o aquí en el chat.',
-    '- Web: ' + (sitioUrl || '') + ' (catálogo con menú por categoría y subcategoría, línea old money, Novedades y Ofertas; bolsa de compras y pago con Mercado Pago; "Seguimiento de pedido"; "Mi cuenta" sin contraseña; "Guía de tallas" en cada prenda; blog).'
+    '- Web: ' + (sitioUrl || '') + ' (catálogo con menú por categoría y subcategoría, Novedades y Ofertas; las prendas de estilo old money están dentro de cada categoría; bolsa de compras y pago con Mercado Pago; "Seguimiento de pedido"; "Mi cuenta" sin contraseña; "Guía de tallas" en cada prenda; blog).'
   ].join('\n');
 }
 
+// Costo de envío para Vale: 0 = "gratis" (nunca "desde S/ 0.00"); si no, "desde S/ X" (o el monto exacto con exacto = true).
+function costoEnvioChat(n, exacto) { return Math.round(Number(n) * 100) === 0 ? 'gratis' : (exacto ? '' : 'desde ') + precioTexto(n); }
 // v3: opciones de envío con costo "desde" y tiempo promedio por zona (site.envios). Texto plano para el prompt de Vale.
 function envioOpcionesTexto(s) {
   const E = s && s.envios && Array.isArray(s.envios.opciones) ? s.envios : null;
@@ -428,7 +430,7 @@ function envioOpcionesTexto(s) {
   E.opciones.filter(function (o) { return o && o.activa === true; }).forEach(function (o) {
     const t = o.tiempos && typeof o.tiempos === 'object' ? Object.keys(o.tiempos).filter(function (k) { return typeof o.tiempos[k] === 'string'; })
       .map(function (k) { return (zonas[k] || k) + ': ' + limpio(o.tiempos[k], 90); }).join('; ') : '';
-    L.push('  * ' + limpio(o.nombre, 50) + ' (' + (o.entrega === 'agencia' ? 'recojo en agencia con DNI' : 'a domicilio') + '): desde ' + precioTexto(o.costo_desde) + '. ' + limpio(o.tiempo_promedio, 60) + (t ? '. Por zona: ' + t : '') + '.');
+    L.push('  * ' + limpio(o.nombre, 50) + ' (' + (o.entrega === 'agencia' ? 'recojo en agencia con DNI' : 'a domicilio') + '): ' + costoEnvioChat(o.costo_desde) + '. ' + limpio(o.tiempo_promedio, 60) + (t ? '. Por zona: ' + t : '') + '.');
   });
   if (typeof E.gratis_desde === 'number') L.push('  * Envío gratis desde ' + precioTexto(E.gratis_desde) + ' de compra.');
   if (E.despacho) L.push('  * ' + limpio(E.despacho, 200));
@@ -474,12 +476,12 @@ function textoEnvio(envios, mensaje) {
     const ops = opcionesDeEnvio(site, dest.departamento, dest.distrito, 0);
     if (ops.length) {
       return 'Sí, enviamos a ' + dest.nombre + ': ' + ops.map(function (o) {
-        return o.nombre + ' desde ' + precioTexto(o.costo) + ' (' + limpio(o.tiempo_estimado, 90) + (o.entrega === 'agencia' ? ', recojo en agencia con tu DNI' : ', a domicilio') + ')';
+        return o.nombre + ' ' + costoEnvioChat(o.costo) + ' (' + limpio(o.tiempo_estimado, 90) + (o.entrega === 'agencia' ? ', recojo en agencia con tu DNI' : ', a domicilio') + ')';
       }).join('; ') + '.' + gratis + ' Los tiempos son promedios en días hábiles desde el despacho.';
     }
   }
   const ops = envios.opciones.filter(function (o) { return o && o.activa === true; });
-  return 'Enviamos a todo el Perú: ' + ops.map(function (o) { return o.nombre + ' desde ' + precioTexto(o.costo_desde) + ' (' + limpio(o.tiempo_promedio, 60) + ')'; }).join('; ') + '.' + gratis + ' ¿A qué ciudad lo enviarías? Así te digo el tiempo exacto.';
+  return 'Enviamos a todo el Perú: ' + ops.map(function (o) { return o.nombre + ' ' + costoEnvioChat(o.costo_desde) + ' (' + limpio(o.tiempo_promedio, 60) + ')'; }).join('; ') + '.' + gratis + ' ¿A qué ciudad lo enviarías? Así te digo el tiempo exacto.';
 }
 
 // ---------- v3: seguimiento de pedidos (WF15, sin IA) ----------

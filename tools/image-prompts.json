@@ -965,13 +965,5 @@
     "personas": true,
     "generar": "1344x1024",
     "recortar_arriba": 256
-  },
-  {
-    "path": "assets/img/brand/col-old-money.webp",
-    "size": "768x1024",
-    "seed": 305,
-    "prompt": "Still life flat lay of a quiet luxury summer outfit: a folded cream open-knit polo shirt, navy blue linen trousers, round tortoiseshell sunglasses, a braided camel leather belt and a pair of camel suede loafers, arranged on a natural rattan surface with a few palm leaves, seen from directly above. No people, no mannequin, no hands, product only. Quiet luxury editorial fashion photography for a summer clothing store in Tarapoto, in the Peruvian Amazon: refined, timeless and modern. Warm late-afternoon golden light, soft dappled shadows of palm fronds, natural fabric texture clearly visible, restrained color palette of cream, warm beige, navy blue and olive green with touches of terracotta. Sharp focus on the garment, 50mm lens, shallow depth of field, subtle film grain. No text, no letters, no logos, no watermark.",
-    "personas": false,
-    "generar": "768x1024"
   }
 ]

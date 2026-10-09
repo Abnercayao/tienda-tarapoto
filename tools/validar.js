@@ -35,6 +35,8 @@ const CONTRATO_VERSION = '3.0.0';
 // v2 (2026-10-07): frescura, stock_por_color, imagenes[].color, guia_tallas, chat.json; sin avisos de muestra
 // v3 (2026-10-07): subcategorías por categoría (menú), colecciones (old money), envíos a todo el Perú, Mercado Pago (prueba),
 //                  pedidos PB-000000 con seguimiento (fuera del repo), asistente "Vale", temperatura promedio
+// v3.1 (2026-10-08): opción de envío con costo_desde 0 = GRATIS (entrega local en Tarapoto, Morales y La Banda): cotizarEnvio
+//                  la marca gratis y los textos dicen "gratis" (nunca "S/ 0.00"); old money es solo una etiqueta (colecciones vacías)
 const SCHEMA_VERSION = 3;
 const LIMITE_BYTES = 1000000; // cada JSON debe pesar MENOS de 1 MB (límite de la API de contenidos)
 const MAX_BORRADORES_APLICADOS = 100;
@@ -1689,7 +1691,7 @@ function zonaEnvio(site, departamento, distrito) {
   return z ? z.id : null;
 }
 // Costo y tiempo de UNA opción para un destino. subtotal (S/) activa el envío gratis (site.envios.gratis_desde).
-// -> { ok, error, opcion, nombre, entrega, zona, costo, tiempo_estimado, gratis }
+// -> { ok, error, opcion, nombre, entrega, zona, costo, tiempo_estimado, gratis } (gratis: por monto de compra o porque la opción cuesta 0)
 function cotizarEnvio(site, opcionId, departamento, distrito, subtotal) {
   const o = opcionEnvio(site, opcionId);
   if (!o) return { ok: false, error: '[envio] envio.opcion: la opción de envío ' + corto(opcionId) + ' no existe o no está activa' };
@@ -1700,8 +1702,10 @@ function cotizarEnvio(site, opcionId, departamento, distrito, subtotal) {
   if (typeof tiempo !== 'string') return { ok: false, error: '[envio] envio.opcion: ' + o.nombre + ' no llega a ' + corto(distrito || departamento) + ' (zona ' + zona + ')' };
   const gratis = site.envios.gratis_desde;
   const esGratis = esNumero(gratis) && esNumero(subtotal) && aCentimos(subtotal) >= aCentimos(gratis) && o.costo_desde > 0;
-  return { ok: true, error: null, opcion: o.id, nombre: o.nombre, entrega: o.entrega, zona: zona, costo: esGratis ? 0 : o.costo_desde, tiempo_estimado: tiempo, gratis: esGratis };
+  return { ok: true, error: null, opcion: o.id, nombre: o.nombre, entrega: o.entrega, zona: zona, costo: esGratis ? 0 : o.costo_desde, tiempo_estimado: tiempo, gratis: esGratis || aCentimos(o.costo_desde) === 0 };
 }
+// Costo de envío para mostrar: 0 = "gratis" (nunca "S/ 0.00"); desde = true antepone "desde" a los montos.
+function costoEnvioTexto(n, desde) { return aCentimos(n) === 0 ? 'gratis' : (desde ? 'desde ' : '') + soles(n); }
 // Todas las opciones activas que llegan a un destino (paso "Envío" del checkout, chat Vale y bot).
 function opcionesDeEnvio(site, departamento, distrito, subtotal) {
   const ops = esObjeto(site) && esObjeto(site.envios) && Array.isArray(site.envios.opciones) ? site.envios.opciones : [];
@@ -1716,7 +1720,7 @@ function textoOpcionesEnvio(site, zona) {
   const lineas = E.opciones.filter(function (o) { return esObjeto(o) && o.activa === true; }).map(function (o) {
     const t = zona ? (esObjeto(o.tiempos) ? o.tiempos[zona] : null) : o.tiempo_promedio;
     if (typeof t !== 'string') return null;
-    return '- ' + o.nombre + ': ' + soles(o.costo_desde) + ', ' + t + '.';
+    return '- ' + o.nombre + ': ' + costoEnvioTexto(o.costo_desde) + ', ' + t + '.';
   }).filter(Boolean);
   if (esNumero(E.gratis_desde)) lineas.push('Envío gratis desde ' + soles(E.gratis_desde) + ' de compra.');
   return (E.resumen ? E.resumen + '\n' : '') + lineas.join('\n');
@@ -2208,7 +2212,7 @@ const API = {
   OPCIONES_ENVIO, ENTREGAS_ENVIO, ZONAS_ENVIO, DEPARTAMENTOS, ESTADOS_PEDIDO, TRANSICIONES_PEDIDO, ESTADO_PEDIDO_TEXTO, ESTADOS_PAGO, MAPA_PAGO_MP,
   MAX_ITEMS_PEDIDO, MAX_CANTIDAD_LINEA, PRIMER_PEDIDO, RE_SEGUIMIENTO, COLUMNAS_PB_PEDIDOS,
   fechaLima, departamentoValido, normalizarTelefono, correoValido, mismoCorreo, normalizarTalla, precioVigente, opcionEnvio, zonaEnvio, cotizarEnvio,
-  opcionesDeEnvio, textoOpcionesEnvio, calcularTotales, crearPedido, validarPedido, validarCodigoSeguimiento, transicionPedido, mapearPagoMP,
+  opcionesDeEnvio, textoOpcionesEnvio, costoEnvioTexto, calcularTotales, crearPedido, validarPedido, validarCodigoSeguimiento, transicionPedido, mapearPagoMP,
   verificarPagoMP, aplicarPagoMP, preferenciaMercadoPago, vistaPublicaPedido, numeroPedido, siguienteNumeroPedido, filaPedido, pedidoDesdeFila, stockTrasPedido
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
