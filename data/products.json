@@ -1,8 +1,8 @@
 {
   "$schema": "./schema/products.schema.json",
   "schema_version": 3,
-  "version": 10,
-  "actualizado": "2026-10-09T23:15:42-05:00",
+  "version": 11,
+  "actualizado": "2026-10-09T23:21:52-05:00",
   "borradores_aplicados": [
     "drf-muxzhknxoc",
     "drf-mv05zsguvl",
@@ -10,7 +10,8 @@
     "drf-mv1sfy22000102",
     "drf-mv1vcnzu000103",
     "drf-mv1vkrei000104",
-    "drf-mv1vnrv5000105"
+    "drf-mv1vnrv5000105",
+    "drf-mv1vyp13000107"
   ],
   "moneda": "PEN",
   "productos": [
@@ -1282,9 +1283,9 @@
       "stock_por_color": {
         "Camel": 6,
         "Azul marino": 3,
-        "Cacao": 2
+        "Cacao": 1
       },
-      "stock": 11,
+      "stock": 10,
       "colores": [
         {
           "nombre": "Camel",
@@ -1338,7 +1339,7 @@
       "activo": true,
       "muestra": true,
       "fecha_creacion": "2026-10-07T09:00:00-05:00",
-      "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
+      "fecha_actualizacion": "2026-10-09T23:21:52-05:00"
     },
     {
       "id": "prd-0022",
