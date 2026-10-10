@@ -1,14 +1,15 @@
 {
   "$schema": "./schema/products.schema.json",
   "schema_version": 3,
-  "version": 8,
-  "actualizado": "2026-10-09T23:03:12-05:00",
+  "version": 9,
+  "actualizado": "2026-10-09T23:09:32-05:00",
   "borradores_aplicados": [
     "drf-muxzhknxoc",
     "drf-mv05zsguvl",
     "drf-mv1sfnxp000101",
     "drf-mv1sfy22000102",
-    "drf-mv1vcnzu000103"
+    "drf-mv1vcnzu000103",
+    "drf-mv1vkrei000104"
   ],
   "moneda": "PEN",
   "productos": [
@@ -1202,11 +1203,11 @@
         "XXL"
       ],
       "stock_por_color": {
-        "Beige": 10,
+        "Beige": 9,
         "Azul marino": 4,
         "Blanco hueso": 7
       },
-      "stock": 21,
+      "stock": 20,
       "colores": [
         {
           "nombre": "Beige",
@@ -1260,7 +1261,7 @@
       "activo": true,
       "muestra": true,
       "fecha_creacion": "2026-10-07T09:00:00-05:00",
-      "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
+      "fecha_actualizacion": "2026-10-09T23:09:32-05:00"
     },
     {
       "id": "prd-0021",
