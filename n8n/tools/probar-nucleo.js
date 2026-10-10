@@ -178,9 +178,9 @@ const CONFIG_FILAS = [{ clave: 'BOT_TOKEN', valor: TOKEN_FALSO }, { clave: 'AUTO
   const respDe = function (ped, mod) { return ped.map(function (p) { let t = leer(p.nombre); if (mod) t = mod(p, t); return { statusCode: 200, body: t }; }); };
   const b1 = { draft_id: 'drf-precio01', op: 'actualizar', entidad: 'producto', entidad_id: 'prd-0001', campos: '{"precio":79.9}', rol: 'dueno', chat_id: 222, origen: 'telegram', intentos: 0 };
   const b2 = { draft_id: 'drf-crear001', op: 'crear', entidad: 'producto', entidad_id: '', rol: 'marketing', chat_id: 333, origen: 'telegram', intentos: 0,
-    campos: JSON.stringify({ nombre: 'Polo piqué azul marino', categoria: 'hombres', subcategoria: 'polos', precio: 39.9, tallas: ['M', 'S', 'L'], stock_tallas: [{ talla: 'S', cantidad: 2 }, { talla: 'M', cantidad: 3 }],
+    campos: JSON.stringify({ nombre: 'Polo piqué azul marino', categoria: 'hombres', subcategoria: 'polos', precio: 39.9, tallas: ['M', 'S', 'L'], stock_por_variante: [{ color: null, talla: 'S', cantidad: 2 }, { color: 'azul', talla: 'M', cantidad: 3 }],
       colores: ['azul'], descripcion: 'Polo de algodón piqué, fresco para el calor de Tarapoto.', etiquetas: ['polo', 'algodón'] }) };
-  const b3 = { draft_id: 'drf-stockmal', op: 'stock', entidad: 'producto', entidad_id: 'prd-0001', campos: '{"stock_tallas":[{"talla":"14","cantidad":2}]}', rol: 'dueno', chat_id: 222, intentos: 0 };
+  const b3 = { draft_id: 'drf-stockmal', op: 'stock', entidad: 'producto', entidad_id: 'prd-0001', campos: '{"stock_por_variante":[{"color":null,"talla":"14","cantidad":2}]}', rol: 'dueno', chat_id: 222, intentos: 0 };
   const b4 = { draft_id: 'drf-yaaplic1', op: 'actualizar', entidad: 'producto', entidad_id: 'prd-0002', campos: '{"precio":10}', rol: 'dueno', chat_id: 222, intentos: 0 };
   const img = { draft_id: 'drf-crear001', n: 1, b64: 'UklGRiQAAABXRUJQVlA4IBgAAAAwAQCdASoBAAEAAQAcJaQAA3AA/v3AgAA=', mime: 'image/webp', ancho: 900, alto: 1200, origen: 'foto', alt: 'Polo azul marino doblado sobre una mesa' };
   const ped = pedidosDe('Abner Cayao', false);
@@ -195,7 +195,7 @@ const CONFIG_FILAS = [{ clave: 'BOT_TOKEN', valor: TOKEN_FALSO }, { clave: 'AUTO
   caso('id nuevo = ' + nuevoId + ' y mensaje de commit de lote con [telegram draft:…]', res5['drf-crear001'] && res5['drf-crear001'].entidad_id === nuevoId && /^data\(products\): lote de 2 cambios \[telegram\]\n\n- actualizar prd-0001 precio 79\.90 \[telegram draft:drf-precio01\]\n- crear prd-\d{4} Polo piqué azul marino \[telegram draft:drf-crear001\]$/.test(arb.mensaje), arb.mensaje);
   const prods = arb.textos ? JSON.parse(arb.textos.products) : { productos: [], borradores_aplicados: [] };
   const nuevo = prods.productos.find(function (p) { return p.id === nuevoId; });
-  caso('producto nuevo: tallas ordenadas, stock 2+3+0, imagen temporal, borradores_aplicados, version+1', !!nuevo && nuevo.tallas.join() === 'S,M,L' && nuevo.stock === 5 && /-pbimg0001\.webp$/.test(nuevo.imagenes[0].src) &&
+  caso('producto nuevo: tallas ordenadas, stock 2+3+0, imagen temporal, borradores_aplicados, version+1', !!nuevo && nuevo.tallas.join() === 'S,M,L' && nuevo.stock === 5 && JSON.stringify(nuevo.stock_por_variante) === '{"Azul":{"S":2,"M":3,"L":0}}' && JSON.stringify(nuevo.stock_por_color) === '{"Azul":5}' && /-pbimg0001\.webp$/.test(nuevo.imagenes[0].src) &&
     prods.borradores_aplicados.slice(-2).join() === 'drf-precio01,drf-crear001' && prods.version === JSON.parse(leer('products')).version + 1, nuevo);
   caso('solo cambia products.json (articles/site intactos)', arb.textos && Object.keys(arb.textos).join() === 'products' && arb.head === HEAD && arb.tree === TREE);
   // paso 6: nombre por sha del blob

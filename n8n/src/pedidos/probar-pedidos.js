@@ -223,6 +223,17 @@ const P = PRODUCTOS.productos;
 const prod = function (id) { return P.find(function (p) { return p.id === id; }); };
 const p19 = prod('prd-0019');
 const color0 = p19.colores[0].nombre;
+// Variantes fijas para las pruebas (los datos reales cambian con las ventas y la reposición): 8 unidades de S, M y L del primer color de prd-0019.
+['S', 'M', 'L'].forEach(function (t) { p19.stock_por_variante[color0][t] = 8; });
+V.derivarStock(p19);
+// Variantes del catálogo para los casos de "pocas unidades" (1 a 8) y "agotada" (0), con su color y talla.
+const variante = function (pred) {
+  for (const p of P) {
+    if (!p.activo) continue;
+    for (const c of Object.keys(p.stock_por_variante)) for (const t of Object.keys(p.stock_por_variante[c])) if (pred(p.stock_por_variante[c][t])) return { p: p, color: c, talla: t, n: p.stock_por_variante[c][t] };
+  }
+  return null;
+};
 const cliente = { nombre: 'Ana Ríos', correo: 'Ana.Rios@Correo.com', telefono: '987 654 321', dni: '12345678' };
 const envioLima = { opcion: 'shalom', departamento: 'Lima', provincia: 'Lima', distrito: 'Miraflores', agencia_destino: 'Shalom Av. Arequipa 123' };
 const solicitud = function (extra) { return Object.assign({ cliente: cliente, envio: envioLima, items: [{ id: 'prd-0019', color: color0, talla: 'M', cantidad: 2, precio_unit: 1 }], total_visto: 1, origen: 'web' }, extra || {}); };
@@ -261,14 +272,17 @@ const solicitud = function (extra) { return Object.assign({ cliente: cliente, en
   caso('vista pública en la respuesta: sin correo, celular, DNI ni dirección', !/ana\.rios|987654321|"dni"|Arequipa 123|Ríos/.test(JSON.stringify(r.cuerpo.pedido)), r.cuerpo.pedido);
   caso('Telegram "Nuevo pedido" a admin y dueño (no a marketing), con datos del cliente', TG.length === 2 && TG.every(function (m) { return /Nuevo pedido/.test(m.cuerpo.text) && /ana\.rios@correo\.com/.test(m.cuerpo.text) && terminaBien(m); }) && TG.map(function (m) { return m.cuerpo.chat_id; }).sort().join() === '111,222', TG);
   caso('PEDIDO_ULTIMO avanzó a PB-000101', T.config.find(function (x) { return x.clave === 'PEDIDO_ULTIMO'; }).valor === 'PB-000101');
-  const poco = P.find(function (p) { return p.activo && p.stock_por_color && Object.keys(p.stock_por_color).some(function (k) { return p.stock_por_color[k] > 0 && p.stock_por_color[k] < 9; }); });
-  const colPoco = Object.keys(poco.stock_por_color).find(function (k) { return poco.stock_por_color[k] > 0 && poco.stock_por_color[k] < 9; });
-  r = await crear(solicitud({ items: [{ id: poco.id, color: colPoco, talla: poco.tallas[0], cantidad: poco.stock_por_color[colPoco] + 1 }] }), '200.1.1.2');
-  caso('stock insuficiente -> ok:false con el motivo, sin gastar número', r.cuerpo.ok === false && /stock/i.test(r.cuerpo.errores.join(' ')) && T.config.find(function (x) { return x.clave === 'PEDIDO_ULTIMO'; }).valor === 'PB-000101', r.cuerpo);
-  const agotado = P.find(function (p) { return p.stock_por_color && Object.keys(p.stock_por_color).some(function (k) { return p.stock_por_color[k] === 0; }); });
-  const colAg = Object.keys(agotado.stock_por_color).find(function (k) { return agotado.stock_por_color[k] === 0; });
-  r = await crear(solicitud({ items: [{ id: agotado.id, color: colAg, talla: agotado.tallas[0], cantidad: 1 }] }), '200.1.1.2');
-  caso('color agotado (' + agotado.id + ' ' + colAg + ') -> rechazado', r.cuerpo.ok === false && /stock/i.test(r.cuerpo.errores.join(' ')), r.cuerpo);
+  const poco = variante(function (n) { return n > 0 && n < 9; });
+  r = await crear(solicitud({ items: [{ id: poco.p.id, color: poco.color, talla: poco.talla, cantidad: poco.n + 1 }] }), '200.1.1.2');
+  caso('stock insuficiente de una variante (' + poco.p.id + ' ' + poco.color + ' ' + poco.talla + ': quedan ' + poco.n + ') -> ok:false con el motivo, sin gastar número', r.cuerpo.ok === false && /stock/i.test(r.cuerpo.errores.join(' ')) && T.config.find(function (x) { return x.clave === 'PEDIDO_ULTIMO'; }).valor === 'PB-000101', r.cuerpo);
+  const agotado = variante(function (n) { return n === 0; });
+  r = await crear(solicitud({ items: [{ id: agotado.p.id, color: agotado.color, talla: agotado.talla, cantidad: 1 }] }), '200.1.1.2');
+  caso('variante agotada (' + agotado.p.id + ' ' + agotado.color + ' talla ' + agotado.talla + ') -> rechazado', r.cuerpo.ok === false && /agotado/i.test(r.cuerpo.errores.join(' ')), r.cuerpo);
+  // Mismo color con una talla con stock y otra agotada: la agotada se rechaza aunque el color tenga unidades.
+  let mixto = null;
+  P.forEach(function (p) { Object.keys(p.stock_por_variante).forEach(function (c) { const f = p.stock_por_variante[c]; const sin = p.tallas.find(function (t) { return f[t] === 0; }); if (!mixto && sin && p.tallas.some(function (t) { return f[t] > 0; })) mixto = { p: p, color: c, talla: sin }; }); });
+  r = await crear(solicitud({ items: [{ id: mixto.p.id, color: mixto.color, talla: mixto.talla, cantidad: 1 }] }), '200.1.1.2');
+  caso('el color ' + mixto.color + ' de ' + mixto.p.id + ' tiene stock en otras tallas, pero la talla ' + mixto.talla + ' está agotada -> rechazado (el stock es por color Y talla)', r.cuerpo.ok === false && /agotado/i.test(r.cuerpo.errores.join(' ')), r.cuerpo);
   r = await crear(solicitud({ items: [{ id: 'prd-9999', color: 'Rojo', talla: 'M', cantidad: 1 }] }), '200.1.1.2');
   caso('producto inexistente -> rechazado', r.cuerpo.ok === false && /no existe/.test(r.cuerpo.errores.join(' ')), r.cuerpo);
   r = await crear(solicitud({ cliente: { nombre: 'Ana Ríos', correo: 'ana@correo.com', telefono: '987654321' } }), '200.1.1.2');
@@ -308,8 +322,8 @@ const solicitud = function (extra) { return Object.assign({ cliente: cliente, en
   caso('Telegram "Pago confirmado" a admin y dueño', TG.length === 2 && TG.every(function (m) { return /Pago confirmado/.test(m.cuerpo.text) && terminaBien(m); }), TG);
   const borr = T.borradores.slice();
   caso('borrador de stock auto-aprobado (op stock, restar, rol dueño, origen pedido)', borr.length === 1 && borr[0].estado === 'aprobado' && borr[0].op === 'stock' && borr[0].entidad_id === 'prd-0019' && borr[0].rol === 'dueno' && borr[0].origen === 'pedido' && /^drf-[a-z0-9]{6,20}$/.test(borr[0].draft_id) && JSON.parse(borr[0].campos).stock_modo === 'restar', borr);
-  const ap = V.aplicarStockColor(prod('prd-0019'), JSON.parse(borr[0].campos).stock_por_color, 'restar');
-  caso('ese borrador, aplicado como en WF5, descuenta 2 de ' + color0, ap.ok && ap.stock_por_color[color0] === p19.stock_por_color[color0] - 2, ap);
+  const ap = V.aplicarStockVariante(prod('prd-0019'), JSON.parse(borr[0].campos).stock_por_variante, 'restar');
+  caso('ese borrador, aplicado como en WF5, descuenta 2 de ' + color0 + ' talla M (8 -> 6) y las demás tallas quedan igual', ap.ok && ap.stock_por_variante[color0].M === 6 && ap.stock_por_variante[color0].L === 8 && ap.stock_por_color[color0] === p19.stock_por_color[color0] - 2, ap);
   caso('columnas del borrador = pb_borradores de WF0', Object.keys(borr[0]).filter(function (k) { return k !== 'id'; }).sort().join() === require('./construir-pedidos.js').TABLAS.pb_borradores.map(function (c) { return c[0]; }).sort().join());
   w = await wf14('mp', notif('7001'));
   caso('aviso repetido -> sin cambios, sin otro Telegram ni otro borrador', TG.length === 2 && T.borradores.length === 1 && !w.N['Guardado']);

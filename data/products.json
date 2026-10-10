@@ -1,17 +1,11 @@
 {
   "$schema": "./schema/products.schema.json",
   "schema_version": 3,
-  "version": 11,
-  "actualizado": "2026-10-09T23:21:52-05:00",
+  "version": 5,
+  "actualizado": "2026-10-08T18:26:33-05:00",
   "borradores_aplicados": [
     "drf-muxzhknxoc",
-    "drf-mv05zsguvl",
-    "drf-mv1sfnxp000101",
-    "drf-mv1sfy22000102",
-    "drf-mv1vcnzu000103",
-    "drf-mv1vkrei000104",
-    "drf-mv1vnrv5000105",
-    "drf-mv1vyp13000107"
+    "drf-mv05zsguvl"
   ],
   "moneda": "PEN",
   "productos": [
@@ -29,9 +23,23 @@
         "L",
         "XL"
       ],
+      "stock_por_variante": {
+        "Arena": {
+          "S": 4,
+          "M": 0,
+          "L": 12,
+          "XL": 3
+        },
+        "Blanco hueso": {
+          "S": 0,
+          "M": 0,
+          "L": 0,
+          "XL": 0
+        }
+      },
       "stock_por_color": {
-        "Arena": 12,
-        "Blanco hueso": 7
+        "Arena": 19,
+        "Blanco hueso": 0
       },
       "stock": 19,
       "colores": [
@@ -90,11 +98,27 @@
         "XL",
         "XXL"
       ],
-      "stock_por_color": {
-        "Blanco hueso": 9,
-        "Celeste": 0
+      "stock_por_variante": {
+        "Blanco hueso": {
+          "S": 10,
+          "M": 10,
+          "L": 11,
+          "XL": 6,
+          "XXL": 0
+        },
+        "Celeste": {
+          "S": 10,
+          "M": 9,
+          "L": 1,
+          "XL": 11,
+          "XXL": 6
+        }
       },
-      "stock": 9,
+      "stock_por_color": {
+        "Blanco hueso": 37,
+        "Celeste": 37
+      },
+      "stock": 74,
       "colores": [
         {
           "nombre": "Blanco hueso",
@@ -150,12 +174,32 @@
         "L",
         "XL"
       ],
-      "stock_por_color": {
-        "Verde palma": 14,
-        "Arena": 6,
-        "Azul laguna": 3
+      "stock_por_variante": {
+        "Verde palma": {
+          "S": 0,
+          "M": 13,
+          "L": 12,
+          "XL": 5
+        },
+        "Arena": {
+          "S": 1,
+          "M": 11,
+          "L": 10,
+          "XL": 0
+        },
+        "Azul laguna": {
+          "S": 3,
+          "M": 8,
+          "L": 9,
+          "XL": 13
+        }
       },
-      "stock": 23,
+      "stock_por_color": {
+        "Verde palma": 30,
+        "Arena": 22,
+        "Azul laguna": 33
+      },
+      "stock": 85,
       "colores": [
         {
           "nombre": "Verde palma",
@@ -208,7 +252,7 @@
       "activo": true,
       "muestra": true,
       "fecha_creacion": "2026-10-02T10:00:00-05:00",
-      "fecha_actualizacion": "2026-10-09T23:03:12-05:00"
+      "fecha_actualizacion": "2026-10-07T06:34:49-05:00"
     },
     {
       "id": "prd-0004",
@@ -223,11 +267,25 @@
         "L",
         "XL"
       ],
-      "stock_por_color": {
-        "Beige": 11,
-        "Verde oliva": 4
+      "stock_por_variante": {
+        "Beige": {
+          "S": 11,
+          "M": 11,
+          "L": 1,
+          "XL": 10
+        },
+        "Verde oliva": {
+          "S": 14,
+          "M": 10,
+          "L": 0,
+          "XL": 6
+        }
       },
-      "stock": 15,
+      "stock_por_color": {
+        "Beige": 33,
+        "Verde oliva": 30
+      },
+      "stock": 63,
       "colores": [
         {
           "nombre": "Beige",
@@ -284,11 +342,25 @@
         "M",
         "L"
       ],
-      "stock_por_color": {
-        "Terracota": 8,
-        "Arena": 2
+      "stock_por_variante": {
+        "Terracota": {
+          "XS": 0,
+          "S": 13,
+          "M": 0,
+          "L": 10
+        },
+        "Arena": {
+          "XS": 0,
+          "S": 0,
+          "M": 0,
+          "L": 0
+        }
       },
-      "stock": 10,
+      "stock_por_color": {
+        "Terracota": 23,
+        "Arena": 0
+      },
+      "stock": 23,
       "colores": [
         {
           "nombre": "Terracota",
@@ -345,11 +417,27 @@
         "L",
         "XL"
       ],
-      "stock_por_color": {
-        "Blanco hueso": 14,
-        "Amarillo sol": 0
+      "stock_por_variante": {
+        "Blanco hueso": {
+          "XS": 4,
+          "S": 12,
+          "M": 9,
+          "L": 1,
+          "XL": 1
+        },
+        "Amarillo sol": {
+          "XS": 9,
+          "S": 12,
+          "M": 9,
+          "L": 1,
+          "XL": 4
+        }
       },
-      "stock": 14,
+      "stock_por_color": {
+        "Blanco hueso": 27,
+        "Amarillo sol": 35
+      },
+      "stock": 62,
       "colores": [
         {
           "nombre": "Blanco hueso",
@@ -405,11 +493,25 @@
         "M",
         "L"
       ],
-      "stock_por_color": {
-        "Verde palma": 5,
-        "Arena": 10
+      "stock_por_variante": {
+        "Verde palma": {
+          "XS": 0,
+          "S": 0,
+          "M": 7,
+          "L": 6
+        },
+        "Arena": {
+          "XS": 15,
+          "S": 15,
+          "M": 15,
+          "L": 14
+        }
       },
-      "stock": 15,
+      "stock_por_color": {
+        "Verde palma": 13,
+        "Arena": 59
+      },
+      "stock": 72,
       "colores": [
         {
           "nombre": "Verde palma",
@@ -466,11 +568,25 @@
         "L",
         "XL"
       ],
-      "stock_por_color": {
-        "Azul laguna": 7,
-        "Hibisco": 1
+      "stock_por_variante": {
+        "Azul laguna": {
+          "S": 0,
+          "M": 0,
+          "L": 12,
+          "XL": 10
+        },
+        "Hibisco": {
+          "S": 2,
+          "M": 3,
+          "L": 13,
+          "XL": 0
+        }
       },
-      "stock": 8,
+      "stock_por_color": {
+        "Azul laguna": 22,
+        "Hibisco": 18
+      },
+      "stock": 40,
       "colores": [
         {
           "nombre": "Azul laguna",
@@ -527,11 +643,27 @@
         "10",
         "12"
       ],
-      "stock_por_color": {
-        "Azul laguna": 13,
-        "Mango": 9
+      "stock_por_variante": {
+        "Azul laguna": {
+          "4": 11,
+          "6": 13,
+          "8": 5,
+          "10": 8,
+          "12": 10
+        },
+        "Mango": {
+          "4": 0,
+          "6": 0,
+          "8": 0,
+          "10": 0,
+          "12": 0
+        }
       },
-      "stock": 22,
+      "stock_por_color": {
+        "Azul laguna": 47,
+        "Mango": 0
+      },
+      "stock": 47,
       "colores": [
         {
           "nombre": "Azul laguna",
@@ -589,11 +721,27 @@
         "8",
         "10"
       ],
-      "stock_por_color": {
-        "Rosa guayaba": 6,
-        "Amarillo sol": 4
+      "stock_por_variante": {
+        "Rosa guayaba": {
+          "2": 12,
+          "4": 10,
+          "6": 5,
+          "8": 0,
+          "10": 13
+        },
+        "Amarillo sol": {
+          "2": 5,
+          "4": 0,
+          "6": 2,
+          "8": 1,
+          "10": 0
+        }
       },
-      "stock": 10,
+      "stock_por_color": {
+        "Rosa guayaba": 40,
+        "Amarillo sol": 8
+      },
+      "stock": 48,
       "colores": [
         {
           "nombre": "Rosa guayaba",
@@ -651,11 +799,29 @@
         "12",
         "14"
       ],
-      "stock_por_color": {
-        "Beige": 3,
-        "Verde oliva": 0
+      "stock_por_variante": {
+        "Beige": {
+          "4": 5,
+          "6": 10,
+          "8": 2,
+          "10": 15,
+          "12": 4,
+          "14": 0
+        },
+        "Verde oliva": {
+          "4": 1,
+          "6": 15,
+          "8": 11,
+          "10": 10,
+          "12": 5,
+          "14": 0
+        }
       },
-      "stock": 3,
+      "stock_por_color": {
+        "Beige": 36,
+        "Verde oliva": 42
+      },
+      "stock": 78,
       "colores": [
         {
           "nombre": "Beige",
@@ -708,11 +874,19 @@
       "tallas": [
         "UNICA"
       ],
-      "stock_por_color": {
-        "Azul laguna": 18,
-        "Mango": 11
+      "stock_por_variante": {
+        "Azul laguna": {
+          "UNICA": 9
+        },
+        "Mango": {
+          "UNICA": 0
+        }
       },
-      "stock": 29,
+      "stock_por_color": {
+        "Azul laguna": 9,
+        "Mango": 0
+      },
+      "stock": 9,
       "colores": [
         {
           "nombre": "Azul laguna",
@@ -765,12 +939,23 @@
       "tallas": [
         "UNICA"
       ],
-      "stock_por_color": {
-        "Natural": 6,
-        "Blanco hueso": 4,
-        "Tostado": 0
+      "stock_por_variante": {
+        "Natural": {
+          "UNICA": 8
+        },
+        "Blanco hueso": {
+          "UNICA": 13
+        },
+        "Tostado": {
+          "UNICA": 7
+        }
       },
-      "stock": 10,
+      "stock_por_color": {
+        "Natural": 8,
+        "Blanco hueso": 13,
+        "Tostado": 7
+      },
+      "stock": 28,
       "colores": [
         {
           "nombre": "Natural",
@@ -836,11 +1021,21 @@
         "M",
         "L"
       ],
-      "stock_por_color": {
-        "Verde palma": 9,
-        "Arena": 13
+      "stock_por_variante": {
+        "Verde palma": {
+          "M": 11,
+          "L": 1
+        },
+        "Arena": {
+          "M": 13,
+          "L": 12
+        }
       },
-      "stock": 22,
+      "stock_por_color": {
+        "Verde palma": 12,
+        "Arena": 25
+      },
+      "stock": 37,
       "colores": [
         {
           "nombre": "Verde palma",
@@ -901,11 +1096,33 @@
         "42",
         "43"
       ],
-      "stock_por_color": {
-        "Cacao": 5,
-        "Natural": 2
+      "stock_por_variante": {
+        "Cacao": {
+          "36": 0,
+          "37": 9,
+          "38": 4,
+          "39": 5,
+          "40": 11,
+          "41": 1,
+          "42": 9,
+          "43": 0
+        },
+        "Natural": {
+          "36": 0,
+          "37": 1,
+          "38": 5,
+          "39": 6,
+          "40": 15,
+          "41": 2,
+          "42": 1,
+          "43": 0
+        }
       },
-      "stock": 7,
+      "stock_por_color": {
+        "Cacao": 39,
+        "Natural": 30
+      },
+      "stock": 69,
       "colores": [
         {
           "nombre": "Cacao",
@@ -958,11 +1175,19 @@
       "tallas": [
         "UNICA"
       ],
-      "stock_por_color": {
-        "Natural": 8,
-        "Mango": 3
+      "stock_por_variante": {
+        "Natural": {
+          "UNICA": 7
+        },
+        "Mango": {
+          "UNICA": 0
+        }
       },
-      "stock": 11,
+      "stock_por_color": {
+        "Natural": 7,
+        "Mango": 0
+      },
+      "stock": 7,
       "colores": [
         {
           "nombre": "Natural",
@@ -1018,10 +1243,18 @@
         "L",
         "XL"
       ],
-      "stock_por_color": {
-        "Blanco": 20
+      "stock_por_variante": {
+        "Blanco": {
+          "S": 1,
+          "M": 9,
+          "L": 13,
+          "XL": 7
+        }
       },
-      "stock": 20,
+      "stock_por_color": {
+        "Blanco": 30
+      },
+      "stock": 30,
       "colores": [
         {
           "nombre": "Blanco",
@@ -1066,12 +1299,32 @@
         "L",
         "XL"
       ],
-      "stock_por_color": {
-        "Crema": 9,
-        "Azul marino": 6,
-        "Verde oliva": 0
+      "stock_por_variante": {
+        "Crema": {
+          "S": 0,
+          "M": 10,
+          "L": 0,
+          "XL": 5
+        },
+        "Azul marino": {
+          "S": 14,
+          "M": 0,
+          "L": 2,
+          "XL": 15
+        },
+        "Verde oliva": {
+          "S": 9,
+          "M": 15,
+          "L": 14,
+          "XL": 1
+        }
       },
-      "stock": 15,
+      "stock_por_color": {
+        "Crema": 15,
+        "Azul marino": 31,
+        "Verde oliva": 39
+      },
+      "stock": 85,
       "colores": [
         {
           "nombre": "Crema",
@@ -1140,11 +1393,25 @@
         "L",
         "XL"
       ],
-      "stock_por_color": {
-        "Crema": 11,
-        "Azul marino": 4
+      "stock_por_variante": {
+        "Crema": {
+          "S": 13,
+          "M": 15,
+          "L": 8,
+          "XL": 5
+        },
+        "Azul marino": {
+          "S": 0,
+          "M": 4,
+          "L": 3,
+          "XL": 10
+        }
       },
-      "stock": 15,
+      "stock_por_color": {
+        "Crema": 41,
+        "Azul marino": 17
+      },
+      "stock": 58,
       "colores": [
         {
           "nombre": "Crema",
@@ -1187,7 +1454,7 @@
       "activo": true,
       "muestra": true,
       "fecha_creacion": "2026-10-07T09:00:00-05:00",
-      "fecha_actualizacion": "2026-10-09T23:15:42-05:00"
+      "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
     },
     {
       "id": "prd-0020",
@@ -1204,12 +1471,35 @@
         "XL",
         "XXL"
       ],
-      "stock_por_color": {
-        "Beige": 9,
-        "Azul marino": 4,
-        "Blanco hueso": 7
+      "stock_por_variante": {
+        "Beige": {
+          "S": 9,
+          "M": 13,
+          "L": 12,
+          "XL": 14,
+          "XXL": 12
+        },
+        "Azul marino": {
+          "S": 2,
+          "M": 5,
+          "L": 0,
+          "XL": 14,
+          "XXL": 4
+        },
+        "Blanco hueso": {
+          "S": 7,
+          "M": 14,
+          "L": 0,
+          "XL": 3,
+          "XXL": 0
+        }
       },
-      "stock": 20,
+      "stock_por_color": {
+        "Beige": 60,
+        "Azul marino": 25,
+        "Blanco hueso": 24
+      },
+      "stock": 109,
       "colores": [
         {
           "nombre": "Beige",
@@ -1263,7 +1553,7 @@
       "activo": true,
       "muestra": true,
       "fecha_creacion": "2026-10-07T09:00:00-05:00",
-      "fecha_actualizacion": "2026-10-09T23:09:32-05:00"
+      "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
     },
     {
       "id": "prd-0021",
@@ -1280,12 +1570,38 @@
         "43",
         "44"
       ],
-      "stock_por_color": {
-        "Camel": 6,
-        "Azul marino": 3,
-        "Cacao": 1
+      "stock_por_variante": {
+        "Camel": {
+          "39": 2,
+          "40": 3,
+          "41": 0,
+          "42": 11,
+          "43": 10,
+          "44": 9
+        },
+        "Azul marino": {
+          "39": 6,
+          "40": 8,
+          "41": 0,
+          "42": 13,
+          "43": 12,
+          "44": 5
+        },
+        "Cacao": {
+          "39": 9,
+          "40": 12,
+          "41": 0,
+          "42": 4,
+          "43": 5,
+          "44": 12
+        }
       },
-      "stock": 10,
+      "stock_por_color": {
+        "Camel": 35,
+        "Azul marino": 44,
+        "Cacao": 42
+      },
+      "stock": 121,
       "colores": [
         {
           "nombre": "Camel",
@@ -1339,7 +1655,7 @@
       "activo": true,
       "muestra": true,
       "fecha_creacion": "2026-10-07T09:00:00-05:00",
-      "fecha_actualizacion": "2026-10-09T23:21:52-05:00"
+      "fecha_actualizacion": "2026-10-07T09:00:00-05:00"
     },
     {
       "id": "prd-0022",
@@ -1358,11 +1674,31 @@
         "43",
         "44"
       ],
-      "stock_por_color": {
-        "Blanco": 12,
-        "Blanco hueso": 5
+      "stock_por_variante": {
+        "Blanco": {
+          "38": 14,
+          "39": 0,
+          "40": 0,
+          "41": 14,
+          "42": 13,
+          "43": 9,
+          "44": 8
+        },
+        "Blanco hueso": {
+          "38": 12,
+          "39": 13,
+          "40": 4,
+          "41": 0,
+          "42": 15,
+          "43": 14,
+          "44": 11
+        }
       },
-      "stock": 17,
+      "stock_por_color": {
+        "Blanco": 58,
+        "Blanco hueso": 69
+      },
+      "stock": 127,
       "colores": [
         {
           "nombre": "Blanco",
@@ -1421,12 +1757,35 @@
         "L",
         "XL"
       ],
-      "stock_por_color": {
-        "Crema": 7,
-        "Azul marino": 5,
-        "Verde oliva": 3
+      "stock_por_variante": {
+        "Crema": {
+          "XS": 14,
+          "S": 10,
+          "M": 1,
+          "L": 11,
+          "XL": 15
+        },
+        "Azul marino": {
+          "XS": 10,
+          "S": 10,
+          "M": 10,
+          "L": 0,
+          "XL": 7
+        },
+        "Verde oliva": {
+          "XS": 0,
+          "S": 0,
+          "M": 0,
+          "L": 0,
+          "XL": 0
+        }
       },
-      "stock": 15,
+      "stock_por_color": {
+        "Crema": 51,
+        "Azul marino": 37,
+        "Verde oliva": 0
+      },
+      "stock": 88,
       "colores": [
         {
           "nombre": "Crema",
@@ -1496,12 +1855,32 @@
         "M",
         "L"
       ],
-      "stock_por_color": {
-        "Champán": 6,
-        "Blanco hueso": 4,
-        "Azul marino": 0
+      "stock_por_variante": {
+        "Champán": {
+          "XS": 15,
+          "S": 7,
+          "M": 15,
+          "L": 2
+        },
+        "Blanco hueso": {
+          "XS": 14,
+          "S": 3,
+          "M": 8,
+          "L": 9
+        },
+        "Azul marino": {
+          "XS": 11,
+          "S": 11,
+          "M": 0,
+          "L": 10
+        }
       },
-      "stock": 10,
+      "stock_por_color": {
+        "Champán": 39,
+        "Blanco hueso": 34,
+        "Azul marino": 32
+      },
+      "stock": 105,
       "colores": [
         {
           "nombre": "Champán",
@@ -1571,12 +1950,35 @@
         "L",
         "XL"
       ],
-      "stock_por_color": {
-        "Beige": 9,
-        "Blanco hueso": 6,
-        "Azul marino": 4
+      "stock_por_variante": {
+        "Beige": {
+          "XS": 5,
+          "S": 12,
+          "M": 8,
+          "L": 9,
+          "XL": 5
+        },
+        "Blanco hueso": {
+          "XS": 13,
+          "S": 3,
+          "M": 11,
+          "L": 4,
+          "XL": 12
+        },
+        "Azul marino": {
+          "XS": 10,
+          "S": 12,
+          "M": 3,
+          "L": 4,
+          "XL": 0
+        }
       },
-      "stock": 19,
+      "stock_por_color": {
+        "Beige": 39,
+        "Blanco hueso": 43,
+        "Azul marino": 29
+      },
+      "stock": 111,
       "colores": [
         {
           "nombre": "Beige",
@@ -1648,12 +2050,38 @@
         "39",
         "40"
       ],
-      "stock_por_color": {
-        "Camel": 8,
-        "Blanco hueso": 5,
-        "Negro": 3
+      "stock_por_variante": {
+        "Camel": {
+          "35": 14,
+          "36": 4,
+          "37": 3,
+          "38": 0,
+          "39": 14,
+          "40": 14
+        },
+        "Blanco hueso": {
+          "35": 1,
+          "36": 14,
+          "37": 0,
+          "38": 6,
+          "39": 13,
+          "40": 9
+        },
+        "Negro": {
+          "35": 2,
+          "36": 7,
+          "37": 11,
+          "38": 6,
+          "39": 7,
+          "40": 11
+        }
       },
-      "stock": 16,
+      "stock_por_color": {
+        "Camel": 49,
+        "Blanco hueso": 43,
+        "Negro": 44
+      },
+      "stock": 136,
       "colores": [
         {
           "nombre": "Camel",
@@ -1722,11 +2150,25 @@
         "M",
         "L"
       ],
-      "stock_por_color": {
-        "Verde oliva": 6,
-        "Arena": 8
+      "stock_por_variante": {
+        "Verde oliva": {
+          "XS": 15,
+          "S": 0,
+          "M": 15,
+          "L": 14
+        },
+        "Arena": {
+          "XS": 0,
+          "S": 0,
+          "M": 0,
+          "L": 0
+        }
       },
-      "stock": 14,
+      "stock_por_color": {
+        "Verde oliva": 44,
+        "Arena": 0
+      },
+      "stock": 44,
       "colores": [
         {
           "nombre": "Verde oliva",
@@ -1785,11 +2227,27 @@
         "8",
         "10"
       ],
-      "stock_por_color": {
-        "Blanco hueso": 7,
-        "Celeste": 5
+      "stock_por_variante": {
+        "Blanco hueso": {
+          "2": 13,
+          "4": 15,
+          "6": 4,
+          "8": 5,
+          "10": 14
+        },
+        "Celeste": {
+          "2": 0,
+          "4": 13,
+          "6": 5,
+          "8": 13,
+          "10": 12
+        }
       },
-      "stock": 12,
+      "stock_por_color": {
+        "Blanco hueso": 51,
+        "Celeste": 43
+      },
+      "stock": 94,
       "colores": [
         {
           "nombre": "Blanco hueso",
@@ -1848,12 +2306,38 @@
         "10",
         "12"
       ],
-      "stock_por_color": {
-        "Verde agua": 6,
-        "Blanco hueso": 4,
-        "Mango": 0
+      "stock_por_variante": {
+        "Verde agua": {
+          "2": 0,
+          "4": 15,
+          "6": 7,
+          "8": 6,
+          "10": 3,
+          "12": 14
+        },
+        "Blanco hueso": {
+          "2": 6,
+          "4": 14,
+          "6": 9,
+          "8": 10,
+          "10": 13,
+          "12": 2
+        },
+        "Mango": {
+          "2": 9,
+          "4": 11,
+          "6": 3,
+          "8": 11,
+          "10": 14,
+          "12": 0
+        }
       },
-      "stock": 10,
+      "stock_por_color": {
+        "Verde agua": 45,
+        "Blanco hueso": 54,
+        "Mango": 48
+      },
+      "stock": 147,
       "colores": [
         {
           "nombre": "Verde agua",
@@ -1924,11 +2408,27 @@
         "8",
         "10"
       ],
-      "stock_por_color": {
-        "Azul laguna": 8,
-        "Coral": 6
+      "stock_por_variante": {
+        "Azul laguna": {
+          "2": 11,
+          "4": 0,
+          "6": 5,
+          "8": 13,
+          "10": 12
+        },
+        "Coral": {
+          "2": 0,
+          "4": 0,
+          "6": 0,
+          "8": 0,
+          "10": 0
+        }
       },
-      "stock": 14,
+      "stock_por_color": {
+        "Azul laguna": 41,
+        "Coral": 0
+      },
+      "stock": 41,
       "colores": [
         {
           "nombre": "Azul laguna",
@@ -1982,12 +2482,23 @@
       "tallas": [
         "UNICA"
       ],
-      "stock_por_color": {
-        "Arena": 10,
-        "Azul laguna": 7,
-        "Verde palma": 0
+      "stock_por_variante": {
+        "Arena": {
+          "UNICA": 11
+        },
+        "Azul laguna": {
+          "UNICA": 9
+        },
+        "Verde palma": {
+          "UNICA": 13
+        }
       },
-      "stock": 17,
+      "stock_por_color": {
+        "Arena": 11,
+        "Azul laguna": 9,
+        "Verde palma": 13
+      },
+      "stock": 33,
       "colores": [
         {
           "nombre": "Arena",
@@ -2058,12 +2569,38 @@
         "10",
         "12"
       ],
-      "stock_por_color": {
-        "Arena": 9,
-        "Verde oliva": 5,
-        "Azul marino": 3
+      "stock_por_variante": {
+        "Arena": {
+          "2": 2,
+          "4": 7,
+          "6": 0,
+          "8": 1,
+          "10": 11,
+          "12": 3
+        },
+        "Verde oliva": {
+          "2": 4,
+          "4": 0,
+          "6": 1,
+          "8": 5,
+          "10": 0,
+          "12": 13
+        },
+        "Azul marino": {
+          "2": 11,
+          "4": 3,
+          "6": 11,
+          "8": 13,
+          "10": 10,
+          "12": 0
+        }
       },
-      "stock": 17,
+      "stock_por_color": {
+        "Arena": 24,
+        "Verde oliva": 23,
+        "Azul marino": 48
+      },
+      "stock": 95,
       "colores": [
         {
           "nombre": "Arena",
@@ -2130,11 +2667,19 @@
       "tallas": [
         "UNICA"
       ],
-      "stock_por_color": {
-        "Carey": 9,
-        "Negro": 6
+      "stock_por_variante": {
+        "Carey": {
+          "UNICA": 0
+        },
+        "Negro": {
+          "UNICA": 8
+        }
       },
-      "stock": 15,
+      "stock_por_color": {
+        "Carey": 0,
+        "Negro": 8
+      },
+      "stock": 8,
       "colores": [
         {
           "nombre": "Carey",
@@ -2190,12 +2735,29 @@
         "M",
         "L"
       ],
+      "stock_por_variante": {
+        "Camel": {
+          "S": 6,
+          "M": 10,
+          "L": 0
+        },
+        "Cacao": {
+          "S": 15,
+          "M": 0,
+          "L": 10
+        },
+        "Azul marino": {
+          "S": 0,
+          "M": 0,
+          "L": 0
+        }
+      },
       "stock_por_color": {
-        "Camel": 8,
-        "Cacao": 5,
+        "Camel": 16,
+        "Cacao": 25,
         "Azul marino": 0
       },
-      "stock": 13,
+      "stock": 41,
       "colores": [
         {
           "nombre": "Camel",
@@ -2262,11 +2824,19 @@
       "tallas": [
         "UNICA"
       ],
-      "stock_por_color": {
-        "Natural": 7,
-        "Crema": 4
+      "stock_por_variante": {
+        "Natural": {
+          "UNICA": 11
+        },
+        "Crema": {
+          "UNICA": 12
+        }
       },
-      "stock": 11,
+      "stock_por_color": {
+        "Natural": 11,
+        "Crema": 12
+      },
+      "stock": 23,
       "colores": [
         {
           "nombre": "Natural",
@@ -2320,12 +2890,23 @@
       "tallas": [
         "UNICA"
       ],
-      "stock_por_color": {
-        "Beige": 10,
-        "Azul marino": 6,
-        "Verde oliva": 4
+      "stock_por_variante": {
+        "Beige": {
+          "UNICA": 9
+        },
+        "Azul marino": {
+          "UNICA": 11
+        },
+        "Verde oliva": {
+          "UNICA": 6
+        }
       },
-      "stock": 20,
+      "stock_por_color": {
+        "Beige": 9,
+        "Azul marino": 11,
+        "Verde oliva": 6
+      },
+      "stock": 26,
       "colores": [
         {
           "nombre": "Beige",
@@ -2393,11 +2974,23 @@
         "M",
         "L"
       ],
-      "stock_por_color": {
-        "Natural": 5,
-        "Blanco hueso": 3
+      "stock_por_variante": {
+        "Natural": {
+          "S": 12,
+          "M": 1,
+          "L": 11
+        },
+        "Blanco hueso": {
+          "S": 12,
+          "M": 1,
+          "L": 11
+        }
       },
-      "stock": 8,
+      "stock_por_color": {
+        "Natural": 24,
+        "Blanco hueso": 24
+      },
+      "stock": 48,
       "colores": [
         {
           "nombre": "Natural",
@@ -2453,16 +3046,23 @@
         "S",
         "M"
       ],
-      "stock_por_color": {
-        "Verde": 0
-      },
-      "stock": 0,
       "colores": [
         {
           "nombre": "Verde",
           "hex": "#2E7D4F"
         }
       ],
+      "stock_por_variante": {
+        "Verde": {
+          "XS": 0,
+          "S": 14,
+          "M": 12
+        }
+      },
+      "stock_por_color": {
+        "Verde": 26
+      },
+      "stock": 26,
       "descripcion": "",
       "etiquetas": [],
       "imagenes": [
@@ -2478,7 +3078,7 @@
       "activo": true,
       "muestra": false,
       "fecha_creacion": "2026-10-08T18:26:33-05:00",
-      "fecha_actualizacion": "2026-10-09T21:47:42-05:00"
+      "fecha_actualizacion": "2026-10-08T18:26:33-05:00"
     }
   ]
 }

@@ -28,7 +28,7 @@ Catálogo web de una tienda de ropa de verano en **Tarapoto (San Martín, Perú)
 | Productos ocultos (`activo: false`) | 0 |
 | En oferta (descuento máximo) | 14 (-19 %) |
 | Agotados | 0 |
-| Unidades en stock | 542 |
+| Unidades en stock | 2357 |
 | Rango de precios (con la oferta aplicada) | S/ 24.90 a S/ 189.90 |
 | Imágenes de productos (IA local / foto / provisional) | 86 / 2 / 0 |
 | Artículos del blog publicados | 3 de 3 |
@@ -206,7 +206,7 @@ Contrato de las rutas públicas: **[docs/PEDIDOS.md](docs/PEDIDOS.md)** (`/pedid
 | Comando | Qué hace | admin | dueño | marketing |
 |---|---|:-:|:-:|:-:|
 | `/ayuda`, `/lista`, `/ver <id>`, `/estado`, `/historial` | Consultas (el `/estado` usa las cifras de `tools/kpis.js`) | sí | sí | sí |
-| foto o texto libre, `/precio <id> <n>`, `/stock <id> <color> <n>` (0 a 20), `/ocultar <id>`, `/mostrar <id>`, `/foto <id>` | Crear y editar productos (siempre como borrador) | sí | sí | sí |
+| foto o texto libre, `/precio <id> <n>`, `/stock <id> <color> <talla> <n>` (0 a 15 por color y talla), `/ocultar <id>`, `/mostrar <id>`, `/foto <id>` | Crear y editar productos (siempre como borrador) | sí | sí | sí |
 | `/articulo <tema>`, `/articulo_editar <id>`, `/articulo_ocultar <id>` | Artículos del blog | sí | sí | sí |
 | `/imagen <prompt>` y botones Portada / Hero / Lookbook / Descartar | Imagen con la IA local | sí | sí | sí |
 | Publicar / Cancelar | Confirma o descarta **sus** borradores | sí | sí | sí |

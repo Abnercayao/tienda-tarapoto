@@ -373,13 +373,25 @@ function compactarCatalogo(prod, site, sitioUrl) {
     const precio = oferta ? precioTexto(p.precio_oferta) + ' en oferta (antes ' + precioTexto(p.precio) + ')' : precioTexto(p.precio);
     precios.push({ id: p.id, nombre: limpio(p.nombre, 80), texto: precio });
     const colores = (Array.isArray(p.colores) ? p.colores : []).map(function (c) { return typeof c === 'string' ? c : c && c.nombre; }).filter(Boolean);
-    const spc = p.stock_por_color && typeof p.stock_por_color === 'object' ? p.stock_por_color : null;
-    const col = colores.map(function (c) { const n = spc && Number.isInteger(spc[c]) ? spc[c] : null; return limpio(c, 30) + (n === null ? '' : ' ' + n + (n === 0 ? ' (agotado)' : '')); }).join(', ');
+    const spv = p.stock_por_variante && typeof p.stock_por_variante === 'object' ? p.stock_por_variante : null;
+    // Regla de disponibilidad (la misma que la web): 0 agotado, 1 a 9 'quedan N', 10 o más 'en stock' (nunca el número).
+    const dispo = function (c) {
+      const f = spv && spv[c] && typeof spv[c] === 'object' ? spv[c] : null;
+      if (!f) return '';
+      const ts = Object.keys(f);
+      const ago = ts.filter(function (t) { return f[t] === 0; }), ok = ts.filter(function (t) { return f[t] >= 10; });
+      if (ts.length && ago.length === ts.length) return ' [agotado]';
+      const partes = ts.filter(function (t) { return f[t] >= 1 && f[t] <= 9; }).map(function (t) { return t + ' quedan ' + f[t]; });
+      if (ago.length) partes.push('agotado: ' + ago.join(' '));
+      if (ok.length) partes.push('en stock: ' + ok.join(' '));
+      return ' [' + partes.join('; ') + ']';
+    };
+    const col = colores.map(function (c) { return limpio(c, 30) + dispo(c); }).join(', ');
     const total = typeof stockTotal === 'function' ? stockTotal(p) : Number.isInteger(p.stock) ? p.stock : null;
     const fr = typeof inferirFrescura === 'function' ? inferirFrescura(p).valor : Number.isInteger(p.frescura) ? p.frescura : null;
     return [p.id, limpio(p.nombre, 80), p.categoria + (p.subcategoria ? ' (' + limpio(p.subcategoria, 30) + ')' : ''), precio,
       'tallas ' + (Array.isArray(p.tallas) && p.tallas.length ? p.tallas.join(', ') : 'única'),
-      'colores: ' + (col || 'consultar') + (spc ? '' : total === null ? '' : ' (total ' + total + ')'),
+      'colores: ' + (col || 'consultar') + (spv ? '' : total === null ? '' : ' (total ' + total + ')'),
       limpio(p.material || '', 50) || 'material por confirmar', fr ? 'frescura ' + fr + '/5' : ''].filter(Boolean).join(' | ');
   });
   return { catalogo: lineas.length ? lineas.join('\n') : '(Sin productos activos ahora.)', ids: ids, precios: precios, n: lineas.length, tienda: tiendaTexto(site, sitioUrl), whatsapp: whatsappDe(site), envios: site && site.envios && typeof site.envios === 'object' ? site.envios : null };

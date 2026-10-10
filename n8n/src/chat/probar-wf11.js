@@ -167,7 +167,8 @@ async function principal() {
   r = await turno('sesion-prod-0001', '¿Tienen camisas de lino para hombre?', iaFalsa('Sí, tenemos la Camisa de lino manga corta a S/ 74.90 en oferta. ¿Qué talla usas? Más info en https://malo.example.com/x y https://wa.me/51995542938', 'consulta_producto'));
   const sis = r.N['Preparar'][0].json.cuerpo.messages[0].content;
   caso('prompt: sin marcadores {{...}} y con catálogo, tienda, calendario y fecha', !/\{\{[A-Z]+\}\}/.test(sis) && /prd-0001 \| Camisa de lino manga corta/.test(sis) && /Tarapoto/.test(sis) && /mañana /.test(sis) && /Hoy es /.test(sis), sis.slice(0, 300));
-  caso('prompt: frescura y stock por color en el catálogo', /frescura 5\/5/.test(sis) && /Arena \d+/.test(sis), (sis.match(/prd-0001[^\n]*/) || [''])[0]);
+  const l1 = (sis.match(/prd-0001[^\n]*/) || [''])[0];
+  caso('prompt: frescura y disponibilidad por color y talla en el catálogo (agotado / quedan N con 1 a 9 / en stock sin número)', /frescura 5\/5/.test(l1) && /Arena \[[^\]]*quedan \d[^\]]*agotado: M[^\]]*en stock: L\]/.test(l1) && /Blanco hueso \[agotado\]/.test(l1) && !/quedan (\d\d|[1-9]\d)/.test(sis), l1);
   const c0 = r.N['Preparar'][0].json.cuerpo;
   caso('Ollama: llama3.1:8b, format = esquema, num_ctx 8192, temperature 0.6, keep_alive 10m', c0.model === 'llama3.1:8b' && c0.format && c0.format.properties.cita && c0.options.num_ctx === 8192 && c0.options.temperature === 0.6 && c0.keep_alive === '10m' && c0.stream === false);
   caso('respuesta: quita URL ajena y deja wa.me', r.resp.cuerpo.respuesta.indexOf('malo.example') < 0 && /https:\/\/wa\.me\/51995542938/.test(r.resp.cuerpo.respuesta), r.resp.cuerpo.respuesta);

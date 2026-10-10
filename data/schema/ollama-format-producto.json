@@ -119,39 +119,22 @@
             ]
           }
         },
-        "stock_tallas": {
+        "stock_por_variante": {
           "type": "array",
+          "description": "v4: cantidad por color Y talla, de 0 a 15. color null = todos los colores; talla null = todas las tallas. \"5 por talla\" o \"10 de cada talla y color\" -> un solo elemento con color null y talla null",
           "items": {
             "type": "object",
             "properties": {
+              "color": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
               "talla": {
-                "type": "string",
-                "enum": [
-                  "XS",
-                  "S",
-                  "M",
-                  "L",
-                  "XL",
-                  "XXL",
-                  "2",
-                  "4",
-                  "6",
-                  "8",
-                  "10",
-                  "12",
-                  "14",
-                  "16",
-                  "35",
-                  "36",
-                  "37",
-                  "38",
-                  "39",
-                  "40",
-                  "41",
-                  "42",
-                  "43",
-                  "44",
-                  "UNICA"
+                "type": [
+                  "string",
+                  "null"
                 ]
               },
               "cantidad": {
@@ -159,26 +142,8 @@
               }
             },
             "required": [
-              "talla",
-              "cantidad"
-            ]
-          }
-        },
-        "stock_por_color": {
-          "type": "array",
-          "description": "v2: cantidad por color, de 0 a 20. \"10 por color\" -> 10 en cada color",
-          "items": {
-            "type": "object",
-            "properties": {
-              "color": {
-                "type": "string"
-              },
-              "cantidad": {
-                "type": "integer"
-              }
-            },
-            "required": [
               "color",
+              "talla",
               "cantidad"
             ]
           }
@@ -255,8 +220,7 @@
         "precio",
         "precio_oferta",
         "tallas",
-        "stock_tallas",
-        "stock_por_color",
+        "stock_por_variante",
         "stock_modo",
         "colores",
         "material",
@@ -278,8 +242,7 @@
           "precio",
           "precio_oferta",
           "tallas",
-          "stock_tallas",
-          "stock_por_color",
+          "stock_por_variante",
           "stock_modo",
           "colores",
           "material",
@@ -302,8 +265,7 @@
           "precio",
           "precio_oferta",
           "tallas",
-          "stock_tallas",
-          "stock_por_color",
+          "stock_por_variante",
           "stock_modo",
           "colores",
           "material",

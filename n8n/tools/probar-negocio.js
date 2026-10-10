@@ -140,12 +140,15 @@ async function flujoWF4(t, o) {
   return N;
 }
 
+// Stock real de los datos (los productos cambian cuando el dueño vende o repone): las pruebas leen los valores en vez de fijarlos.
+const PRD = function (id) { return JSON.parse(DOCS.products).productos.find(function (p) { return p.id === id; }); };
+const SV = function (id, color, talla) { return PRD(id).stock_por_variante[color][talla]; };
 (async function () {
   const sim = function (respuestas) { let i = 0; return async function () { return respuestas[Math.min(i++, respuestas.length - 1)]; }; };
   console.log('WF3 Borrador-IA (simulado)');
   // 1) álbum de 2 fotos + leyenda completa (una foto falla al descargar)
   let N = await flujoWF3(entradaWF3(trabajo({ tipo: 'foto', texto: 'Vestido de lino para dama, 79.90, tallas S M L, color naranja', fotos: [{ file_id: 'F1', file_unique_id: 'U1' }, { file_id: 'F2', file_unique_id: 'U2' }, { file_id: 'F3', file_unique_id: 'U3' }] })),
-    { fotos: [WEBP[0], WEBP[1], null], ollama: sim([llm('crear', { nombre: 'Vestido de lino', categoria: 'mujeres', subcategoria: 'vestidos', precio: 79.9, tallas: ['S', 'M', 'L'], colores: ['naranja'], material: 'lino', descripcion: 'Vestido fresco.', alt_imagen: 'Vestido naranja de lino' }, { campos_inferidos: ['descripcion', 'subcategoria'], faltantes: ['material', 'stock_tallas'] })]) });
+    { fotos: [WEBP[0], WEBP[1], null], ollama: sim([llm('crear', { nombre: 'Vestido de lino', categoria: 'mujeres', subcategoria: 'vestidos', precio: 79.9, tallas: ['S', 'M', 'L'], colores: ['naranja'], material: 'lino', descripcion: 'Vestido fresco.', alt_imagen: 'Vestido naranja de lino' }, { campos_inferidos: ['descripcion', 'subcategoria'], faltantes: ['material', 'stock_por_variante'] })]) });
   const c1 = N['Cuerpo Ollama'][0].cuerpo;
   const formato = JSON.parse(fs.readFileSync(path.join(RAIZ, 'data', 'schema', 'ollama-format-producto.json'), 'utf8'));
   const md = fs.readFileSync(path.join(RAIZ, 'n8n', 'prompts', 'extraccion.md'), 'utf8').replace(/\r\n/g, '\n');
@@ -161,31 +164,31 @@ async function flujoWF4(t, o) {
   caso('fila = exactamente las 27 columnas de pb_borradores, estado pendiente, expira +24 h', JSON.stringify(Object.keys(fila).sort()) === JSON.stringify(COLS.slice().sort()) && fila.estado === 'pendiente' && Date.parse(fila.expira) - Date.parse(fila.fecha) === 86400000 && /^drf-[a-z0-9]{6,20}$/.test(fila.draft_id));
   caso('faltantes opcionales del LLM (material, stock) NO bloquean: Publicar + Cancelar', fila.faltantes === '[]' && a.mensajes[0].cuerpo.reply_markup.inline_keyboard[0].map(function (b) { return b.callback_data; }).join() === 'pub:' + fila.draft_id + ',no:' + fila.draft_id);
   const vp = a.mensajes[0].cuerpo.text;
-  caso('vista previa: "(sugerido por IA)", stock asumido, aviso de foto fallida y "Siguiente paso"', /descripción: .*sugerido por IA/.test(vp) && /stock por color: Naranja 1 \(total 1\) — asumido/.test(vp) && /No pude descargar 1 foto/.test(vp) && terminaBien(a.mensajes[0]), vp);
+  caso('vista previa: "(sugerido por IA)", stock asumido, aviso de foto fallida y "Siguiente paso"', /descripción: .*sugerido por IA/.test(vp) && /stock por color y talla: Naranja: S 1, M 1, L 1 \(total 3\) — asumido/.test(vp) && /No pude descargar 1 foto/.test(vp) && terminaBien(a.mensajes[0]), vp);
   caso('v2: vista previa "frescura: 5/5 hojitas (sugerido por IA)" (lino, inferida por la tabla)', /frescura: 5\/5 hojitas <i>\(sugerido por IA\)<\/i>/.test(vp) && JSON.parse(fila.campos).frescura === 5 && JSON.parse(fila.campos_inferidos).indexOf('frescura') >= 0, vp);
   caso('pb_imagenes: 2 filas WebP con medidas y alt', N['Insertar imagenes'].length === 2 && N['Insertar imagenes'][0].mime === 'image/webp' && N['Insertar imagenes'][0].ancho === 768 && N['Insertar imagenes'][1].n === 2 && N['Insertar imagenes'][0].alt === 'Vestido naranja de lino');
   caso('preview_message_id guardado y salida {ok, draft_id}', N['Preview enviado'][0].preview_message_id === 800 && N.salida.ok === true && N.salida.draft_id === fila.draft_id);
   let ap = await aplicarEnWF5(fila, N['Insertar imagenes']);
   caso('WF5 "Aplicar lote" acepta el borrador (crea ' + SIG_ID + ' con 2 imágenes)', ap.estado === 'publicado' && ap.entidad_id === SIG_ID, ap);
   let pn = ap.producto(SIG_ID);
-  caso('v2: WF5 publica stock_por_color {Naranja:1}, stock 1, frescura 5 y sin stock_por_talla', pn && JSON.stringify(pn.stock_por_color) === '{"Naranja":1}' && pn.stock === 1 && pn.frescura === 5 && pn.stock_por_talla === undefined && Object.keys(pn).indexOf('stock_por_color') < Object.keys(pn).indexOf('stock'), pn);
+  caso('v4: WF5 publica stock_por_variante {Naranja:{S:1,M:1,L:1}} (1 de cada una), stock_por_color {Naranja:3}, stock 3 y frescura 5', pn && JSON.stringify(pn.stock_por_variante) === '{"Naranja":{"S":1,"M":1,"L":1}}' && JSON.stringify(pn.stock_por_color) === '{"Naranja":3}' && pn.stock === 3 && pn.frescura === 5 && pn.stock_por_talla === undefined && Object.keys(pn).indexOf('stock_por_variante') < Object.keys(pn).indexOf('stock_por_color') && Object.keys(pn).indexOf('stock_por_color') < Object.keys(pn).indexOf('stock'), pn);
 
   // 1b) v2: "10 por color" + frescura inferida por el material aunque el LLM no la dé (format v2)
-  N = await flujoWF3(entradaWF3(trabajo({ texto: 'Polo de lino blanco y arena para hombre, 59.90, tallas S M L, 10 por color' })),
-    { ollama: sim([llm('crear', { nombre: 'Polo de lino', categoria: 'hombres', subcategoria: 'polos', precio: 59.9, tallas: ['S', 'M', 'L'], colores: ['blanco', 'arena'], material: 'lino', stock_por_color: [{ color: 'blanco', cantidad: 10 }, { color: 'arena', cantidad: 10 }] }, { campos_inferidos: ['material', 'colores', 'subcategoria'] })]) });
+  N = await flujoWF3(entradaWF3(trabajo({ texto: 'Polo de lino blanco y arena para hombre, 59.90, tallas S M L, 10 de cada talla y color' })),
+    { ollama: sim([llm('crear', { nombre: 'Polo de lino', categoria: 'hombres', subcategoria: 'polos', precio: 59.9, tallas: ['S', 'M', 'L'], colores: ['blanco', 'arena'], material: 'lino', stock_por_variante: [{ color: null, talla: null, cantidad: 10 }] }, { campos_inferidos: ['material', 'colores', 'subcategoria'] })]) });
   a = N['Armar borrador'][0];
-  caso('v2: format de Ollama con frescura y stock_por_color', !!N['Cuerpo Ollama'][0].cuerpo.format.properties.campos.properties.frescura && !!N['Cuerpo Ollama'][0].cuerpo.format.properties.campos.properties.stock_por_color && /10 por color/.test(N['Cuerpo Ollama'][0].cuerpo.messages[0].content));
-  caso('v2: "10 por color" -> vista previa "stock por color: Blanco 10, Arena 10 (total 20)" y frescura sugerida', /stock por color: Blanco 10, Arena 10 \(total 20\)/.test(a.mensajes[0].cuerpo.text) && /frescura: 5\/5 hojitas <i>\(sugerido por IA\)/.test(a.mensajes[0].cuerpo.text) && a.fila.faltantes === '[]', a.mensajes[0].cuerpo.text);
+  caso('v4: format de Ollama con frescura y stock_por_variante; el prompt explica "10 de cada talla y color"', !!N['Cuerpo Ollama'][0].cuerpo.format.properties.campos.properties.frescura && !!N['Cuerpo Ollama'][0].cuerpo.format.properties.campos.properties.stock_por_variante && /10 de cada talla y color/.test(N['Cuerpo Ollama'][0].cuerpo.messages[0].content) && /5 por talla/.test(N['Cuerpo Ollama'][0].cuerpo.messages[0].content));
+  caso('v4: "10 de cada talla y color" -> vista previa "Blanco: S 10, M 10, L 10 · Arena: …(total 60)" y frescura sugerida', /stock por color y talla: Blanco: S 10, M 10, L 10 · Arena: S 10, M 10, L 10 \(total 60\)/.test(a.mensajes[0].cuerpo.text) && /frescura: 5\/5 hojitas <i>\(sugerido por IA\)/.test(a.mensajes[0].cuerpo.text) && a.fila.faltantes === '[]', a.mensajes[0].cuerpo.text);
   caso('tela y colores escritos por el dueño no salen como "(sugerido por IA)"', /material: lino\n/.test(a.mensajes[0].cuerpo.text) && /colores: blanco, arena\n/.test(a.mensajes[0].cuerpo.text) && /subcategoría: polos <i>\(sugerido por IA\)/.test(a.mensajes[0].cuerpo.text), a.mensajes[0].cuerpo.text);
   ap = await aplicarEnWF5(a.fila, []);
   pn = ap.producto(SIG_ID);
-  caso('v2: WF5 publica {Blanco:10, Arena:10}, stock 20, frescura 5', ap.estado === 'publicado' && pn && JSON.stringify(pn.stock_por_color) === '{"Blanco":10,"Arena":10}' && pn.stock === 20 && pn.frescura === 5, pn || ap);
+  caso('v4: WF5 publica 10 en cada color y talla (stock_por_color {Blanco:30, Arena:30}, stock 60), frescura 5', ap.estado === 'publicado' && pn && JSON.stringify(pn.stock_por_color) === '{"Blanco":30,"Arena":30}' && pn.stock === 60 && pn.tallas.every(function (t) { return pn.stock_por_variante.Blanco[t] === 10 && pn.stock_por_variante.Arena[t] === 10; }) && pn.frescura === 5, pn || ap);
   // 1c) plantilla manual (IA caída) con "stock por color: 10 por color" y colores en otra línea
   N = await flujoWF3(entradaWF3(trabajo({ texto: 'nombre: Short de drill\ncategoria: hombres\nprecio: 49.90\ntallas: S M L\nstock por color: 4 por color\ncolores: beige, negro\nmaterial: drill' })),
     { ollama: sim([{ error: 'connect ECONNREFUSED' }]) });
   a = N['Armar borrador'][0];
   const cpl0 = a.fila ? JSON.parse(a.fila.campos) : {};
-  caso('v2: plantilla sin IA: "4 por color" se reparte en los colores y frescura 3 (drill) sugerida', a.fila && JSON.stringify(cpl0.stock_por_color) === '[{"color":"beige","cantidad":4},{"color":"negro","cantidad":4}]' && cpl0.frescura === 3 && /frescura: 3\/5 hojitas <i>\(sugerido por IA\)/.test(a.mensajes[0].cuerpo.text), a.fila || a.mensajes);
+  caso('v4: plantilla sin IA: "4 por color" = 4 en cada color y talla, y frescura 3 (drill) sugerida', a.fila && JSON.stringify(cpl0.stock_por_variante) === '[{"color":null,"talla":null,"cantidad":4}]' && cpl0.frescura === 3 && /frescura: 3\/5 hojitas <i>\(sugerido por IA\)/.test(a.mensajes[0].cuerpo.text), a.fila || a.mensajes);
 
   // 2) "actualizar" a un producto parecido sin pedir cambio -> corrección determinista + 1 reintento
   N = await flujoWF3(entradaWF3(trabajo({ texto: 'Camisa de lino blanca para hombre 89,90 tallas M L XL' })),
@@ -260,33 +263,26 @@ async function flujoWF4(t, o) {
   caso('precio menor o igual que la oferta vigente -> error claro, sin borrador', N['Armar borrador'][0].accion === 'mensaje' && /oferta actual/.test(N['Mensajes'][0].cuerpo.text));
   N = await op('dueno', { op: 'actualizar', entidad: 'producto', id: 'prd-0001', campos: { precio_oferta: 0 } });
   caso('"sin oferta": precio de oferta: S/ 74.90 → sin oferta', /precio de oferta: S\/ 74\.90 → sin oferta/.test(N['Mensajes'][0].cuerpo.text));
-  // v2: /stock por color (WF4 manda stock_items; WF3 decide color o talla con el catálogo)
-  N = await op('dueno', { op: 'stock', entidad: 'producto', id: 'prd-0001', campos: { stock_items: [{ clave: 'blanco hueso', cantidad: 2 }], stock_modo: 'sumar' } });
-  caso('v2 /stock prd-0001 blanco hueso +2: "stock Blanco hueso: 7 → 9 (+2)" y total 19 → 21', /stock Blanco hueso: 7 → 9 \(\+2\)/.test(N['Mensajes'][0].cuerpo.text) && /stock total: 19 → 21/.test(N['Mensajes'][0].cuerpo.text), N['Mensajes'][0].cuerpo.text);
+  // v4: /stock por color y talla (WF4 manda stock_items con la clave tal como la escribió el dueño; WF3 la resuelve con el catálogo)
+  const A_S = SV('prd-0001', 'Arena', 'S'), A_L = SV('prd-0001', 'Arena', 'L'), BH_M = SV('prd-0001', 'Blanco hueso', 'M');
+  const T1 = PRD('prd-0001').stock;
+  N = await op('dueno', { op: 'stock', entidad: 'producto', id: 'prd-0001', campos: { stock_items: [{ clave: 'blanco hueso m', cantidad: 2 }], stock_modo: 'sumar' } });
+  caso('v4 /stock prd-0001 blanco hueso M +2: "stock Blanco hueso M: ' + BH_M + ' → ' + (BH_M + 2) + '" y total ' + T1 + ' → ' + (T1 + 2), new RegExp('stock Blanco hueso M: ' + BH_M + ' → ' + (BH_M + 2)).test(N['Mensajes'][0].cuerpo.text) && new RegExp('stock total: ' + T1 + ' → ' + (T1 + 2)).test(N['Mensajes'][0].cuerpo.text), N['Mensajes'][0].cuerpo.text);
   ap = await aplicarEnWF5(N['Armar borrador'][0].fila, []);
   pn = ap.producto('prd-0001');
-  caso('v2: WF5 aplica el /stock por color ({Arena:12, Blanco hueso:9}, stock 21)', ap.estado === 'publicado' && pn && JSON.stringify(pn.stock_por_color) === '{"Arena":12,"Blanco hueso":9}' && pn.stock === 21, pn || ap);
-  N = await op('dueno', { op: 'stock', entidad: 'producto', id: 'prd-0002', campos: { stock_items: [{ clave: 'Celeste', cantidad: 0 }, { clave: 'blancos hueso', cantidad: 20 }], stock_modo: 'fijar' } });
-  caso('v2 /stock varios colores: "Celeste: 0 → 0 · agotado" y plural/minúsculas reconocidos', /stock Celeste: 0 → 0 · agotado/.test(N['Mensajes'][0].cuerpo.text) && /stock Blanco hueso: 9 → 20/.test(N['Mensajes'][0].cuerpo.text), N['Mensajes'][0].cuerpo.text);
-  N = await op('dueno', { op: 'stock', entidad: 'producto', id: 'prd-0001', campos: { stock_items: [{ clave: 'Arena', cantidad: 25 }], stock_modo: 'fijar' } });
-  caso('v2 /stock Arena 25 -> error "de 0 a 20", sin borrador', N['Armar borrador'][0].accion === 'mensaje' && /de 0 a 20/.test(N['Mensajes'][0].cuerpo.text), N['Mensajes'][0].cuerpo.text);
-  N = await op('dueno', { op: 'stock', entidad: 'producto', id: 'prd-0001', campos: { stock_items: [{ clave: 'Arena', cantidad: 13 }], stock_modo: 'restar' } });
-  caso('v2 /stock Arena -13 con 12 -> "no hay suficiente stock"', N['Armar borrador'][0].accion === 'mensaje' && /no hay suficiente stock de Arena/.test(N['Mensajes'][0].cuerpo.text), N['Mensajes'][0].cuerpo.text);
+  caso('v4: WF5 aplica el /stock por variante (Blanco hueso M ' + (BH_M + 2) + ', stock_por_color y stock derivados)', ap.estado === 'publicado' && pn && pn.stock_por_variante['Blanco hueso'].M === BH_M + 2 && pn.stock_por_variante.Arena.S === A_S && pn.stock_por_color['Blanco hueso'] === PRD('prd-0001').stock_por_color['Blanco hueso'] + 2 && pn.stock === T1 + 2, pn || ap);
+  N = await op('dueno', { op: 'stock', entidad: 'producto', id: 'prd-0001', campos: { stock_items: [{ clave: 'Arena S', cantidad: 0 }, { clave: 'blancos hueso', cantidad: 5 }], stock_modo: 'fijar' } });
+  caso('v4 /stock varias claves: "Arena S → 0 · agotado" y un color sin talla = todas sus tallas (plural reconocido)', new RegExp('stock Arena S: ' + A_S + ' → 0 · agotado').test(N['Mensajes'][0].cuerpo.text) && /stock Blanco hueso L: 0 → 5/.test(N['Mensajes'][0].cuerpo.text), N['Mensajes'][0].cuerpo.text);
+  N = await op('dueno', { op: 'stock', entidad: 'producto', id: 'prd-0001', campos: { stock_items: [{ clave: 'M', cantidad: 4 }], stock_modo: 'fijar' } });
+  caso('v4 /stock M 4 (solo talla) = esa talla en todos los colores', /stock Arena M: 0 → 4/.test(N['Mensajes'][0].cuerpo.text) && /stock Blanco hueso M: 0 → 4/.test(N['Mensajes'][0].cuerpo.text) && /stock total: /.test(N['Mensajes'][0].cuerpo.text), N['Mensajes'][0].cuerpo.text);
+  N = await op('dueno', { op: 'stock', entidad: 'producto', id: 'prd-0001', campos: { stock_items: [{ clave: 'Arena S', cantidad: 16 }], stock_modo: 'fijar' } });
+  caso('v4 /stock Arena S 16 -> error "de 0 a 15", sin borrador', N['Armar borrador'][0].accion === 'mensaje' && /de 0 a 15/.test(N['Mensajes'][0].cuerpo.text), N['Mensajes'][0].cuerpo.text);
+  N = await op('dueno', { op: 'stock', entidad: 'producto', id: 'prd-0001', campos: { stock_items: [{ clave: 'Arena L', cantidad: A_L + 1 }], stock_modo: 'restar' } });
+  caso('v4 /stock Arena L -' + (A_L + 1) + ' con ' + A_L + ' -> "no hay suficiente stock de Arena L"', N['Armar borrador'][0].accion === 'mensaje' && /no hay suficiente stock de Arena L/.test(N['Mensajes'][0].cuerpo.text), N['Mensajes'][0].cuerpo.text);
   N = await op('dueno', { op: 'stock', entidad: 'producto', id: 'prd-0001', campos: { stock_items: [{ clave: 'fucsia', cantidad: 3 }], stock_modo: 'fijar' } });
-  caso('v2 /stock con un color que el producto no tiene -> error con los colores', N['Armar borrador'][0].accion === 'mensaje' && /no tiene el color fucsia \(colores: Arena, Blanco hueso\)/.test(N['Mensajes'][0].cuerpo.text), N['Mensajes'][0].cuerpo.text);
-  N = await op('dueno', { op: 'stock', entidad: 'producto', id: 'prd-0001', campos: { stock_items: [{ clave: 'M', cantidad: 2 }], stock_modo: 'sumar' } });
-  caso('v2 /stock por talla en un producto con stock por color -> "usa /stock prd-0001 Arena 5"', N['Armar borrador'][0].accion === 'mensaje' && /lleva el stock por color/.test(N['Mensajes'][0].cuerpo.text) && /\/stock prd-0001 Arena 5/.test(N['Mensajes'][0].cuerpo.text), N['Mensajes'][0].cuerpo.text);
-  // compatibilidad v1: producto sin stock_por_color -> /stock por talla sigue funcionando
-  const docsV1 = JSON.parse(DOCS.products);
-  const v1 = docsV1.productos.find(function (p) { return p.id === 'prd-0001'; });
-  delete v1.stock_por_color; v1.stock_por_talla = { S: 3, M: 5, L: 4, XL: 2 }; v1.stock = 14;
-  const DOCS_V1 = Object.assign({}, DOCS, { products: JSON.stringify(docsV1) });
-  N = await flujoWF3(Object.assign({}, trabajo({ rol: 'dueno' }), { trabajo: trabajo({ rol: 'dueno' }), modo: 'operacion', tipo_entidad: 'producto', draft_id: '',
-    operacion: { op: 'stock', entidad: 'producto', id: 'prd-0001', campos: { stock_items: [{ clave: 'M', cantidad: 2 }], stock_modo: 'sumar' } } }), { docs: DOCS_V1 });
-  caso('v1 (sin stock_por_color): /stock M +2: "stock talla M: 5 → 7 (+2)"', /stock talla M: 5 → 7 \(\+2\)/.test(N['Mensajes'][0].cuerpo.text), N['Mensajes'][0].cuerpo.text);
-  N = await flujoWF3(Object.assign({}, trabajo({ rol: 'dueno' }), { trabajo: trabajo({ rol: 'dueno' }), modo: 'operacion', tipo_entidad: 'producto', draft_id: '',
-    operacion: { op: 'stock', entidad: 'producto', id: 'prd-0001', campos: { stock_items: [{ clave: '8', cantidad: 2 }], stock_modo: 'fijar' } } }), { docs: DOCS_V1 });
-  caso('v1: /stock con talla de niños en un producto de hombres -> error', N['Armar borrador'][0].accion === 'mensaje' && /no corresponde/.test(N['Mensajes'][0].cuerpo.text), N['Mensajes'][0].cuerpo.text);
+  caso('v4 /stock con un color o talla que el producto no tiene -> error con colores y tallas', N['Armar borrador'][0].accion === 'mensaje' && /no tiene el color o la talla fucsia \(colores: Arena, Blanco hueso; tallas: S M L XL\)/.test(N['Mensajes'][0].cuerpo.text), N['Mensajes'][0].cuerpo.text);
+  N = await op('dueno', { op: 'stock', entidad: 'producto', id: 'prd-0001', campos: { stock_items: [{ clave: 'XXL', cantidad: 2 }], stock_modo: 'sumar' } });
+  caso('v4 /stock con una talla que el producto no tiene -> error', N['Armar borrador'][0].accion === 'mensaje' && /no tiene el color o la talla XXL/.test(N['Mensajes'][0].cuerpo.text), N['Mensajes'][0].cuerpo.text);
   // v2: /frescura
   N = await op('dueno', { op: 'actualizar', entidad: 'producto', id: 'prd-0003', campos: { frescura: 3 } });
   a = N['Armar borrador'][0];
@@ -297,10 +293,10 @@ async function flujoWF4(t, o) {
   caso('v2 /frescura con el mismo valor -> "No hay nada que cambiar", sin borrador', N['Armar borrador'][0].accion === 'mensaje' && /No hay nada que cambiar/.test(N['Mensajes'][0].cuerpo.text), N['Mensajes'][0].cuerpo.text);
   // v2: cambiar colores conserva el stock de los que siguen; los nuevos empiezan en 0
   N = await op('dueno', { op: 'actualizar', entidad: 'producto', id: 'prd-0001', campos: { colores: ['Arena', 'Negro'] } });
-  caso('v2: cambiar colores -> vista previa "stock por color: Arena 12, Negro 0"', /stock por color: Arena 12, Negro 0/.test(N['Mensajes'][0].cuerpo.text), N['Mensajes'][0].cuerpo.text);
+  caso('v4: cambiar colores -> vista previa conserva Arena y Negro empieza en 0', new RegExp('stock por color y talla: Arena: S ' + A_S + ', M 0, L ' + A_L + ', XL ' + SV('prd-0001', 'Arena', 'XL') + ' · Negro: agotado').test(N['Mensajes'][0].cuerpo.text), N['Mensajes'][0].cuerpo.text);
   ap = await aplicarEnWF5(N['Armar borrador'][0].fila, []);
   pn = ap.producto('prd-0001');
-  caso('v2: WF5 aplica colores ({Arena:12, Negro:0}, stock 12, foto de "Blanco hueso" sin color)', ap.estado === 'publicado' && pn && JSON.stringify(pn.stock_por_color) === '{"Arena":12,"Negro":0}' && pn.stock === 12 && pn.imagenes.every(function (im) { return im.color === undefined || im.color === 'Arena'; }), pn || ap);
+  caso('v4: WF5 aplica colores (Arena conserva sus tallas, Negro en 0, stock = suma de Arena, foto de "Blanco hueso" sin color)', ap.estado === 'publicado' && pn && JSON.stringify(Object.keys(pn.stock_por_variante)) === '["Arena","Negro"]' && pn.stock_por_variante.Arena.S === A_S && pn.stock_por_variante.Negro.XL === 0 && pn.stock_por_color.Negro === 0 && pn.stock === PRD('prd-0001').stock_por_color.Arena && pn.imagenes.every(function (im) { return im.color === undefined || im.color === 'Arena'; }), pn || ap);
   N = await op('dueno', { op: 'reactivar', entidad: 'producto', id: 'prd-0002', campos: {} });
   caso('/mostrar de un producto ya visible -> error', /ya está visible/.test(N['Mensajes'][0].cuerpo.text));
   N = await op('dueno', { op: 'desactivar', entidad: 'producto', id: 'prd-0099', campos: {} });
@@ -356,7 +352,11 @@ async function flujoWF4(t, o) {
   r = await cmd('dueno', '/stock prd-0001 Blanco hueso 5 Arena 3');
   caso('v2 /stock prd-0001 Blanco hueso 5 Arena 3 -> colores de varias palabras', r.operacion && r.operacion.campos.stock_items.map(function (s) { return s.clave + '=' + s.cantidad; }).join() === 'Blanco hueso=5,Arena=3' && r.operacion.campos.stock_modo === 'fijar');
   r = await cmd('dueno', '/stock prd-0001 Arena');
-  caso('/stock sin cantidad -> uso con ejemplo por color', r.ruta === 'responder' && /^Uso: \/stock prd-0001 Blanco 5/.test(r.mensajes[0].cuerpo.text));
+  caso('/stock sin cantidad -> uso con ejemplo por color y talla', r.ruta === 'responder' && /^Uso: \/stock prd-0001 Blanco M 5/.test(r.mensajes[0].cuerpo.text));
+  r = await cmd('dueno', '/stock prd-0001 Blanco hueso M +2 Arena XL +1');
+  caso('v4 /stock con color de varias palabras + talla y sumas: claves "Blanco hueso M" y "Arena XL"', r.operacion && r.operacion.campos.stock_modo === 'sumar' && r.operacion.campos.stock_items.map(function (x) { return x.clave + '=' + x.cantidad; }).join() === 'Blanco hueso M=2,Arena XL=1', r.operacion || r.mensajes);
+  r = await cmd('dueno', '/stock prd-0030 Negro 38 5');
+  caso('v4 /stock con talla numérica (calzado): "Negro 38 5" = clave "Negro 38", cantidad 5', r.operacion && r.operacion.campos.stock_items.map(function (x) { return x.clave + '=' + x.cantidad; }).join() === 'Negro 38=5', r.operacion || r.mensajes);
   r = await cmd('dueno', '/frescura prd-0003 5');
   caso('v2 /frescura prd-0003 5 -> WF3 actualizar {frescura:5}', r.operacion && r.operacion.op === 'actualizar' && r.operacion.campos.frescura === 5 && r.operacion.id === 'prd-0003');
   r = await cmd('dueno', '/frescura prd-0003 7');
@@ -403,10 +403,10 @@ async function flujoWF4(t, o) {
   caso('/lista hombres: 10 productos con precio y oferta', /Productos de hombres \(10\)/.test(m.cuerpo.text) && /prd-0001 · Camisa de lino manga corta · S\/ 89\.90 \(oferta S\/ 74\.90\)/.test(m.cuerpo.text) && terminaBien(m));
   N4['Interpretar'] = [{ ruta: 'consulta', cmd: 'ver', id: 'prd-0001' }];
   m = (await correr(W4, 'Consulta', [gh(DOCS.articles)], N4))[0];
-  caso('v2 /ver prd-0001: stock por color, frescura y comandos sugeridos', /stock por color: Arena 12, Blanco hueso 7 \(total 19\)/.test(m.cuerpo.text) && /frescura: 5\/5 hojitas/.test(m.cuerpo.text) && /\/stock prd-0001 Arena 5/.test(m.cuerpo.text) && /\/precio prd-0001/.test(m.cuerpo.text), m.cuerpo.text);
+  caso('v4 /ver prd-0001: matriz de stock por color y talla, frescura y comandos sugeridos', new RegExp('stock por color y talla \\(total ' + PRD('prd-0001').stock + '\\):').test(m.cuerpo.text) && new RegExp('Arena: S ' + A_S + ', M 0 \\(agotado\\), L ' + A_L + ', XL ' + SV('prd-0001', 'Arena', 'XL') + ' \\(' + PRD('prd-0001').stock_por_color.Arena + '\\)').test(m.cuerpo.text) && /Blanco hueso: S 0 \(agotado\), M 0 \(agotado\)/.test(m.cuerpo.text) && /frescura: 5\/5 hojitas/.test(m.cuerpo.text) && /\/stock prd-0001 Arena S 5/.test(m.cuerpo.text) && /\/precio prd-0001/.test(m.cuerpo.text), m.cuerpo.text);
   N4['Interpretar'] = [{ ruta: 'consulta', cmd: 'ver', id: 'prd-0002' }];
   m = (await correr(W4, 'Consulta', [gh(DOCS.articles)], N4))[0];
-  caso('v2 /ver prd-0002: color agotado marcado', /Celeste 0 \(agotado\)/.test(m.cuerpo.text), m.cuerpo.text);
+  caso('v4 /ver prd-0002: variantes agotadas marcadas', /\(agotado\)/.test(m.cuerpo.text) && /stock por color y talla/.test(m.cuerpo.text), m.cuerpo.text);
   N4['Interpretar'] = [{ ruta: 'consulta', cmd: 'lista', filtro: 'zapatos' }];
   m = (await correr(W4, 'Consulta', [gh(DOCS.articles)], N4))[0];
   caso('/lista con filtro desconocido -> opciones', /No conozco el filtro/.test(m.cuerpo.text));
@@ -458,7 +458,7 @@ async function pruebaReal(flujo) {
     } catch (e) { llamadas.push({ ms: Date.now() - t0, error: e.message }); return { error: { message: e.message } }; }
   };
   // v2: 4 mensajes (frescura por la tela, "10 por color", stock por color en un producto existente, foto).
-  const spc = function (c) { const o = {}; (c.stock_por_color || []).forEach(function (s) { o[String(s.color).toLowerCase()] = s.cantidad; }); return o; };
+  const spc = function (c) { const o = {}; (c.colores || []).forEach(function (n) { const t = (c.stock_por_variante || []).filter(function (s) { return s.color === null || String(s.color).toLowerCase() === String(n).toLowerCase(); }); o[String(n).toLowerCase()] = t.length ? t[t.length - 1].cantidad : undefined; }); const e = (c.stock_por_variante || []).find(function (s) { return s.color && !o[String(s.color).toLowerCase()]; }); if (e) o[String(e.color).toLowerCase()] = e.cantidad; return o; };
   const casos = [
     { texto: 'Polo de lino blanco y arena, 10 por color, 59.90', espera: function (o, c) { const s = spc(c); return o.op === 'crear' && c.precio === 59.9 && c.colores.length === 2 && s.blanco === 10 && s.arena === 10 && c.frescura === 5; } },
     { texto: 'Quedan 2 del color arena en el prd-0003', espera: function (o, c) { return o.op === 'stock' && o.id === 'prd-0003' && c.stock_modo === 'fijar' && spc(c).arena === 2; } },

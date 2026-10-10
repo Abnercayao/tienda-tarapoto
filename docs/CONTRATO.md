@@ -167,7 +167,7 @@ Los nombres de ruta son los de este contrato; si el equipo n8n/proxy los cambia,
 | `origen` de imagen | Metadato interno (la web no lo muestra). Se quita la regla `imagen_origen`: `ia_local` ya no exige `muestra:true`. |
 | Indexación | Cada página lleva `<meta name="robots" content="noindex, nofollow">` y **no hay `sitemap.xml`** (borrado). `tools/qa.js` lo comprueba. |
 | Frescura | `frescura` (1–5) sigue opcional, pero la web y el bot usan **la misma tabla por material** cuando falta (0.2). Está en el `format` del LLM. |
-| Stock | Nuevo `stock_por_color` (0–20 por color) = **fuente de verdad**; `stock_por_talla` pasa a opcional (0.3). |
+| Stock | (histórico) `stock_por_color` (0–20 por color); desde v4 la fuente de verdad es `stock_por_variante` (color + talla, 0–15; ver 0.4). |
 | Imágenes | `imagenes[].color` asocia cada foto a un color; los productos de referencia tienen **una foto por color** (0.4). |
 | Guía de tallas | Nuevo `site.guia_tallas` (obligatorio), editable (0.5). |
 | Chat del agente | Nuevo `data/chat.json` con la URL pública del chat (0.6). |
@@ -189,7 +189,25 @@ Tabla única `TABLA_FRESCURA` en `tools/validar.js`, publicada para la web como 
 - **Web:** muestra `p.frescura`; si falta, la misma inferencia con el JSON publicado; si tampoco hay, no muestra hojitas (el validador avisa `[frescura]`). Los 17 productos actuales ya tienen `frescura` (prd-0016 y prd-0017 = 5). Un valor guardado puede diferir de la tabla a propósito (las sandalias abiertas de cuero tienen 4).
 - **Bot:** `frescura` está en `data/schema/ollama-format-producto.json` (`enum [1..5, null]`). `validarOperacion` la decide así al **crear**: si el dueño la dijo (no está en `campos_inferidos`), se respeta; si no, manda la tabla (aunque el LLM haya propuesto otro valor; aviso `[frescura]`) y se añade `"frescura"` a `campos_inferidos`. Al **actualizar** la tela sin decir la frescura, se sugiere la de la tabla. La vista previa de Telegram debe mostrar "Frescura: N/5 (sugerido por IA)" cuando `frescura` ∈ `campos_inferidos`. Nunca va en `faltantes`.
 
-### 0.3 Stock por color (0–20) y regla de stock
+### 0.4 Stock por variante: color + talla (0–15) — vigente (2026-10-09)
+
+Sustituye a 0.3: ya no se comparte el stock de un color entre todas sus tallas.
+
+| Campo | Regla |
+|---|---|
+| `stock_por_variante` | **Fuente de verdad.** `{ "<nombre EXACTO de colores[]>": { "<talla de tallas[]>": entero 0..15 } }`: una clave por color y, dentro, una por talla (ni más ni menos). 0 = variante agotada. Obligatorio. |
+| `stock_por_color` | **Derivado** (se mantiene porque la web, el bot y los avisos lo leen): suma de las tallas de cada color. El validador exige que coincida (`[stock]`). |
+| `stock` | **Derivado**: suma de todo `stock_por_variante`. |
+| `stock_por_talla` | **Eliminado** (el esquema lo rechaza como campo no permitido). |
+
+- **Ayudas del bloque COPIAR A N8N:** `stockTotal(p)`, `stockVariante(p, color, talla)` (color sin mayúsculas ni tildes; "única" = `UNICA`; `null` si no existe), `derivarStock(p)` (recalcula `stock_por_color` y `stock`), `aplicarStockVariante(p, [{color, talla, cantidad}], 'fijar'|'sumar'|'restar')` → `{ok, errores, stock_por_variante, stock_por_color, stock, cambios}` sin modificar `p` (color o talla `null`/`"*"` = todos; rechaza colores o tallas que el producto no tiene, negativos y > 15), y las constantes `MAX_STOCK_VARIANTE` (15), `STOCK_VARIANTE_ASUMIDO` (1) y `AVISO_POCAS_UNIDADES` (10).
+- **Pedidos:** `calcularTotales`/`validarPedido`/`crearPedido` revisan cada línea (id + color + talla; las repetidas se suman antes): `[stock] … agotado: …` si hay 0 y `… (pides N, quedan M)` si falta. `stockTrasPedido` resta por color y talla; WF14 crea un borrador `stock` (modo `restar`) con `stock_por_variante: [{color, talla, cantidad}]` por producto.
+- **Web:** al elegir un color se deshabilitan (`aria-disabled`, tachadas) las tallas con 0 en ficha, vista rápida y tarjetas. Mensaje de la variante elegida: 0 → "Agotado", 1–9 → "Quedan N", ≥ 10 → "En stock" (**nunca** el número si es ≥ 10). La bolsa y el checkout limitan las cantidades por color + talla (y 10 por línea).
+- **Chat (Vale):** el catálogo compacto lleva por color la lista de tallas con la misma regla ("agotado", "quedan N", "en stock"); el prompt le prohíbe dar cantidades exactas ≥ 10.
+- **Bot:** `/stock <id> <color> <talla> <n>` (también `+n` llegaron, `-n` vendidos, y varios pares); sin talla afecta todas las tallas del color, sin color afecta esa talla en todos los colores (`/stock prd-0001 Blanco 5`, `/stock prd-0001 M 4`; calzado: `/stock prd-0030 Negro 38 5`). `/ver <id>` muestra la matriz color × talla. WF3: el LLM devuelve `stock_por_variante: [{color, talla, cantidad}]` (arreglo en el `format`; `null` = todos): "5 por talla" o "10 de cada talla y color" → un solo elemento `{color:null, talla:null, cantidad}`. Al **crear**, sin cantidades cada variante empieza en 1 (aviso "corrígelo con /stock") y lo no nombrado empieza en 0; `stock_tallas` y `stock_por_color` ya no existen en el `format`. WF5 guarda `stock_por_variante` y deriva `stock_por_color` y `stock`; al cambiar colores o tallas se conservan las variantes que siguen y las nuevas empiezan en 0.
+- **Datos:** todos los productos (también los creados por el bot) llevan stock por variante determinista entre 0 y 15, con tallas agotadas y algún color agotado.
+
+### 0.3 Stock por color (0–20) y regla de stock — SUSTITUIDO por 0.4
 
 | Campo | Regla |
 |---|---|
@@ -328,9 +346,9 @@ Envoltura + `moneda: "PEN"` + `productos: [...]` (máximo 1000).
 | `precio` | sí | Soles, > 0, ≤ 9999, máximo 2 decimales. La web muestra "S/ 69.90" (`Intl` es-PE, PEN). |
 | `precio_oferta` | no | Ausente o `null` = sin oferta. Si existe: > 0, 2 decimales y **menor que `precio`**. El % de descuento se calcula en una sola función compartida. |
 | `tallas` | sí | 1–12, sin repetir. Valores y coherencia con la categoría en la tabla siguiente. |
-| `stock_por_color` | v2 | Una clave **por cada** color (nombre exacto), enteros 0–20. Fuente de verdad del stock (ver 0.3). |
-| `stock_por_talla` | no (v2) | Una clave **por cada** talla de `tallas` (ni más ni menos), enteros ≥ 0. Solo formato v1 o informativo (ver 0.3). |
-| `stock` | sí | Entero = **suma** de `stock_por_color` (o de `stock_por_talla` si no hay por color). Lo recalcula el código. |
+| `stock_por_variante` | sí (v4) | `{color: {talla: entero 0–15}}`, una clave por cada color y por cada talla. **Fuente de verdad** del stock (ver 0.4). |
+| `stock_por_color` | sí (derivado) | Suma de las tallas de cada color. Lo recalcula el código y el validador exige que coincida. |
+| `stock` | sí (derivado) | Entero = **suma** de `stock_por_variante`. Lo recalcula el código. |
 | `colores` | sí | 1–8 `{nombre, hex}`; `hex` = `#RRGGBB`. `colorHex(nombre)` convierte lo que dice el dueño. |
 | `material` | no | 2–60 ("Lino 100%"). |
 | `frescura` | no | 1–5 (índice de frescura en hojitas). Si falta, se infiere con la tabla por material (ver 0.2). |

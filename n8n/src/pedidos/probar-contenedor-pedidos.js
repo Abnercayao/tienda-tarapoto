@@ -204,9 +204,9 @@ async function principal() {
     caso('Telegram (simulado): "Nuevo pedido" a admin y dueño, con el token de pb_config', nuevos.length === 2 && nuevos.every(function (m) { return m.tokenOk; }) && nuevos.map(function (m) { return m.cuerpo.chat_id; }).sort().join() === '111,222', c.tg);
     r = await http('POST', BASE + '/webhook/pedido-crear', solicitud({ items: [{ id: 'prd-0019', color: color, talla: 'M', cantidad: 25 }] }));
     caso('cantidad fuera de rango -> ok:false con texto para el cliente', r.status === 200 && r.json && r.json.ok === false && /cantidad/i.test(r.json.errores.join(' ')), r.texto);
-    const poco = P.find(function (p) { return p.activo && p.stock_por_color && Object.keys(p.stock_por_color).some(function (k) { return p.stock_por_color[k] > 0 && p.stock_por_color[k] < 9; }); });
-    const colPoco = Object.keys(poco.stock_por_color).find(function (k) { return poco.stock_por_color[k] > 0 && poco.stock_por_color[k] < 9; });
-    r = await http('POST', BASE + '/webhook/pedido-crear', solicitud({ items: [{ id: poco.id, color: colPoco, talla: poco.tallas[0], cantidad: poco.stock_por_color[colPoco] + 1 }] }));
+    let poco = null;
+    for (const p of P) { if (poco || !p.activo) continue; for (const c of Object.keys(p.stock_por_variante)) for (const t of Object.keys(p.stock_por_variante[c])) { const n = p.stock_por_variante[c][t]; if (!poco && n > 0 && n < 9) poco = { id: p.id, color: c, talla: t, n: n }; } }
+    r = await http('POST', BASE + '/webhook/pedido-crear', solicitud({ items: [{ id: poco.id, color: poco.color, talla: poco.talla, cantidad: poco.n + 1 }] }));
     caso('stock insuficiente (' + poco.id + ' ' + colPoco + ') -> ok:false "stock"', r.json && r.json.ok === false && /stock/i.test(r.json.errores.join(' ')), r.texto);
 
     console.log('\n-- WF14: aviso de Mercado Pago vía proxy (/mp-notificacion) --');
@@ -225,7 +225,7 @@ async function principal() {
     caso('firma válida -> 200 y GET /v1/payments/5550001 con el token', bueno.status === 200 && c.mpLog.some(function (x) { return x.ruta === '/v1/payments/5550001' && x.auth; }), c.mpLog);
     caso('PB-000101 -> "pagado" con historial y payment_id', p101 && p101.estado === 'pagado' && p101.pago.payment_id === '5550001' && p101.historial.length === 2, p101);
     const borr = (d.borradores || []).filter(function (b) { return b.origen === 'pedido'; });
-    caso('pb_borradores: borrador de stock aprobado para WF5 (prd-0019, restar 1 ' + color + ')', borr.length === 1 && borr[0].estado === 'aprobado' && borr[0].op === 'stock' && JSON.parse(borr[0].campos).stock_por_color[0].cantidad === 1, borr);
+    caso('pb_borradores: borrador de stock aprobado para WF5 (prd-0019, restar 1 ' + color + ')', borr.length === 1 && borr[0].estado === 'aprobado' && borr[0].op === 'stock' && JSON.parse(borr[0].campos).stock_por_variante[0].cantidad === 1, borr);
     caso('Telegram: "Pago confirmado" a admin y dueño', c.tg.filter(function (m) { return /Pago confirmado/.test(m.cuerpo.text || ''); }).length === 2, c.tg);
     await http('POST', PROXY + '/mp-notificacion?data.id=5550001&type=payment', { type: 'payment', data: { id: '5550001' } }, { 'x-signature': firmar('5550001', 'req-otra', '1760000001'), 'x-request-id': 'req-otra' });
     await dormir(3000);

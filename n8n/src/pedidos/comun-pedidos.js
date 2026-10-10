@@ -198,23 +198,23 @@ function pdFirmaMP(firma, requestId, dataId, secreto) {
   return dif === 0 ? { ok: true, motivo: 'firma válida' } : { ok: false, motivo: 'firma inválida' };
 }
 // ---------- Stock tras un pago (borradores del sistema, auto-aprobados; WF5 los publica en el siguiente lote) ----------
-// Un borrador "stock" por producto con stock_por_color [{color, cantidad}] y stock_modo "restar" (aplicarStockColor de validar.js).
+// Un borrador "stock" por producto con stock_por_variante [{color, talla, cantidad}] y stock_modo "restar" (aplicarStockVariante de validar.js).
 // rol "dueno": límites de daño del dueño. chat_id = primer admin/dueño (recibe "Publicado: stock …" o el error si no alcanzó).
 function pdBorradoresStock(pedido, cfg, ahora) {
   const porProducto = {};
   (pedido.items || []).forEach(function (it) {
     const l = porProducto[it.id] = porProducto[it.id] || [];
-    const x = l.find(function (y) { return y.color === it.color; });
-    if (x) x.cantidad += it.cantidad; else l.push({ color: it.color, cantidad: it.cantidad });
+    const x = l.find(function (y) { return y.color === it.color && y.talla === it.talla; });
+    if (x) x.cantidad += it.cantidad; else l.push({ color: it.color, talla: it.talla, cantidad: it.cantidad });
   });
   const chat = (cfg.DESTINOS_PEDIDOS || [])[0] || 0;
   return Object.keys(porProducto).map(function (id, i) {
     const lista = porProducto[id];
-    const resumen = 'stock ' + id + ' -' + lista.map(function (x) { return x.cantidad + ' ' + x.color; }).join(', -') + ' (pedido ' + pedido.numero + ')';
+    const resumen = 'stock ' + id + ' -' + lista.map(function (x) { return x.cantidad + ' ' + x.color + ' ' + x.talla; }).join(', -') + ' (pedido ' + pedido.numero + ')';
     return {
       draft_id: 'drf-' + (Number(ahora) + i).toString(36) + String(pedido.numero).replace(/\D/g, '').slice(-6), owner_id: 0, rol: 'dueno', chat_id: chat, preview_message_id: 0,
       origen: 'pedido', op: 'stock', entidad: 'producto', entidad_id: id,
-      campos: JSON.stringify({ stock_por_color: lista, stock_modo: 'restar' }), campos_inferidos: '[]', faltantes: '[]', avisos: '[]',
+      campos: JSON.stringify({ stock_por_variante: lista, stock_modo: 'restar' }), campos_inferidos: '[]', faltantes: '[]', avisos: '[]',
       update_ids: '[]', file_ids: '[]', file_unique_ids: '[]', fecha: isoLima(ahora), expira: isoLima(Number(ahora) + 86400000), estado: 'aprobado',
       confirmaciones: 0, confirmaciones_requeridas: 1, intentos: 0, error: '', commit_sha: '', texto: 'Pago confirmado de ' + pedido.numero,
       resumen: resumen.slice(0, 200), fecha_ms: Number(ahora)

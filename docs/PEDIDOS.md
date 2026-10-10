@@ -54,7 +54,7 @@ Alta de Emily (dueña): ella escribe `/start` al bot → un admin usa `/desconoc
 
 ## 4. Stock
 
-Al confirmarse el pago, WF14 crea **un borrador `stock` por producto** (modo `restar`, por color, rol `dueno`, origen `pedido`) en `pb_borradores` con estado **aprobado**. WF2 llama a WF5 en el siguiente lote (respeta `PAUSA` y los 6 min entre commits) y queda un commit `data(products): stock prd-0019 … [pedido draft:drf-…]`; el primer admin/dueño recibe "Publicado". Si el stock ya no alcanza (dos ventas casi juntas), WF5 marca el borrador `error` y avisa: hay que corregir con `/stock`.
+Al confirmarse el pago, WF14 crea **un borrador `stock` por producto** (modo `restar`, por color y talla, rol `dueno`, origen `pedido`) en `pb_borradores` con estado **aprobado**. WF2 llama a WF5 en el siguiente lote (respeta `PAUSA` y los 6 min entre commits) y queda un commit `data(products): stock prd-0019 … [pedido draft:drf-…]`; el primer admin/dueño recibe "Publicado". Si el stock ya no alcanza (dos ventas casi juntas), WF5 marca el borrador `error` y avisa: hay que corregir con `/stock`.
 Límite conocido: entre el pago y la publicación (≈ 6–15 min + GitHub Pages) la web todavía muestra el stock anterior; WF13 vuelve a revisar el stock publicado en cada pedido, pero no "reserva" unidades de pedidos pagados sin publicar.
 
 ## 5. Mercado Pago: lo que hace el usuario (una sola vez)

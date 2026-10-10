@@ -112,7 +112,7 @@ caso('F1-16 (v2) ia_local en producto real con imagen nueva también pasa', () =
   const r = debePasar(d, {}); afirmar(!r.errores.some((e) => e.indexOf('[imagen_origen]') === 0), 'imagen_origen ya no existe');
 });
 caso('extra: talla de adulto en la categoría niños', () => { const d = copia(); const p = prd(d, 'prd-0009'); p.tallas.push('M'); debeRechazar(d, {}, 'talla_categoria', 'prd-0009'); });
-caso('extra: stock_por_talla con una talla que no está en tallas', () => { const d = copia(); prd(d, 'prd-0003').stock_por_talla = { S: 1, M: 1, L: 1, XL: 0, XXL: 0 }; debeRechazar(d, {}, 'stock', 'XXL'); });
+caso('extra: stock_por_variante con una talla que no está en tallas', () => { const d = copia(); const p = prd(d, 'prd-0003'); Object.keys(p.stock_por_variante).forEach((c) => { p.stock_por_variante[c].XXL = 0; }); debeRechazar(d, {}, 'stock', 'XXL'); });
 caso('extra: slug duplicado', () => { const d = copia(); prd(d, 'prd-0002').slug = prd(d, 'prd-0001').slug; debeRechazar(d, {}, 'slug_duplicado'); });
 caso('extra: token de GitHub (github_pat_ y ghp_) en artículo y sitio', () => {
   const d = copia(); d.articles.articulos[1].bloques[0].texto += ' github_pat_11ABCDEFG0123456789_abcdefghijklmnopqrstuvwxyz';
@@ -227,7 +227,7 @@ caso('el bloque corre sin require/module/process y valida', () => {
     'const r = validar({ products: $json.products, articles: $json.articles, site: $json.site }, {});\n' +
     'const r2 = validarOperacion(OP, { texto: "Polo para dama talla M a 39.90", productos: $json.products.productos });\n' +
     '[{ json: r }, { json: r2 }];';
-  const ctx = { DOCS: copia(), OP: { op: 'crear', entidad: 'producto', id: null, campos: { nombre: 'Polo de algodón', categoria: 'hombres', subcategoria: 'polos', precio: 39.9, precio_oferta: null, tallas: ['M'], stock_tallas: [], colores: ['blanco'], material: null, descripcion: null, etiquetas: [], alt_imagen: null, destacado: null }, campos_inferidos: ['categoria'], faltantes: [] } };
+  const ctx = { DOCS: copia(), OP: { op: 'crear', entidad: 'producto', id: null, campos: { nombre: 'Polo de algodón', categoria: 'hombres', subcategoria: 'polos', precio: 39.9, precio_oferta: null, tallas: ['M'], stock_por_variante: [], colores: ['blanco'], material: null, descripcion: null, etiquetas: [], alt_imagen: null, destacado: null }, campos_inferidos: ['categoria'], faltantes: [] } };
   const salida = vm.runInNewContext(bloque + '\n' + n8n, ctx, { timeout: 5000 });
   afirmar(salida[0].json.ok === true, 'validar() falló dentro del sandbox: ' + JSON.stringify(salida[0].json.errores));
   afirmar(salida[1].json.operacion.campos.categoria === 'mujeres', 'validarOperacion debía corregir la categoría a mujeres');
@@ -268,7 +268,7 @@ caso('permisos por rol', () => {
   afirmar(!V.puede('desconocido', 'consulta') && !V.puede(undefined, 'crear'), 'un rol desconocido no puede nada');
 });
 caso('validarOperacion: faltantes, ids y oferta', () => {
-  const base = { op: 'crear', entidad: 'producto', id: null, campos: { nombre: 'Vestido de lino', categoria: 'mujeres', subcategoria: 'vestidos', precio: null, precio_oferta: null, tallas: [], stock_tallas: [], colores: [], material: 'Lino', descripcion: null, etiquetas: [], alt_imagen: null, destacado: null }, campos_inferidos: [], faltantes: [] };
+  const base = { op: 'crear', entidad: 'producto', id: null, campos: { nombre: 'Vestido de lino', categoria: 'mujeres', subcategoria: 'vestidos', precio: null, precio_oferta: null, tallas: [], stock_por_variante: [], colores: [], material: 'Lino', descripcion: null, etiquetas: [], alt_imagen: null, destacado: null }, campos_inferidos: [], faltantes: [] };
   const r = V.validarOperacion(base, { texto: 'vestido de lino', hayFoto: true });
   afirmar(r.ok && ['precio', 'tallas', 'colores'].every((f) => r.faltantes.indexOf(f) >= 0), 'debía pedir precio, tallas y colores: ' + JSON.stringify(r));
   const r2 = V.validarOperacion(Object.assign({}, base, { op: 'actualizar', id: 'prd-0999', campos: Object.assign({}, base.campos, { precio: 50 }) }), { productos: BASE.products.productos });
@@ -282,14 +282,14 @@ caso('validarOperacion: faltantes, ids y oferta', () => {
 });
 
 caso('validarOperacion: normaliza por op, corrige "actualizar" sin id y fija stock_modo', () => {
-  const vacios = { nombre: null, categoria: null, subcategoria: null, precio: null, precio_oferta: null, tallas: [], stock_tallas: [], stock_modo: null, colores: [], material: null, descripcion: null, etiquetas: [], alt_imagen: null, destacado: null };
+  const vacios = { nombre: null, categoria: null, subcategoria: null, precio: null, precio_oferta: null, tallas: [], stock_por_variante: [], stock_modo: null, colores: [], material: null, descripcion: null, etiquetas: [], alt_imagen: null, destacado: null };
   const mk = (op, id, campos, extra) => Object.assign({ op, entidad: 'producto', id, campos: Object.assign({}, vacios, campos), campos_inferidos: [], faltantes: [] }, extra || {});
   const P = BASE.products.productos;
   // desactivar: el LLM rellenó campos del catálogo -> se vacían
   const r1 = V.validarOperacion(mk('desactivar', 'prd-0014', { nombre: 'Gorro pescador de algodón', precio: 29.9, categoria: 'accesorios' }), { texto: 'oculta el prd-0014', productos: P });
   afirmar(r1.ok && r1.operacion.campos.precio === null && r1.operacion.campos.nombre === null, 'desactivar debía vaciar los campos');
   // stock sin modo -> fijar + aviso
-  const r2 = V.validarOperacion(mk('stock', 'prd-0005', { stock_tallas: [{ talla: 'L', cantidad: 2 }], precio: 109.9 }), { texto: 'quedan 2 de la L del prd-0005', productos: P });
+  const r2 = V.validarOperacion(mk('stock', 'prd-0005', { stock_por_variante: [{ color: null, talla: 'L', cantidad: 2 }], precio: 109.9 }), { texto: 'quedan 2 de la L del prd-0005', productos: P });
   afirmar(r2.ok && r2.operacion.campos.stock_modo === 'fijar' && r2.operacion.campos.precio === null, 'stock debía fijar modo y vaciar precio');
   // actualizar sin id ni verbo en el texto -> crear + reintentar
   const r3 = V.validarOperacion(mk('actualizar', 'prd-0005', { precio: 120, precio_oferta: 99 }, { faltantes: ['id'] }), { texto: 'Vestido de lino a 120 con oferta a 99', productos: P });
@@ -375,40 +375,54 @@ caso('hay un prompt por cada imagen de data/, con el mismo tamaño y reglas de p
 });
 
 console.log('9) Contrato v2 (frescura, stock por color, imágenes por color, guía de tallas, chat)');
-caso('v2: datos completos (frescura, stock_por_color 0..20, una foto por color, 2–3 colores en referencias)', () => {
-  let agotados = 0;
-  for (const p of BASE.products.productos.filter((x) => x.muestra)) {
-    afirmar(Number.isInteger(p.frescura) && p.frescura >= 1 && p.frescura <= 5, p.id + ' sin frescura');
-    afirmar(p.stock_por_color && p.stock_por_talla === undefined, p.id + ': stock_por_color es la fuente de verdad (sin stock_por_talla)');
+caso('v4: datos completos (frescura, stock por color y talla 0..15, una foto por color, 2–3 colores en referencias)', () => {
+  let agotadas = 0, coloresAgotados = 0, hay = 0, pocas = 0;
+  for (const p of BASE.products.productos) {
+    afirmar(p.muestra === false || Number.isInteger(p.frescura) && p.frescura >= 1 && p.frescura <= 5, p.id + ' sin frescura');
+    afirmar(p.stock_por_variante && p.stock_por_talla === undefined, p.id + ': stock_por_variante es la fuente de verdad (sin stock_por_talla)');
     const nombres = p.colores.map((c) => c.nombre);
+    afirmar(Object.keys(p.stock_por_variante).join('|') === nombres.join('|'), p.id + ': claves de stock_por_variante = colores');
     afirmar(Object.keys(p.stock_por_color).join('|') === nombres.join('|'), p.id + ': claves de stock_por_color = colores');
-    Object.values(p.stock_por_color).forEach((n) => { afirmar(Number.isInteger(n) && n >= 0 && n <= 20, p.id + ': stock fuera de 0..20'); if (n === 0) agotados++; });
+    for (const c of nombres) {
+      afirmar(Object.keys(p.stock_por_variante[c]).join('|') === p.tallas.join('|'), p.id + ' ' + c + ': claves = tallas');
+      let suma = 0;
+      for (const t of p.tallas) { const n = p.stock_por_variante[c][t]; afirmar(Number.isInteger(n) && n >= 0 && n <= 15, p.id + ' ' + c + ' ' + t + ': stock fuera de 0..15'); suma += n; hay++; if (n === 0) agotadas++; if (n >= 1 && n <= 9) pocas++; }
+      afirmar(p.stock_por_color[c] === suma, p.id + ' ' + c + ': stock_por_color = suma de tallas');
+      if (suma === 0) coloresAgotados++;
+    }
     afirmar(p.stock === V.stockTotal(p), p.id + ': stock = suma');
-    afirmar(p.imagenes.every((i) => nombres.indexOf(i.color) >= 0), p.id + ': cada imagen con color');
-    afirmar(nombres.every((n) => p.imagenes.some((i) => i.color === n)), p.id + ': una imagen por color');
-    if (p.muestra) afirmar(nombres.length >= 2 && nombres.length <= 3, p.id + ': un producto de referencia debe tener 2–3 colores');
+    if (p.muestra) {
+      afirmar(p.imagenes.every((i) => nombres.indexOf(i.color) >= 0), p.id + ': cada imagen con color');
+      afirmar(nombres.every((n) => p.imagenes.some((i) => i.color === n)), p.id + ': una imagen por color');
+      afirmar(nombres.length >= 2 && nombres.length <= 3, p.id + ': un producto de referencia debe tener 2–3 colores');
+    }
   }
-  afirmar(agotados >= 3, 'al menos 3 colores agotados (hay ' + agotados + ')');
+  afirmar(agotadas >= 5 && coloresAgotados >= 1 && pocas >= 5 && agotadas < hay, 'variedad: variantes agotadas ' + agotadas + ', colores agotados ' + coloresAgotados + ', con pocas unidades ' + pocas);
   const p17 = prd(BASE, 'prd-0017');
-  afirmar(p17.frescura === 5 && p17.stock_por_color.Blanco >= 0, 'prd-0017: frescura 5 (lino) y stock de Blanco');
+  afirmar(p17.frescura === 5 && Object.keys(p17.stock_por_variante).length === p17.colores.length, 'prd-0017: frescura 5 (lino) y stock por variante');
 });
 caso('v2: frescura fuera de rango o no entera se rechaza', () => {
   for (const v of [0, 6, 3.5, '4']) { const d = copia(); prd(d, 'prd-0001').frescura = v; debeRechazar(d, {}, 'esquema', '.frescura'); }
 });
-caso('v2: stock_por_color mayor que 20, negativo o decimal se rechaza', () => {
-  for (const v of [21, -1, 2.5]) { const d = copia(); const p = prd(d, 'prd-0001'); p.stock_por_color.Arena = v; debeRechazar(d, {}, 'esquema', 'stock_por_color'); }
+caso('v4: talla fuera de rango (>15, negativa o decimal) se rechaza', () => {
+  for (const v of [16, -1, 2.5, 99]) { const d = copia(); const p = prd(d, 'prd-0001'); p.stock_por_variante.Arena.S = v; debeRechazar(d, {}, 'esquema', 'stock_por_variante'); }
 });
-caso('v2: stock_por_color con un color que no existe, o sin un color, se rechaza', () => {
-  const d = copia(); const p = prd(d, 'prd-0001'); p.stock_por_color.Negro = 1; p.stock += 1; debeRechazar(d, {}, 'stock', '"Negro"');
-  const d2 = copia(); const p2 = prd(d2, 'prd-0001'); p2.stock -= p2.stock_por_color.Arena; delete p2.stock_por_color.Arena; debeRechazar(d2, {}, 'stock', 'falta el color "Arena"');
-  const d3 = copia(); prd(d3, 'prd-0001').stock = 99; debeRechazar(d3, {}, 'stock', 'suma de stock_por_color');
-  const d4 = copia(); delete prd(d4, 'prd-0001').stock_por_color; debeRechazar(d4, {}, 'stock', 'falta stock_por_color');
+caso('v4: stock_por_variante con color o talla que no existe, o incompleto, se rechaza; los derivados deben coincidir', () => {
+  const d = copia(); const p = prd(d, 'prd-0001'); p.stock_por_variante.Negro = { S: 1, M: 1, L: 1, XL: 1 }; debeRechazar(d, {}, 'stock', '"Negro"');
+  const d2 = copia(); const p2 = prd(d2, 'prd-0001'); delete p2.stock_por_variante.Arena; debeRechazar(d2, {}, 'stock', 'falta el color "Arena"');
+  const d3 = copia(); delete prd(d3, 'prd-0001').stock_por_variante.Arena.M; debeRechazar(d3, {}, 'stock', 'falta la talla "M"');
+  const d4 = copia(); prd(d4, 'prd-0001').stock = 99; debeRechazar(d4, {}, 'stock', 'suma de stock_por_variante');
+  const d5 = copia(); prd(d5, 'prd-0001').stock_por_color.Arena += 1; debeRechazar(d5, {}, 'stock', 'suma de sus tallas');
+  const d6 = copia(); delete prd(d6, 'prd-0001').stock_por_variante; debeRechazar(d6, {}, 'esquema', 'stock_por_variante');
+  const d7 = copia(); delete prd(d7, 'prd-0001').stock_por_color; debeRechazar(d7, {}, 'esquema', 'stock_por_color');
+  const d8 = copia(); prd(d8, 'prd-0001').stock_por_talla = { S: 1, M: 1, L: 1, XL: 1 }; debeRechazar(d8, {}, 'esquema', 'stock_por_talla');
 });
-caso('v2: regla de stock coherente (v1 sigue valiendo; con ambos manda stock_por_color)', () => {
-  const d = copia(); const p = prd(d, 'prd-0001'); delete p.stock_por_color; p.stock_por_talla = { S: 3, M: 5, L: 4, XL: 2 }; p.stock = 14;
-  const r = debePasar(d, {}); afirmar(r.avisos.some((a) => a.indexOf('[stock_color]') === 0), 'aviso de formato v1');
-  const d2 = copia(); const p2 = prd(d2, 'prd-0001'); p2.stock_por_talla = { S: 1, M: 1, L: 0, XL: 0 }; debePasar(d2, {});
-  afirmar(V.stockTotal(p2) === p2.stock && p2.stock === 19, 'stockTotal usa stock_por_color');
+caso('v4: stockTotal, stockVariante y derivarStock', () => {
+  const p = JSON.parse(JSON.stringify(prd(BASE, 'prd-0001')));
+  afirmar(V.stockTotal(p) === p.stock && V.stockVariante(p, 'arena', 's') === null && V.stockVariante(p, 'arena', 'S') === p.stock_por_variante.Arena.S, 'stockTotal y stockVariante (sin mayúsculas en el color)');
+  afirmar(V.stockVariante(p, 'Negro', 'S') === null && V.stockVariante(p, 'Arena', 'XXL') === null, 'variante inexistente = null');
+  p.stock_por_variante.Arena.S = 15; p.stock_por_variante['Blanco hueso'].M = 2; V.derivarStock(p);
+  afirmar(p.stock_por_color.Arena === 15 + p.stock_por_variante.Arena.M + p.stock_por_variante.Arena.L + p.stock_por_variante.Arena.XL && p.stock === V.stockTotal(p), 'derivarStock recalcula stock_por_color y stock');
 });
 caso('v2: imagenes[].color que no está en colores se rechaza; color sin foto solo avisa', () => {
   const d = copia(); prd(d, 'prd-0001').imagenes[0].color = 'Rojo'; debeRechazar(d, {}, 'imagen_color', 'prd-0001');
@@ -465,14 +479,14 @@ caso('v2: tabla única de frescura por material (frescuraPorMaterial / inferirFr
   const web = (s) => { for (const f of pub.tabla) if (new RegExp(f.patron).test(norm(s))) return f.valor; return null; };
   for (const t of Object.keys(tabla)) if (t) afirmar(web(t) === tabla[t], 'la tabla publicada para la web no coincide en "' + t + '"');
 });
-caso('v2: formato del LLM con frescura y stock_por_color; validarOperacion infiere la frescura y revisa el stock', () => {
+caso('v4: formato del LLM con frescura y stock_por_variante; validarOperacion infiere la frescura y revisa el stock', () => {
   const props = V.ESQUEMA_LLM_PRODUCTO.properties.campos.properties;
-  afirmar(props.frescura && props.stock_por_color && V.ESQUEMA_LLM_PRODUCTO.properties.campos.required.indexOf('frescura') >= 0, 'faltan campos en el format');
-  const vacios = { nombre: null, categoria: null, subcategoria: null, precio: null, precio_oferta: null, tallas: [], stock_tallas: [], stock_por_color: [], stock_modo: null, colores: [], material: null, frescura: null, descripcion: null, etiquetas: [], alt_imagen: null, destacado: null };
+  afirmar(props.frescura && props.stock_por_variante && !props.stock_por_color && !props.stock_tallas && V.ESQUEMA_LLM_PRODUCTO.properties.campos.required.indexOf('frescura') >= 0, 'faltan campos en el format');
+  const vacios = { nombre: null, categoria: null, subcategoria: null, precio: null, precio_oferta: null, tallas: [], stock_por_variante: [], stock_modo: null, colores: [], material: null, frescura: null, descripcion: null, etiquetas: [], alt_imagen: null, destacado: null };
   const mk = (op, id, campos, extra) => Object.assign({ op, entidad: 'producto', id, campos: Object.assign({}, vacios, campos), campos_inferidos: [], faltantes: [] }, extra || {});
   const P = BASE.products.productos;
   // el caso real de prd-0017: lino sin frescura -> 5 (sugerido)
-  const r1 = V.validarOperacion(mk('crear', null, { nombre: 'Polo de lino para hombre', categoria: 'hombres', subcategoria: 'polos', precio: 58.9, tallas: ['S', 'M', 'L', 'XL'], colores: ['blanco'], material: 'lino', stock_por_color: [{ color: 'blanco', cantidad: 10 }] }), { texto: 'Polo de lino para hombre S M L XL blanco 10 por color a 58.90', productos: P, hayFoto: true });
+  const r1 = V.validarOperacion(mk('crear', null, { nombre: 'Polo de lino para hombre', categoria: 'hombres', subcategoria: 'polos', precio: 58.9, tallas: ['S', 'M', 'L', 'XL'], colores: ['blanco'], material: 'lino', stock_por_variante: [{ color: null, talla: null, cantidad: 10 }] }), { texto: 'Polo de lino para hombre S M L XL blanco 10 por color a 58.90', productos: P, hayFoto: true });
   afirmar(r1.ok && r1.operacion.campos.frescura === 5 && r1.operacion.campos_inferidos.indexOf('frescura') >= 0, 'frescura 5 sugerida: ' + JSON.stringify(r1));
   // el LLM propone 2 para lino: manda la tabla
   const r2 = V.validarOperacion(mk('crear', null, { nombre: 'Camisa', categoria: 'hombres', precio: 50, tallas: ['M'], colores: ['blanco'], material: 'Lino 100%', frescura: 2 }, { campos_inferidos: ['frescura'] }), { texto: 'camisa de lino para hombre', productos: P });
@@ -480,45 +494,62 @@ caso('v2: formato del LLM con frescura y stock_por_color; validarOperacion infie
   // el dueño la dice: se respeta
   const r3 = V.validarOperacion(mk('crear', null, { nombre: 'Camisa', categoria: 'hombres', precio: 50, tallas: ['M'], colores: ['blanco'], material: 'Lino 100%', frescura: 3 }), { texto: 'camisa de lino para hombre frescura 3', productos: P });
   afirmar(r3.operacion.campos.frescura === 3 && r3.operacion.campos_inferidos.indexOf('frescura') < 0, 'frescura dicha por el dueño');
-  // stock por color: cantidad > 20 es error; color nuevo en el stock se añade
-  const r4 = V.validarOperacion(mk('crear', null, { nombre: 'Polo', categoria: 'hombres', precio: 30, tallas: ['M'], colores: ['blanco'], stock_por_color: [{ color: 'blanco', cantidad: 25 }] }), { texto: 'polo hombre', productos: P });
-  afirmar(!r4.ok && r4.errores.some((e) => e.indexOf('0 a 20') > 0), 'stock > 20 por color');
-  const r5 = V.validarOperacion(mk('crear', null, { nombre: 'Polo', categoria: 'hombres', precio: 30, tallas: ['M'], colores: ['blanco'], stock_por_color: [{ color: 'blanco', cantidad: 10 }, { color: 'negro', cantidad: 10 }] }), { texto: 'polo hombre', productos: P });
+  // stock por variante: cantidad > 15 es error; color nuevo en el stock se añade; talla que no existe es error
+  const r4 = V.validarOperacion(mk('crear', null, { nombre: 'Polo', categoria: 'hombres', precio: 30, tallas: ['M'], colores: ['blanco'], stock_por_variante: [{ color: 'blanco', talla: 'M', cantidad: 16 }] }), { texto: 'polo hombre', productos: P });
+  afirmar(!r4.ok && r4.errores.some((e) => e.indexOf('0 a 15') > 0), 'stock > 15 por color y talla');
+  const r5 = V.validarOperacion(mk('crear', null, { nombre: 'Polo', categoria: 'hombres', precio: 30, tallas: ['M'], colores: ['blanco'], stock_por_variante: [{ color: 'blanco', talla: null, cantidad: 10 }, { color: 'negro', talla: 'M', cantidad: 10 }] }), { texto: 'polo hombre', productos: P });
   afirmar(r5.ok && r5.operacion.campos.colores.indexOf('negro') >= 0, 'color del stock añadido a colores');
-  // op stock por color sobre un producto existente
-  const r6 = V.validarOperacion(mk('stock', 'prd-0001', { stock_por_color: [{ color: 'arena', cantidad: 3 }] }), { texto: 'quedan 3 del arena del prd-0001', productos: P });
-  afirmar(r6.ok && r6.operacion.campos.stock_modo === 'fijar', 'stock por color con modo fijar');
-  const r7 = V.validarOperacion(mk('stock', 'prd-0001', { stock_por_color: [{ color: 'negro', cantidad: 3 }] }), { texto: 'quedan 3 del negro del prd-0001', productos: P });
+  const r5b = V.validarOperacion(mk('crear', null, { nombre: 'Polo', categoria: 'hombres', precio: 30, tallas: ['M'], colores: ['blanco'], stock_por_variante: [{ color: null, talla: 'XL', cantidad: 3 }] }), { texto: 'polo hombre', productos: P });
+  afirmar(!r5b.ok && r5b.errores.some((e) => e.indexOf('no está en las tallas') > 0), 'talla del stock que el producto no tiene');
+  // op stock por variante sobre un producto existente
+  const r6 = V.validarOperacion(mk('stock', 'prd-0001', { stock_por_variante: [{ color: 'arena', talla: 'M', cantidad: 3 }] }), { texto: 'quedan 3 del arena M del prd-0001', productos: P });
+  afirmar(r6.ok && r6.operacion.campos.stock_modo === 'fijar', 'stock por variante con modo fijar');
+  const r7 = V.validarOperacion(mk('stock', 'prd-0001', { stock_por_variante: [{ color: 'negro', talla: null, cantidad: 3 }] }), { texto: 'quedan 3 del negro del prd-0001', productos: P });
   afirmar(!r7.ok && r7.errores.some((e) => e.indexOf('no tiene el color') > 0), 'color inexistente en op stock');
+  const r7b = V.validarOperacion(mk('stock', 'prd-0001', { stock_por_variante: [{ color: 'arena', talla: 'XXL', cantidad: 3 }] }), { texto: 'quedan 3 del arena XXL del prd-0001', productos: P });
+  afirmar(!r7b.ok && r7b.errores.some((e) => e.indexOf('no tiene la talla') > 0), 'talla inexistente en op stock');
   const r8 = V.validarOperacion(mk('stock', 'prd-0001', {}), { texto: 'cambia el stock del prd-0001', productos: P });
-  afirmar(r8.faltantes.indexOf('stock_por_color') >= 0, 'op stock sin cantidades pide stock_por_color');
+  afirmar(r8.faltantes.indexOf('stock_por_variante') >= 0, 'op stock sin cantidades pide stock_por_variante');
   // actualizar material: se sugiere la frescura de la tabla
   const r9 = V.validarOperacion(mk('actualizar', 'prd-0003', { material: 'Denim' }), { texto: 'cambia el material del prd-0003 a denim', productos: P });
   afirmar(r9.operacion.campos.frescura === 2 && r9.operacion.campos_inferidos.indexOf('frescura') >= 0, 'actualizar material sugiere frescura');
 });
-caso('v2: aplicarStockColor (para WF5 y /stock <id> <color> <n>)', () => {
+caso('v4: aplicarStockVariante (para WF5 y /stock <id> <color> <talla> <n>)', () => {
   const p = prd(BASE, 'prd-0001');
-  const antes = p.stock_por_color['Blanco hueso'];
-  const a = V.aplicarStockColor(p, [{ color: 'blanco hueso', cantidad: 3 }], 'sumar');
-  afirmar(a.ok && a.stock_por_color['Blanco hueso'] === antes + 3 && a.stock === p.stock + 3 && a.cambios[0] === 'Blanco hueso=' + (antes + 3), 'sumar');
-  afirmar(p.stock_por_color['Blanco hueso'] === antes, 'no modifica el producto');
-  afirmar(V.aplicarStockColor(p, [{ color: 'Blanca Hueso', cantidad: 0 }], 'fijar').stock_por_color['Blanco hueso'] === 0, 'femenino y mayúsculas');
-  afirmar(!V.aplicarStockColor(p, [{ color: 'Arena', cantidad: 99 }], 'restar').ok, 'restar de más');
-  afirmar(!V.aplicarStockColor(p, [{ color: 'Arena', cantidad: 15 }], 'sumar').ok, 'pasar de 20');
-  afirmar(!V.aplicarStockColor(p, [{ color: 'Arena', cantidad: 21 }], 'fijar').ok, 'fijar más de 20');
-  const nuevo = V.aplicarStockColor({ colores: [{ nombre: 'Blanco' }, { nombre: 'Negro' }] }, [{ color: 'blanco', cantidad: 10 }], 'fijar');
-  afirmar(nuevo.ok && nuevo.stock_por_color.Blanco === 10 && nuevo.stock_por_color.Negro === 0 && nuevo.stock === 10, 'producto nuevo: colores sin cantidad en 0');
+  const antes = p.stock_por_variante.Arena.M;
+  const a = V.aplicarStockVariante(p, [{ color: 'arena', talla: 'M', cantidad: 3 }], 'sumar');
+  afirmar(a.ok && a.stock_por_variante.Arena.M === antes + 3 && a.stock === p.stock + 3 && a.stock_por_color.Arena === p.stock_por_color.Arena + 3 && a.cambios[0] === 'Arena M=' + (antes + 3), 'sumar');
+  afirmar(p.stock_por_variante.Arena.M === antes, 'no modifica el producto');
+  afirmar(V.aplicarStockVariante(p, [{ color: 'Blanca Hueso', talla: 'S', cantidad: 0 }], 'fijar').stock_por_variante['Blanco hueso'].S === 0, 'femenino y mayúsculas');
+  afirmar(!V.aplicarStockVariante(p, [{ color: 'Arena', talla: 'S', cantidad: 99 }], 'restar').ok, 'restar de más');
+  afirmar(!V.aplicarStockVariante(p, [{ color: 'Arena', talla: 'L', cantidad: 15 }], 'sumar').ok, 'pasar de 15 (Arena L tiene ' + p.stock_por_variante.Arena.L + ')');
+  afirmar(!V.aplicarStockVariante(p, [{ color: 'Arena', talla: 'S', cantidad: 16 }], 'fijar').ok, 'fijar más de 15');
+  afirmar(!V.aplicarStockVariante(p, [{ color: 'Arena', talla: 'XXL', cantidad: 1 }], 'fijar').ok, 'talla que el producto no tiene');
+  const todo = V.aplicarStockVariante(p, [{ color: null, talla: null, cantidad: 10 }], 'fijar');
+  afirmar(todo.ok && todo.stock === 10 * p.colores.length * p.tallas.length, '"10 de cada talla y color"');
+  const sinTalla = V.aplicarStockVariante(p, [{ color: 'Arena', talla: null, cantidad: 5 }], 'fijar');
+  afirmar(sinTalla.ok && p.tallas.every((t) => sinTalla.stock_por_variante.Arena[t] === 5) && sinTalla.stock_por_color.Arena === 5 * p.tallas.length, 'color sin talla = todas las tallas');
+  const soloTalla = V.aplicarStockVariante(p, [{ color: null, talla: 'M', cantidad: 4 }], 'fijar');
+  afirmar(soloTalla.ok && p.colores.every((c) => soloTalla.stock_por_variante[c.nombre].M === 4), 'talla sin color = todos los colores');
+  const nuevo = V.aplicarStockVariante({ colores: [{ nombre: 'Blanco' }, { nombre: 'Negro' }], tallas: ['S', 'M'] }, [{ color: 'blanco', talla: 'M', cantidad: 10 }], 'fijar');
+  afirmar(nuevo.ok && nuevo.stock_por_variante.Blanco.M === 10 && nuevo.stock_por_variante.Blanco.S === 0 && nuevo.stock_por_variante.Negro.M === 0 && nuevo.stock === 10, 'producto nuevo: lo no nombrado en 0');
 });
-caso('v2: el bloque COPIAR A N8N incluye las ayudas nuevas', () => {
+caso('v4: el bloque COPIAR A N8N incluye las ayudas nuevas', () => {
   const fuente = fs.readFileSync(path.join(__dirname, 'validar.js'), 'utf8').replace(/\r\n/g, '\n');
   const bloque = fuente.slice(fuente.indexOf('\n// === COPIAR A N8N ===\n'), fuente.indexOf('\n// === FIN COPIAR A N8N ===\n'));
   const ctx = { DOCS: copia() };
-  const salida = vm.runInNewContext(bloque + '\n[validar({ chat: DOCS.chat, site: DOCS.site }, {}), frescuraPorMaterial("Lino 100%"), aplicarStockColor(DOCS.products.productos[0], [{ color: "Arena", cantidad: 1 }], "fijar").stock, TABLA_FRESCURA.length, MAX_STOCK_COLOR];', ctx, { timeout: 5000 });
-  afirmar(salida[0].ok && salida[1] === 5 && salida[2] === 1 + BASE.products.productos[0].stock_por_color['Blanco hueso'] && salida[3] >= 5 && salida[4] === 20, 'ayudas v2 en el bloque: ' + JSON.stringify(salida[0].errores));
+  const salida = vm.runInNewContext(bloque + '\n[validar({ chat: DOCS.chat, site: DOCS.site }, {}), frescuraPorMaterial("Lino 100%"), aplicarStockVariante(DOCS.products.productos[0], [{ color: "Arena", talla: "S", cantidad: 1 }], "fijar").stock, TABLA_FRESCURA.length, MAX_STOCK_VARIANTE, stockVariante(DOCS.products.productos[0], "arena", "M")];', ctx, { timeout: 5000 });
+  const p0 = BASE.products.productos[0];
+  afirmar(salida[0].ok && salida[1] === 5 && salida[2] === p0.stock - p0.stock_por_variante.Arena.S + 1 && salida[3] >= 5 && salida[4] === 15 && salida[5] === p0.stock_por_variante.Arena.M, 'ayudas v4 en el bloque: ' + JSON.stringify(salida[0].errores));
 });
 
 console.log('10) Contrato v3 (taxonomía, envíos, Mercado Pago en prueba y pedidos)');
-const S3 = BASE.site, P3 = BASE.products.productos;
+const S3 = BASE.site, P3 = JSON.parse(JSON.stringify(BASE.products.productos));
+// Variantes fijas para las pruebas de pedidos (los datos reales cambian cuando el dueño vende o repone).
+const fijarStock = (id, color, talla, n) => { const p = P3.find((x) => x.id === id); p.stock_por_variante[color][talla] = n; V.derivarStock(p); };
+fijarStock('prd-0019', 'Crema', 'M', 5); fijarStock('prd-0033', 'Carey', 'UNICA', 5);
+fijarStock('prd-0018', 'Crema', 'M', 9); fijarStock('prd-0018', 'Crema', 'S', 2); fijarStock('prd-0018', 'Verde oliva', 'L', 0);
+fijarStock('prd-0021', 'Cacao', '41', 1); fijarStock('prd-0021', 'Cacao', '42', 1);
 const FECHA3 = '2026-10-07T12:00:00-05:00';
 // Pedido de referencia: polo old money (portada) + lentes carey, Shalom a Lima.
 const SOLICITUD = () => ({
@@ -571,7 +602,7 @@ caso('v3: normalizarSubcategoria y validarOperacion corrigen la subcategoría', 
   const t = { 'hombres|bermudas': 'shorts', 'hombres|zapatillas': 'calzado', 'hombres|sandalias': 'calzado', 'accesorios|gorras': 'sombreros', 'accesorios|gorros': 'sombreros',
     'ninos|sombreros': 'gorros', 'ninos|bermudas': 'shorts', 'mujeres|Ropa de baño': 'ropa-de-bano', 'hombres|vestidos': 'otros', 'accesorios|cinturon': 'cinturones', 'xx|polos': null };
   Object.keys(t).forEach((k) => { const [c, s] = k.split('|'); afirmar(V.normalizarSubcategoria(c, s) === t[k], k + ' dio ' + V.normalizarSubcategoria(c, s)); });
-  const vacios = { nombre: null, categoria: null, subcategoria: null, precio: null, precio_oferta: null, tallas: [], stock_tallas: [], stock_por_color: [], stock_modo: null, colores: [], material: null, frescura: null, descripcion: null, etiquetas: [], alt_imagen: null, destacado: null };
+  const vacios = { nombre: null, categoria: null, subcategoria: null, precio: null, precio_oferta: null, tallas: [], stock_por_variante: [], stock_modo: null, colores: [], material: null, frescura: null, descripcion: null, etiquetas: [], alt_imagen: null, destacado: null };
   const mk = (op, id, campos) => ({ op, entidad: 'producto', id, campos: Object.assign({}, vacios, campos), campos_inferidos: [], faltantes: [] });
   const r = V.validarOperacion(mk('crear', null, { nombre: 'Sandalias de cuero para hombre', categoria: 'hombres', subcategoria: 'sandalias', precio: 99, tallas: ['40'], colores: ['negro'] }), { texto: 'sandalias de cuero para hombre talla 40 a 99', productos: P3, hayFoto: true });
   afirmar(r.ok && r.operacion.campos.subcategoria === 'calzado' && r.avisos.some((a) => a.indexOf('[subcategoria]') === 0), 'crear: sandalias de hombre -> calzado');
@@ -633,18 +664,25 @@ caso('v3: total manipulado se rechaza (y el navegador no puede fijar precios)', 
   const r = crear(sol);
   afirmar(r.ok && r.pedido.total === 219.8 && r.avisos.some((x) => x.indexOf('[total_web]') === 0), 'crearPedido ignora los precios del navegador y avisa');
 });
-caso('v3: stock insuficiente se rechaza (por color, sumando tallas)', () => {
+caso('v4: stock insuficiente se rechaza (por color y talla) y una variante agotada no se puede pedir', () => {
   const s1 = SOLICITUD(); s1.items = [{ id: 'prd-0018', color: 'Crema', talla: 'M', cantidad: 10 }];
-  const r1 = crear(s1); afirmar(!r1.ok && tieneError(r1, 'stock', 'quedan 9'), 'más que el stock del color: ' + r1.errores.join(' | '));
+  const r1 = crear(s1); afirmar(!r1.ok && tieneError(r1, 'stock', 'pides 10, quedan 9'), 'más que el stock de la variante: ' + r1.errores.join(' | '));
   const s2 = SOLICITUD(); s2.items = [{ id: 'prd-0018', color: 'Verde oliva', talla: 'L', cantidad: 1 }];
-  afirmar(tieneError(crear(s2), 'stock', 'quedan 0'), 'color agotado');
+  afirmar(tieneError(crear(s2), 'stock', 'agotado'), 'variante agotada');
   const s3 = SOLICITUD(); s3.items = [{ id: 'prd-0021', color: 'Cacao', talla: '41', cantidad: 1 }, { id: 'prd-0021', color: 'Cacao', talla: '42', cantidad: 2 }];
-  afirmar(tieneError(crear(s3), 'stock', 'pides 3, quedan 2'), 'dos tallas del mismo color superan el stock');
+  const r3 = crear(s3); afirmar(tieneError(r3, 'stock', 'talla 42') && tieneError(r3, 'stock', 'pides 2, quedan 1') && !tieneError(r3, 'stock', 'talla 41'), 'cada talla se revisa por separado: ' + r3.errores.join(' | '));
+  const s3b = SOLICITUD(); s3b.items = [{ id: 'prd-0021', color: 'Cacao', talla: '41', cantidad: 1 }, { id: 'prd-0021', color: 'Cacao', talla: '41', cantidad: 1 }];
+  afirmar(tieneError(crear(s3b), 'stock', 'pides 2, quedan 1'), 'la misma variante repetida se suma');
+  const s3c = SOLICITUD(); s3c.items = [{ id: 'prd-0021', color: 'Cacao', talla: '41', cantidad: 1 }, { id: 'prd-0021', color: 'Cacao', talla: '42', cantidad: 1 }];
+  afirmar(crear(s3c).ok, 'una unidad de cada talla con 1 de stock cada una se puede comprar');
   const s4 = SOLICITUD(); s4.items = [{ id: 'prd-0018', color: 'Rojo', talla: 'M', cantidad: 1 }, { id: 'prd-0018', color: 'Crema', talla: 'XXL', cantidad: 1 }, { id: 'prd-0999', color: 'Crema', talla: 'M', cantidad: 1 }, { id: 'prd-0019', color: 'Crema', talla: 'M', cantidad: 11 }];
   const r4 = crear(s4);
   afirmar(tieneError(r4, 'color') && tieneError(r4, 'talla') && tieneError(r4, 'producto') && tieneError(r4, 'cantidad'), 'color, talla, producto y cantidad: ' + r4.errores.join(' | '));
   const st = V.stockTrasPedido(P3, pedidoOk());
-  afirmar(st.ok && st.cambios.find((c) => c.id === 'prd-0019').stock_por_color.Crema === prd(BASE, 'prd-0019').stock_por_color.Crema - 1, 'stockTrasPedido resta por color');
+  const c19 = st.cambios.find((c) => c.id === 'prd-0019');
+  afirmar(st.ok && c19.stock_por_variante.Crema.M === 4 && c19.stock_por_color.Crema === P3.find((p) => p.id === 'prd-0019').stock_por_color.Crema - 1, 'stockTrasPedido resta por color y talla');
+  const agotado = JSON.parse(JSON.stringify(pedidoOk())); agotado.items[0].cantidad = 6;
+  afirmar(!V.stockTrasPedido(P3, agotado).ok, 'stockTrasPedido rechaza descontar más de lo que hay en la variante');
 });
 caso('v3: opción de envío inexistente o que no llega se rechaza', () => {
   const s1 = SOLICITUD(); s1.envio.opcion = 'dhl'; afirmar(tieneError(crear(s1), 'envio', 'dhl'), 'opción inexistente al crear');
@@ -732,7 +770,7 @@ caso('v3: roles para pedidos y usuarios, secretos de Mercado Pago y modo de pago
 caso('v3: el bloque COPIAR A N8N incluye pedidos, envíos y Mercado Pago', () => {
   const fuente = fs.readFileSync(path.join(__dirname, 'validar.js'), 'utf8').replace(/\r\n/g, '\n');
   const bloque = fuente.slice(fuente.indexOf('\n// === COPIAR A N8N ===\n'), fuente.indexOf('\n// === FIN COPIAR A N8N ===\n'));
-  const ctx = { DOCS: copia(), SOL: SOLICITUD() };
+  const ctx = { DOCS: Object.assign(copia(), { products: { productos: P3 } }), SOL: SOLICITUD() };
   const salida = vm.runInNewContext(bloque + '\nconst c = crearPedido(SOL, { productos: DOCS.products.productos, site: DOCS.site, numero: siguienteNumeroPedido("PB-000122"), fecha: "2026-10-07T12:00:00-05:00" });\n' +
     '[c.ok, c.pedido && c.pedido.total, validarPedido(c.pedido, { productos: DOCS.products.productos, site: DOCS.site }).ok, preferenciaMercadoPago(c.pedido, {}).external_reference, textoOpcionesEnvio(DOCS.site, "selva").length > 50, normalizarSubcategoria("hombres", "bermudas")];', ctx, { timeout: 5000 });
   afirmar(salida[0] === true && salida[1] === 219.8 && salida[2] === true && salida[3] === 'PB-000123' && salida[4] && salida[5] === 'shorts', 'funciones v3 en el bloque: ' + JSON.stringify(salida));

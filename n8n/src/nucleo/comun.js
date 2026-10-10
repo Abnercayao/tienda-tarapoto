@@ -82,35 +82,33 @@ const PB_CMD_DUENO = PB_CMD_MARKETING.concat(['preparando', 'enviar', 'recojo', 
 const PB_CMD_ADMIN = PB_CMD_DUENO.concat(['ids']);
 function comandosDeRol(rol) { return (rol === 'admin' ? PB_CMD_ADMIN : rol === 'dueno' ? PB_CMD_DUENO : PB_CMD_MARKETING).map(function (k) { return { command: k, description: PB_COMANDOS[k] }; }); }
 function isoLima(ms) { const d = new Date((ms === undefined ? Date.now() : ms) - 5 * 3600000); return d.toISOString().slice(0, 19) + '-05:00'; }
-// v2 (CONTRATO 0.3): stock inicial por color de un producto NUEVO. Lo usan la vista previa (WF3) y "Aplicar lote" (WF5),
-// así lo que el dueño aprueba es lo que se publica. Requiere el bloque de validar.js (aplicarStockColor, MAX_STOCK_COLOR,
-// STOCK_COLOR_ASUMIDO). nombres = nombres finales de colores; porColor = [{color, cantidad}]; porTalla = [{talla, cantidad}].
-//   1) hay cantidades por color -> esas ("10 por color"); un color sin cantidad empieza en 0.
-//   2) solo hay cantidades por talla -> el total se reparte entre los colores (máx. MAX_STOCK_COLOR cada uno).
-//   3) nada -> STOCK_COLOR_ASUMIDO por color (la vista previa lo avisa: "corrígelo con /stock").
-// Devuelve { ok, errores[], spc: {nombre: n}, total, modo: 'color'|'repartido'|'asumido' }.
-function pbStockInicial(nombres, porColor, porTalla) {
+// v4 (CONTRATO): stock inicial por color+talla de un producto NUEVO. Lo usan la vista previa (WF3) y "Aplicar lote" (WF5),
+// así lo que el dueño aprueba es lo que se publica. Requiere el bloque de validar.js (aplicarStockVariante, STOCK_VARIANTE_ASUMIDO).
+// nombres = nombres finales de colores; tallas = tallas finales; lista = [{color, talla, cantidad}] (null = todos).
+//   1) hay cantidades -> esas ("10 de cada talla y color", "blanco M 3"); lo que no se nombra empieza en 0.
+//   2) nada -> STOCK_VARIANTE_ASUMIDO en cada variante (la vista previa lo avisa: "corrígelo con /stock").
+// Devuelve { ok, errores[], spv: {color: {talla: n}}, total, modo: 'dado'|'asumido' }.
+function pbStockInicial(nombres, tallas, lista) {
   const n = (Array.isArray(nombres) ? nombres : []).filter(function (x) { return typeof x === 'string' && x; });
-  const spc = {};
-  if (Array.isArray(porColor) && porColor.length) {
-    const r = aplicarStockColor({ colores: n }, porColor, 'fijar');
-    return { ok: r.ok, errores: r.errores, spc: r.stock_por_color, total: r.stock, modo: 'color' };
+  const t = (Array.isArray(tallas) ? tallas : []).filter(function (x) { return typeof x === 'string' && x; });
+  if (Array.isArray(lista) && lista.length) {
+    const r = aplicarStockVariante({ colores: n, tallas: t }, lista, 'fijar');
+    return { ok: r.ok, errores: r.errores, spv: r.stock_por_variante, total: r.stock, modo: 'dado' };
   }
-  const total = (Array.isArray(porTalla) ? porTalla : []).reduce(function (s, x) { const q = Math.floor(Number(x && x.cantidad)); return s + (q > 0 ? q : 0); }, 0);
-  const modo = total > 0 && n.length ? 'repartido' : 'asumido';
-  n.forEach(function (nombre, i) {
-    spc[nombre] = modo === 'repartido' ? Math.min(MAX_STOCK_COLOR, Math.floor(total / n.length) + (i < total % n.length ? 1 : 0)) : STOCK_COLOR_ASUMIDO;
-  });
-  return { ok: true, errores: [], spc: spc, total: Object.keys(spc).reduce(function (s, k) { return s + spc[k]; }, 0), modo: modo };
+  const spv = {};
+  n.forEach(function (c) { spv[c] = {}; t.forEach(function (k) { spv[c][k] = STOCK_VARIANTE_ASUMIDO; }); });
+  return { ok: true, errores: [], spv: spv, total: n.length * t.length * STOCK_VARIANTE_ASUMIDO, modo: 'asumido' };
 }
-// Al cambiar los colores de un producto: los que siguen conservan su cantidad (mismo color sin contar mayúsculas ni tildes),
-// los nuevos empiezan en 0 y los quitados desaparecen. previo = stock_por_color actual; nombres = colores nuevos.
-function pbStockTrasColores(previo, nombres) {
+// Al cambiar colores o tallas de un producto: las variantes que siguen conservan su cantidad (mismo color sin contar
+// mayúsculas ni tildes), las nuevas empiezan en 0 y las quitadas desaparecen. previo = stock_por_variante actual.
+function pbStockTrasVariantes(previo, nombres, tallas) {
   const ant = previo && typeof previo === 'object' && !Array.isArray(previo) ? previo : {};
   const out = {};
   (nombres || []).forEach(function (n) {
     const k = Object.keys(ant).find(function (x) { return claveColor(x) === claveColor(n); });
-    out[n] = k !== undefined && Number.isInteger(ant[k]) && ant[k] >= 0 ? Math.min(ant[k], MAX_STOCK_COLOR) : 0;
+    const fila = k !== undefined && ant[k] && typeof ant[k] === 'object' ? ant[k] : {};
+    out[n] = {};
+    (tallas || []).forEach(function (t) { out[n][t] = Number.isInteger(fila[t]) && fila[t] >= 0 ? Math.min(fila[t], MAX_STOCK_VARIANTE) : 0; });
   });
   return out;
 }

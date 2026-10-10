@@ -242,7 +242,7 @@ const fin = function (resuelto, motivo, resultados) { return [{ json: { paso: 'f
 
 function parseJ(s, d) { if (s === null || s === undefined || s === '') return d; if (typeof s !== 'string') return s; try { return JSON.parse(s); } catch (e) { return d; } }
 function r2(n) { return Math.round(Number(n) * 100) / 100; }
-const ORDEN_PRODUCTO = ['id', 'slug', 'nombre', 'categoria', 'subcategoria', 'precio', 'precio_oferta', 'tallas', 'stock_por_talla', 'stock_por_color', 'stock', 'colores',
+const ORDEN_PRODUCTO = ['id', 'slug', 'nombre', 'categoria', 'subcategoria', 'precio', 'precio_oferta', 'tallas', 'stock_por_variante', 'stock_por_color', 'stock', 'colores',
   'material', 'frescura', 'descripcion', 'etiquetas', 'imagenes', 'destacado', 'activo', 'muestra', 'fecha_creacion', 'fecha_actualizacion'];
 const ORDEN_ARTICULO = ['id', 'slug', 'titulo', 'resumen', 'portada', 'bloques', 'productos_relacionados', 'autor', 'fecha', 'fecha_actualizacion', 'activo', 'muestra'];
 function ordenar(o, orden) {
@@ -267,7 +267,7 @@ function etiquetas(l) {
 }
 function colores(l) {
   const vistos = [];
-  // Sin repetidos (claveColor), igual que pbNombresColor() de la vista previa: stock_por_color se indexa por nombre.
+  // Sin repetidos (claveColor), igual que pbNombresColor() de la vista previa: stock_por_variante se indexa por nombre.
   return (Array.isArray(l) ? l : []).slice(0, 8).map(function (x) {
     const k = colorHex(typeof x === 'string' ? x : x && x.nombre);
     const hex = x && typeof x === 'object' && /^#[0-9A-Fa-f]{6}$/.test(x.hex || '') ? x.hex.toUpperCase() : k.hex;
@@ -471,11 +471,10 @@ function aplicarBorrador(E, b, fotos, ctx) {
     p.tallas = tallas;
     p.colores = colores(c.colores);
     if (!p.colores.length) return falla('faltan los colores');
-    // v2 (CONTRATO 0.3): stock_por_color es la fuente de verdad (sin stock_por_talla); lo mismo que mostró la vista previa.
-    const st = Array.isArray(c.stock_tallas) ? c.stock_tallas.filter(function (s) { return s && tallas.indexOf(s.talla) >= 0; }) : [];
-    const si = pbStockInicial(p.colores.map(function (x) { return x.nombre; }), c.stock_por_color, st);
+    // v4: stock_por_variante (color + talla) es la fuente de verdad; stock_por_color y stock se derivan. Lo mismo que mostró la vista previa.
+    const si = pbStockInicial(p.colores.map(function (x) { return x.nombre; }), tallas, c.stock_por_variante);
     if (!si.ok) return falla(sinCodigo(si.errores));
-    p.stock_por_color = si.spc; p.stock = stockTotal(p);
+    p.stock_por_variante = si.spv; derivarStock(p);
     if (!vacio(c.material)) { const m = textoSeguro(c.material, 60); if (Array.from(m).length >= 2) p.material = m; }
     p.descripcion = typeof c.descripcion === 'string' ? textoSeguro(c.descripcion, 600) : '';
     p.etiquetas = etiquetas(c.etiquetas);
@@ -519,38 +518,13 @@ function aplicarBorrador(E, b, fotos, ctx) {
   if (op === 'desactivar' || op === 'reactivar') {
     if (p.activo === (op === 'reactivar')) return falla(op === 'reactivar' ? 'ya estaba visible' : 'ya estaba oculto');
     p.activo = op === 'reactivar';
-  } else if (op === 'stock' && Array.isArray(c.stock_por_color) && c.stock_por_color.length) {
-    // v2: "/stock <id> <color> <n>" y "quedan 2 del blanco": aplicarStockColor() de validar.js (0..20 por color).
-    const r = aplicarStockColor(p, c.stock_por_color, c.stock_modo || 'fijar');
-    if (!r.ok) return falla(sinCodigo(r.errores));
-    p.stock_por_color = r.stock_por_color; p.stock = stockTotal(p);
-    detalle = r.cambios.join(' ');
   } else if (op === 'stock') {
-    const modo = c.stock_modo || 'fijar';
-    const lista = Array.isArray(c.stock_tallas) ? c.stock_tallas : [];
-    if (!lista.length) return falla('no hay tallas ni colores en el cambio de stock');
-    if (p.stock_por_color && typeof p.stock_por_color === 'object') return falla('el stock se lleva por color: /stock ' + p.id + ' <color> <n>');
-    const permitidas = TALLAS_POR_CATEGORIA[p.categoria] || [];
-    const partes = [];
-    for (const s of lista) {
-      const t = String(s && s.talla);
-      const q = Math.floor(Number(s && s.cantidad));
-      if (!Number.isFinite(q) || q < 0) return falla('cantidad inválida para la talla ' + t.slice(0, 5));
-      if (p.tallas.indexOf(t) < 0) {
-        if (permitidas.indexOf(t) < 0) return falla('la talla ' + t.slice(0, 5) + ' no corresponde a ' + p.categoria);
-        p.tallas = ordenTallas(p.tallas.concat([t]));
-        p.stock_por_talla[t] = 0;
-      }
-      const actual = Number(p.stock_por_talla[t]) || 0;
-      const nuevo = modo === 'sumar' ? actual + q : modo === 'restar' ? actual - q : q;
-      if (nuevo < 0) return falla('no hay suficiente stock de la talla ' + t + ' (hay ' + actual + ')');
-      p.stock_por_talla[t] = nuevo;
-      partes.push(t + '=' + nuevo);
-    }
-    const spt = {};
-    p.tallas.forEach(function (t) { spt[t] = Number(p.stock_por_talla[t]) || 0; });
-    p.stock_por_talla = spt; p.stock = stockTotal(p);
-    detalle = partes.join(' ');
+    // v4: "/stock <id> <color> <talla> <n>" y "quedan 2 del blanco en M": aplicarStockVariante() de validar.js (0..15 por color y talla).
+    if (!Array.isArray(c.stock_por_variante) || !c.stock_por_variante.length) return falla('no hay colores ni tallas en el cambio de stock');
+    const r = aplicarStockVariante(p, c.stock_por_variante, c.stock_modo || 'fijar');
+    if (!r.ok) return falla(sinCodigo(r.errores));
+    p.stock_por_variante = r.stock_por_variante; derivarStock(p);
+    detalle = r.cambios.length > 6 ? r.cambios.slice(0, 6).join(' ') + ' y ' + (r.cambios.length - 6) + ' más' : r.cambios.join(' ');
   } else if (op === 'agregar_imagen') {
     if (!fotos.length) return falla('no llegó la foto');
     const lista = c.reemplazar === true ? [] : (p.imagenes || []).slice();
@@ -563,6 +537,7 @@ function aplicarBorrador(E, b, fotos, ctx) {
     detalle = fotos.length === 1 ? '1 foto' : fotos.length + ' fotos';
   } else if (op === 'actualizar') {
     const cambios = [];
+    let cambioVariantes = false;
     if (!vacio(c.nombre)) { p.nombre = textoSeguro(c.nombre, 70); cambios.push('nombre'); }
     if (!vacio(c.categoria) && c.categoria !== p.categoria) { p.categoria = c.categoria; cambios.push('categoria ' + c.categoria); }
     // v3: la subcategoría debe estar permitida en la categoría (normalizarSubcategoria); si cambió la categoría, se ajusta la actual.
@@ -576,23 +551,18 @@ function aplicarBorrador(E, b, fotos, ctx) {
     if (Array.isArray(c.tallas) && c.tallas.length) {
       const nt = ordenTallas(c.tallas);
       p.tallas = nt;
-      // v2: stock_por_talla es opcional; si existe sigue a las tallas (con stock_por_color no se suma: stockTotal).
-      if (p.stock_por_talla && typeof p.stock_por_talla === 'object') {
-        const spt = {};
-        nt.forEach(function (t) { spt[t] = Number(p.stock_por_talla[t]) || 0; });
-        p.stock_por_talla = spt;
-      }
-      p.stock = stockTotal(p);
+      cambioVariantes = true;
       cambios.push('tallas ' + nt.join(' '));
     }
     if (Array.isArray(c.colores) && c.colores.length) {
       p.colores = colores(c.colores);
       const nombres = p.colores.map(function (x) { return x.nombre; });
-      // Los colores que siguen conservan su stock, los nuevos empiezan en 0 y los quitados desaparecen (CONTRATO 0.3).
-      if (p.stock_por_color && typeof p.stock_por_color === 'object') { p.stock_por_color = pbStockTrasColores(p.stock_por_color, nombres); p.stock = stockTotal(p); }
+      cambioVariantes = true;
       (p.imagenes || []).forEach(function (im) { if (im && typeof im.color === 'string' && nombres.indexOf(im.color) < 0) delete im.color; });
       cambios.push('colores');
     }
+    // Las variantes que siguen conservan su stock, las nuevas empiezan en 0 y las quitadas desaparecen (CONTRATO v4).
+    if (cambioVariantes) { p.stock_por_variante = pbStockTrasVariantes(p.stock_por_variante, p.colores.map(function (x) { return x.nombre; }), p.tallas); derivarStock(p); }
     if (Number.isInteger(c.frescura) && c.frescura >= 1 && c.frescura <= 5 && c.frescura !== p.frescura) { p.frescura = c.frescura; cambios.push('frescura ' + c.frescura); }
     if (!vacio(c.material)) { const m = textoSeguro(c.material, 60); if (Array.from(m).length >= 2) { p.material = m; cambios.push('material'); } }
     if (typeof c.descripcion === 'string' && c.descripcion.trim()) { p.descripcion = textoSeguro(c.descripcion, 600); cambios.push('descripcion'); }

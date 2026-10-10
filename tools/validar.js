@@ -32,6 +32,7 @@
 
 // === COPIAR A N8N ===
 const CONTRATO_VERSION = '3.0.0';
+// v4 (2026-10-09): stock por variante (color + talla, 0..15): stock_por_variante manda; stock_por_color y stock son derivados; sin stock_por_talla
 // v2 (2026-10-07): frescura, stock_por_color, imagenes[].color, guia_tallas, chat.json; sin avisos de muestra
 // v3 (2026-10-07): subcategorías por categoría (menú), colecciones (old money), envíos a todo el Perú, Mercado Pago (prueba),
 //                  pedidos PB-000000 con seguimiento (fuera del repo), asistente "Vale", temperatura promedio
@@ -74,9 +75,11 @@ const TALLAS_POR_CATEGORIA = {
   accesorios: [].concat(T_UNICA, T_CALZADO, ['S', 'M', 'L'])
 };
 const ORIGENES_IMAGEN = ['foto', 'ia_local', 'placeholder'];
-// v2: stock por color. Fuente de verdad de la disponibilidad: stock = suma de stock_por_color.
-const MAX_STOCK_COLOR = 20;
-const STOCK_COLOR_ASUMIDO = 1; // al crear sin cantidades, cada color empieza con 1 (la vista previa lo avisa)
+// v4: stock por VARIANTE (color + talla). Fuente de verdad: stock_por_variante {"<color>": {"<talla>": 0..MAX_STOCK_VARIANTE}}.
+// stock_por_color (suma por color) y stock (suma total) son DERIVADOS: los recalcula el código (derivarStock) y el validador exige que coincidan.
+const MAX_STOCK_VARIANTE = 15;
+const STOCK_VARIANTE_ASUMIDO = 1; // al crear sin cantidades, cada color+talla empieza con 1 (la vista previa lo avisa)
+const AVISO_POCAS_UNIDADES = 10; // la web muestra "Quedan N" solo con 1..9 y "En stock" con 10 o más (nunca el número)
 // Zonas de "cómo medir" de la guía de tallas (site.guia_tallas.como_medir[].id y tablas[].medidas).
 const ZONAS_MEDIDA = ['pecho', 'busto', 'cintura', 'cadera', 'largo', 'entrepierna', 'estatura', 'cabeza', 'pie'];
 // v2: índice de frescura (1–5 hojitas) por material. TABLA ÚNICA para web y bot (data/schema/frescura-materiales.json
@@ -249,7 +252,7 @@ const ESQUEMAS = {
     $defs: {
       producto: {
         type: 'object', additionalProperties: false,
-        required: ['id', 'slug', 'nombre', 'categoria', 'subcategoria', 'precio', 'tallas', 'stock', 'colores',
+        required: ['id', 'slug', 'nombre', 'categoria', 'subcategoria', 'precio', 'tallas', 'stock_por_variante', 'stock_por_color', 'stock', 'colores',
           'descripcion', 'etiquetas', 'imagenes', 'destacado', 'activo', 'muestra', 'fecha_creacion', 'fecha_actualizacion'],
         properties: {
           id: { type: 'string', pattern: RE.prd, description: 'prd-0001; inmutable; lo asigna el código (máximo + 1), nunca el LLM.' },
@@ -260,15 +263,16 @@ const ESQUEMAS = {
           precio: { type: 'number', exclusiveMinimum: 0, maximum: 9999, description: 'Soles (PEN), máximo 2 decimales.' },
           precio_oferta: { type: ['number', 'null'], exclusiveMinimum: 0, maximum: 9999, description: 'Opcional. Ausente o null = sin oferta. Debe ser menor que precio.' },
           tallas: { type: 'array', minItems: 1, maxItems: 12, uniqueItems: true, items: { enum: TALLAS } },
-          stock_por_talla: {
-            type: 'object', propertyNames: { enum: TALLAS }, additionalProperties: { type: 'integer', minimum: 0, maximum: 9999 },
-            description: 'Opcional (formato v1). Una clave por cada talla de "tallas". Si existe stock_por_color, solo indica qué tallas hay (0 = agotada en esa talla) y NO se suma.'
+          stock_por_variante: {
+            type: 'object', propertyNames: txt(2, 24),
+            additionalProperties: { type: 'object', propertyNames: { enum: TALLAS }, additionalProperties: { type: 'integer', minimum: 0, maximum: MAX_STOCK_VARIANTE } },
+            description: 'v4, fuente de verdad del stock: una clave por cada nombre EXACTO de "colores" y, dentro, una clave por cada talla de "tallas" (ni más ni menos), enteros 0 a ' + MAX_STOCK_VARIANTE + '. 0 = variante agotada.'
           },
           stock_por_color: {
-            type: 'object', propertyNames: txt(2, 24), additionalProperties: { type: 'integer', minimum: 0, maximum: MAX_STOCK_COLOR },
-            description: 'v2, fuente de verdad del stock: una clave por cada nombre EXACTO de "colores" (ni más ni menos), enteros 0 a ' + MAX_STOCK_COLOR + '. 0 = color agotado.'
+            type: 'object', propertyNames: txt(2, 24), additionalProperties: { type: 'integer', minimum: 0, maximum: MAX_STOCK_VARIANTE * 12 },
+            description: 'DERIVADO: suma de las tallas de cada color en stock_por_variante. Una clave por color. Lo recalcula el código.'
           },
-          stock: { type: 'integer', minimum: 0, maximum: 99999, description: 'Total: suma de stock_por_color (v2) o, si no existe, de stock_por_talla (v1). Lo recalcula el código.' },
+          stock: { type: 'integer', minimum: 0, maximum: 99999, description: 'DERIVADO: suma de todo stock_por_variante. Lo recalcula el código.' },
           colores: { type: 'array', minItems: 1, maxItems: 8, items: { $ref: '#/$defs/color' } },
           material: txt(2, 60),
           frescura: { type: 'integer', minimum: 1, maximum: 5, description: 'Índice de frescura (1–5 hojitas). Opcional: si falta, web y bot lo infieren con frescuraPorMaterial (data/schema/frescura-materiales.json).' },
@@ -679,7 +683,7 @@ const FRESCURA_PUBLICA = {
 
 // ---------- Formato de salida del LLM (D4) para Ollama /api/chat "format" ----------
 const OPS_LLM = ['crear', 'actualizar', 'desactivar', 'reactivar', 'stock', 'agregar_imagen'];
-const CAMPOS_LLM_PRODUCTO = ['nombre', 'categoria', 'subcategoria', 'precio', 'precio_oferta', 'tallas', 'stock_tallas', 'stock_por_color', 'stock_modo', 'colores',
+const CAMPOS_LLM_PRODUCTO = ['nombre', 'categoria', 'subcategoria', 'precio', 'precio_oferta', 'tallas', 'stock_por_variante', 'stock_modo', 'colores',
   'material', 'frescura', 'descripcion', 'etiquetas', 'alt_imagen', 'destacado'];
 const CAMPOS_LLM_ARTICULO = ['titulo', 'resumen', 'bloques', 'productos_relacionados', 'alt_portada'];
 const ESQUEMA_LLM_PRODUCTO = {
@@ -697,13 +701,9 @@ const ESQUEMA_LLM_PRODUCTO = {
         precio: { type: ['number', 'null'] },
         precio_oferta: { type: ['number', 'null'] },
         tallas: { type: 'array', items: { type: 'string', enum: TALLAS } },
-        stock_tallas: {
-          type: 'array',
-          items: { type: 'object', properties: { talla: { type: 'string', enum: TALLAS }, cantidad: { type: 'integer' } }, required: ['talla', 'cantidad'] }
-        },
-        stock_por_color: {
-          type: 'array', description: 'v2: cantidad por color, de 0 a ' + MAX_STOCK_COLOR + '. "10 por color" -> 10 en cada color',
-          items: { type: 'object', properties: { color: { type: 'string' }, cantidad: { type: 'integer' } }, required: ['color', 'cantidad'] }
+        stock_por_variante: {
+          type: 'array', description: 'v4: cantidad por color Y talla, de 0 a ' + MAX_STOCK_VARIANTE + '. color null = todos los colores; talla null = todas las tallas. "5 por talla" o "10 de cada talla y color" -> un solo elemento con color null y talla null',
+          items: { type: 'object', properties: { color: { type: ['string', 'null'] }, talla: { type: ['string', 'null'] }, cantidad: { type: 'integer' } }, required: ['color', 'talla', 'cantidad'] }
         },
         stock_modo: { type: ['string', 'null'], enum: ['fijar', 'sumar', 'restar', null], description: 'fijar = cantidad total nueva; sumar = llegaron N más; restar = se vendieron N' },
         colores: { type: 'array', items: { type: 'string' } },
@@ -1013,26 +1013,37 @@ function reglasProductos(P, err, avi) {
       const norm = nombresColor.map(function (n) { return quitarTildes(n).toLowerCase().trim(); });
       if (new Set(norm).size !== norm.length) err('color_duplicado', r + '.colores', 'hay nombres de color repetidos (sin contar mayúsculas ni tildes)');
     }
-    // Regla de stock v2: stock_por_color manda (stock = su suma); stock_por_talla es opcional.
+    // Regla de stock v4: stock_por_variante manda; stock_por_color (suma por color) y stock (suma total) son derivados y deben coincidir.
+    const spv = esObjeto(p.stock_por_variante) ? p.stock_por_variante : null;
     const spc = esObjeto(p.stock_por_color) ? p.stock_por_color : null;
-    const spt = esObjeto(p.stock_por_talla) ? p.stock_por_talla : null;
-    if (tallas && spt) {
-      const claves = Object.keys(spt);
-      for (const t of tallas) if (claves.indexOf(t) < 0) err('stock', r + '.stock_por_talla', 'falta la talla ' + corto(t));
-      for (const k of claves) if (tallas.indexOf(k) < 0) err('stock', r + '.stock_por_talla', 'tiene la talla ' + corto(k) + ', que no está en tallas');
+    let suma = null;
+    if (!spv) err('stock', r, 'falta stock_por_variante (un objeto por color con una cantidad de 0 a ' + MAX_STOCK_VARIANTE + ' por talla)');
+    else {
+      const colKeys = Object.keys(spv);
+      if (nombresColor) {
+        for (const n of nombresColor) if (colKeys.indexOf(n) < 0) err('stock', r + '.stock_por_variante', 'falta el color ' + corto(n) + ' (una clave por cada color de "colores", con el nombre exacto)');
+        for (const k of colKeys) if (nombresColor.indexOf(k) < 0) err('stock', r + '.stock_por_variante', 'tiene el color ' + corto(k) + ', que no está en colores');
+      }
+      suma = 0;
+      for (const k of colKeys) {
+        const fila = spv[k];
+        if (!esObjeto(fila)) { err('stock', r + '.stock_por_variante.' + k, 'debe ser un objeto con una cantidad entera por talla'); suma = null; continue; }
+        const tk = Object.keys(fila);
+        if (tallas) {
+          for (const t of tallas) if (tk.indexOf(t) < 0) err('stock', r + '.stock_por_variante.' + k, 'falta la talla ' + corto(t));
+          for (const t of tk) if (tallas.indexOf(t) < 0) err('stock', r + '.stock_por_variante.' + k, 'tiene la talla ' + corto(t) + ', que no está en tallas');
+        }
+        const sf = sumaEnteros(fila);
+        if (sf === null) { err('stock', r + '.stock_por_variante.' + k, 'cada cantidad debe ser un entero de 0 a ' + MAX_STOCK_VARIANTE); suma = null; continue; }
+        if (tk.some(function (t) { return fila[t] > MAX_STOCK_VARIANTE; })) err('stock', r + '.stock_por_variante.' + k, 'cantidad mayor que ' + MAX_STOCK_VARIANTE + ' (máximo por color y talla)');
+        if (suma !== null) suma += sf;
+        if (spc && spc[k] !== sf) err('stock', r + '.stock_por_color.' + k, 'no coincide con la suma de sus tallas en stock_por_variante (' + sf + ')');
+      }
+      if (spc) for (const k of Object.keys(spc)) if (colKeys.indexOf(k) < 0) err('stock', r + '.stock_por_color', 'tiene el color ' + corto(k) + ', que no está en stock_por_variante');
     }
-    if (spc && nombresColor) {
-      const claves = Object.keys(spc);
-      for (const n of nombresColor) if (claves.indexOf(n) < 0) err('stock', r + '.stock_por_color', 'falta el color ' + corto(n) + ' (una clave por cada color de "colores", con el nombre exacto)');
-      for (const k of claves) if (nombresColor.indexOf(k) < 0) err('stock', r + '.stock_por_color', 'tiene el color ' + corto(k) + ', que no está en colores');
-    }
-    if (!spc && !spt) err('stock', r, 'falta stock_por_color (o stock_por_talla en formato v1)');
-    const suma = spc ? sumaEnteros(spc) : spt ? sumaEnteros(spt) : null;
-    const fuente = spc ? 'stock_por_color' : 'stock_por_talla';
-    if (suma !== null && Number.isInteger(p.stock) && suma !== p.stock) err('stock', r + '.stock', 'stock (' + p.stock + ') no coincide con la suma de ' + fuente + ' (' + suma + ')');
+    if (!spc) err('stock', r, 'falta stock_por_color (derivado: suma de las tallas de cada color)');
+    if (suma !== null && Number.isInteger(p.stock) && suma !== p.stock) err('stock', r + '.stock', 'stock (' + p.stock + ') no coincide con la suma de stock_por_variante (' + suma + ')');
     if (suma !== null && p.activo === true && suma === 0) avi('agotado', r, 'producto activo sin stock: la web lo mostrará "Agotado"');
-    if (spc && spt && suma > 0 && sumaEnteros(spt) === 0) avi('stock', r + '.stock_por_talla', 'todas las tallas están en 0 aunque stock_por_color suma ' + suma);
-    if (!spc && spt) avi('stock_color', r, 'sin stock_por_color (formato v1): la web no puede mostrar la disponibilidad por color');
     // Frescura: si falta, la web la infiere con la misma tabla (avisa si tampoco se puede inferir).
     if (p.frescura === undefined && p.activo === true) {
       const f = inferirFrescura(p);
@@ -1394,7 +1405,7 @@ function validarOperacion(salida, contexto) {
   const vaciar = function (k) { c[k] = Array.isArray(c[k]) ? [] : null; inferidos.delete(k); };
   if (!esArticulo) {
     // Normalización determinista: cada op solo conserva los campos que le corresponden.
-    const conservar = { desactivar: [], reactivar: [], stock: ['stock_tallas', 'stock_por_color', 'stock_modo'], agregar_imagen: ['alt_imagen'] }[op.op];
+    const conservar = { desactivar: [], reactivar: [], stock: ['stock_por_variante', 'stock_modo'], agregar_imagen: ['alt_imagen'] }[op.op];
     if (conservar) for (const k of CAMPOS_LLM_PRODUCTO) if (conservar.indexOf(k) < 0 && !vacio(c[k])) vaciar(k);
     const actual = typeof op.id === 'string' && Array.isArray(lista) ? lista.find(function (x) { return esObjeto(x) && x.id === op.id; }) : null;
     if (op.op === 'actualizar' && actual) {
@@ -1403,8 +1414,7 @@ function validarOperacion(salida, contexto) {
       }
       const nombresColor = function (l) { return (l || []).map(function (x) { return quitarTildes(esObjeto(x) ? x.nombre : x).toLowerCase(); }).sort().join('|'); };
       if (!vacio(c.colores) && nombresColor(c.colores) === nombresColor(actual.colores)) vaciar('colores');
-      if (!vacio(c.stock_tallas)) vaciar('stock_tallas');
-      if (!vacio(c.stock_por_color)) vaciar('stock_por_color');
+      if (!vacio(c.stock_por_variante)) vaciar('stock_por_variante');
       if (c.stock_modo !== null) vaciar('stock_modo');
       // v2: si cambia la tela y nadie dijo la frescura, se sugiere con la tabla por material.
       if (!vacio(c.material) && (c.frescura === null || inferidos.has('frescura'))) {
@@ -1414,7 +1424,7 @@ function validarOperacion(salida, contexto) {
       }
     }
     if (op.op === 'crear' && c.stock_modo !== null) vaciar('stock_modo');
-    if (op.op === 'stock' && (!vacio(c.stock_tallas) || !vacio(c.stock_por_color)) && c.stock_modo === null) {
+    if (op.op === 'stock' && !vacio(c.stock_por_variante) && c.stock_modo === null) {
       c.stock_modo = 'fijar'; avisos.push('[stock] no queda claro si es la cantidad total o lo que llegó: se asume cantidad total');
     }
     if (op.op !== 'crear' && typeof op.id === 'string' && typeof contexto.texto === 'string' && contexto.texto.indexOf(op.id) < 0) {
@@ -1445,23 +1455,23 @@ function validarOperacion(salida, contexto) {
       const malas = c.tallas.filter(function (t) { return TALLAS_POR_CATEGORIA[c.categoria].indexOf(t) < 0; });
       if (malas.length) errores.push('[talla_categoria] tallas ' + malas.join(' ') + ' no corresponden a "' + c.categoria + '"');
     }
-    if (Array.isArray(c.stock_tallas)) c.stock_tallas.forEach(function (s) {
-      if (!Number.isInteger(s.cantidad) || s.cantidad < 0 || s.cantidad > 9999) errores.push('[stock] cantidad no válida para la talla ' + corto(s.talla));
+    if (Array.isArray(c.stock_por_variante)) c.stock_por_variante.forEach(function (s) {
+      const q = s && s.cantidad;
+      if (!Number.isInteger(q) || q < 0 || q > MAX_STOCK_VARIANTE) errores.push('[stock] cantidad no válida para ' + corto(s && s.color) + ' ' + corto(s && s.talla) + ': debe ser un entero de 0 a ' + MAX_STOCK_VARIANTE + ' por color y talla');
     });
-    if (Array.isArray(c.stock_por_color)) c.stock_por_color.forEach(function (s) {
-      if (!Number.isInteger(s.cantidad) || s.cantidad < 0 || s.cantidad > MAX_STOCK_COLOR) errores.push('[stock] cantidad no válida para el color ' + corto(s.color) + ': debe ser un entero de 0 a ' + MAX_STOCK_COLOR);
-    });
-    if (op.op === 'crear' && !vacio(c.stock_por_color)) {
-      // Un color que solo aparece en el stock se añade a colores; un color sin cantidad empieza en 0.
+    if (op.op === 'crear' && !vacio(c.stock_por_variante)) {
+      // Un color que solo aparece en el stock se añade a colores; una talla que no está en tallas es error; lo que no se nombra empieza en 0.
       const claves = c.colores.map(claveColor);
-      c.stock_por_color.forEach(function (s) {
-        if (claves.indexOf(claveColor(s.color)) < 0 && String(s.color || '').trim()) { c.colores.push(s.color); claves.push(claveColor(s.color)); avisos.push('[colores] se añade el color ' + corto(s.color) + ', que aparece en el stock'); }
+      const esTodos = function (v) { return v === null || v === undefined || String(v).trim() === '' || String(v).trim() === '*'; };
+      c.stock_por_variante.forEach(function (s) {
+        if (!esTodos(s.color) && claves.indexOf(claveColor(s.color)) < 0) { c.colores.push(s.color); claves.push(claveColor(s.color)); avisos.push('[colores] se añade el color ' + corto(s.color) + ', que aparece en el stock'); }
+        if (!esTodos(s.talla) && Array.isArray(c.tallas) && c.tallas.length && c.tallas.indexOf(s.talla) < 0) errores.push('[stock] la talla ' + corto(s.talla) + ' no está en las tallas del producto (' + c.tallas.join(', ') + ')');
       });
-      const conStock = c.stock_por_color.map(function (s) { return claveColor(s.color); });
-      c.colores.forEach(function (n) { if (conStock.indexOf(claveColor(n)) < 0) avisos.push('[stock] el color ' + corto(n) + ' no tiene cantidad: empezará en 0'); });
+      if (!c.stock_por_variante.some(function (s) { return esTodos(s.color) && esTodos(s.talla); }))
+        avisos.push('[stock] solo se indicó el stock de algunas variantes: las demás combinaciones de color y talla empiezan en 0');
     }
-    if (op.op === 'stock' && actual && !vacio(c.stock_por_color)) {
-      aplicarStockColor(actual, c.stock_por_color, c.stock_modo || 'fijar').errores.forEach(function (e) { errores.push(e); });
+    if (op.op === 'stock' && actual && !vacio(c.stock_por_variante)) {
+      aplicarStockVariante(actual, c.stock_por_variante, c.stock_modo || 'fijar').errores.forEach(function (e) { errores.push(e); });
     }
     if (op.op === 'crear') {
       // v2: frescura determinista por material (tabla única); si el dueño la dijo, se respeta.
@@ -1473,8 +1483,8 @@ function validarOperacion(salida, contexto) {
         } else if (c.frescura !== null) inferidos.add('frescura');
         else avisos.push('[frescura] no se reconoce la tela: no se pudo sugerir el índice de frescura (puedes decir "frescura 4")');
       }
-      faltantes.delete('frescura'); faltantes.delete('stock_por_color'); faltantes.delete('stock_tallas');
-      if (vacio(c.stock_por_color) && vacio(c.stock_tallas)) avisos.push('[stock] sin cantidades: cada color empezará con ' + STOCK_COLOR_ASUMIDO + ' (corrígelo con /stock)');
+      faltantes.delete('frescura'); faltantes.delete('stock_por_variante');
+      if (vacio(c.stock_por_variante)) avisos.push('[stock] sin cantidades: cada color y talla empezará con ' + STOCK_VARIANTE_ASUMIDO + ' (corrígelo con /stock)');
       if (!c.nombre) faltantes.add('nombre');
       if (!c.categoria) faltantes.add('categoria');
       if (!num(c.precio)) faltantes.add('precio');
@@ -1485,7 +1495,7 @@ function validarOperacion(salida, contexto) {
       if (!c.colores || !c.colores.length) faltantes.add('colores');
       if (!contexto.hayFoto) avisos.push('[foto] producto sin foto: la web mostrará un marcador hasta que envíes /foto');
     }
-    if (op.op === 'stock' && vacio(c.stock_tallas) && vacio(c.stock_por_color)) faltantes.add('stock_por_color');
+    if (op.op === 'stock' && vacio(c.stock_por_variante)) faltantes.add('stock_por_variante');
     if (op.op === 'agregar_imagen' && !contexto.hayFoto) faltantes.add('foto');
     if (op.op === 'actualizar' && CAMPOS_LLM_PRODUCTO.every(function (k) { return vacio(c[k]); })) {
       faltantes.add('campos'); avisos.push('[llm] op=actualizar sin ningún campo que cambiar');
@@ -1584,40 +1594,74 @@ function inferirFrescura(p) {
 }
 // Clave para comparar nombres de color ("Blanco hueso" = "blanco  hueso" = "BLANCO HUESO").
 function claveColor(s) { return quitarTildes(String(esObjeto(s) ? s.nombre : s === null || s === undefined ? '' : s)).toLowerCase().replace(/\s+/g, ' ').trim(); }
-// Stock total según la regla v2: suma de stock_por_color; si no existe, suma de stock_por_talla (v1); si no, null.
+// Stock total: suma de stock_por_variante; null si el producto no la tiene.
 function stockTotal(p) {
-  if (!esObjeto(p)) return null;
-  if (esObjeto(p.stock_por_color)) return sumaEnteros(p.stock_por_color);
-  if (esObjeto(p.stock_por_talla)) return sumaEnteros(p.stock_por_talla);
-  return null;
+  if (!esObjeto(p) || !esObjeto(p.stock_por_variante)) return null;
+  let t = 0;
+  for (const k of Object.keys(p.stock_por_variante)) { const s = esObjeto(p.stock_por_variante[k]) ? sumaEnteros(p.stock_por_variante[k]) : null; if (s === null) return null; t += s; }
+  return t;
 }
-// Aplica cambios de stock por color SIN modificar el producto (para WF5 y "/stock <id> <color> <n>").
-// p: producto (usa colores y stock_por_color); lista: [{color, cantidad}]; modo: 'fijar' | 'sumar' | 'restar'.
-// Devuelve { ok, errores[], stock_por_color (una clave por color, en el orden de colores), stock, cambios[] }.
-function aplicarStockColor(p, lista, modo) {
+// Unidades de una variante (color + talla; color sin mayúsculas/tildes, "única" = UNICA); null si el producto no tiene esa variante.
+function stockVariante(p, color, talla) {
+  if (!esObjeto(p) || !esObjeto(p.stock_por_variante)) return null;
+  const k = claveColor(color);
+  const nombre = Object.keys(p.stock_por_variante).find(function (n) { return claveColor(n) === k; });
+  if (nombre === undefined || !esObjeto(p.stock_por_variante[nombre])) return null;
+  const t = typeof talla === 'string' && /^[uú]nica$/i.test(talla.trim()) ? 'UNICA' : talla;
+  const v = p.stock_por_variante[nombre][t];
+  return Number.isInteger(v) ? v : null;
+}
+// Recalcula los campos derivados (stock_por_color y stock) a partir de stock_por_variante. Modifica y devuelve p.
+function derivarStock(p) {
+  const spc = {};
+  if (esObjeto(p.stock_por_variante)) for (const k of Object.keys(p.stock_por_variante)) spc[k] = esObjeto(p.stock_por_variante[k]) ? (sumaEnteros(p.stock_por_variante[k]) || 0) : 0;
+  p.stock_por_color = spc;
+  p.stock = sumaEnteros(spc) || 0;
+  return p;
+}
+// Aplica cambios de stock por variante SIN modificar el producto (para WF5 y "/stock <id> <color> <talla> <n>").
+// p: producto (usa colores, tallas y stock_por_variante); lista: [{color, talla, cantidad}] con color/talla null, vacío o "*" = todos;
+// modo: 'fijar' | 'sumar' | 'restar'. Devuelve { ok, errores[], stock_por_variante, stock_por_color, stock, cambios[] }.
+function aplicarStockVariante(p, lista, modo) {
   const errores = [], cambios = [];
   const nombres = (esObjeto(p) && Array.isArray(p.colores) ? p.colores : []).map(function (c) { return esObjeto(c) ? c.nombre : c; }).filter(function (n) { return typeof n === 'string'; });
-  const previo = esObjeto(p) && esObjeto(p.stock_por_color) ? p.stock_por_color : {};
-  const spc = {};
-  nombres.forEach(function (n) { const v = previo[n]; spc[n] = Number.isInteger(v) && v >= 0 ? Math.min(v, MAX_STOCK_COLOR) : 0; });
+  const tallas = esObjeto(p) && Array.isArray(p.tallas) ? p.tallas.filter(function (t) { return typeof t === 'string'; }) : [];
+  const previo = esObjeto(p) && esObjeto(p.stock_por_variante) ? p.stock_por_variante : {};
+  const spv = {};
+  nombres.forEach(function (n) {
+    spv[n] = {};
+    tallas.forEach(function (t) { const v = esObjeto(previo[n]) ? previo[n][t] : undefined; spv[n][t] = Number.isInteger(v) && v >= 0 ? Math.min(v, MAX_STOCK_VARIANTE) : 0; });
+  });
   const base = function (k) { return k.split(' ').map(function (w) { return w.replace(/s$/, '').replace(/a$/, 'o'); }).join(' '); }; // blanca(s) = blanco
   const buscar = function (color) {
     const k = claveColor(color);
-    if (!k) return null;
     return nombres.find(function (n) { return claveColor(n) === k; }) || nombres.find(function (n) { return base(claveColor(n)) === base(k); }) || null;
   };
+  const todos = function (v) { return v === null || v === undefined || (typeof v === 'string' && (v.trim() === '' || v.trim() === '*')); };
   (Array.isArray(lista) ? lista : []).forEach(function (s) {
-    const nombre = buscar(esObjeto(s) ? s.color : null);
-    const q = esObjeto(s) ? s.cantidad : null;
-    if (!nombre) { errores.push('[stock] el producto no tiene el color ' + corto(esObjeto(s) ? s.color : s) + ' (colores: ' + (nombres.join(', ') || 'ninguno') + ')'); return; }
-    if (!Number.isInteger(q) || q < 0 || q > MAX_STOCK_COLOR) { errores.push('[stock] cantidad no válida para ' + nombre + ': debe ser un entero de 0 a ' + MAX_STOCK_COLOR); return; }
-    const antes = spc[nombre];
-    const nuevo = modo === 'sumar' ? antes + q : modo === 'restar' ? antes - q : q;
-    if (nuevo < 0) errores.push('[stock] no hay suficiente stock de ' + nombre + ' (hay ' + antes + ')');
-    else if (nuevo > MAX_STOCK_COLOR) errores.push('[stock] ' + nombre + ' quedaría con ' + nuevo + '; el máximo es ' + MAX_STOCK_COLOR + ' por color');
-    else { spc[nombre] = nuevo; cambios.push(nombre + '=' + nuevo); }
+    const cs = esObjeto(s) ? s.color : null, ts = esObjeto(s) ? s.talla : null, q = esObjeto(s) ? s.cantidad : null;
+    let cols = nombres, tls = tallas;
+    if (!todos(cs)) { const n = buscar(cs); if (!n) { errores.push('[stock] el producto no tiene el color ' + corto(cs) + ' (colores: ' + (nombres.join(', ') || 'ninguno') + ')'); return; } cols = [n]; }
+    if (!todos(ts)) {
+      const k = String(ts).trim().toLowerCase().replace(/^[uú]nica$/, 'unica');
+      const t = tallas.find(function (x) { return String(x).toLowerCase() === k; });
+      if (!t) { errores.push('[stock] el producto no tiene la talla ' + corto(ts) + ' (tallas: ' + (tallas.join(', ') || 'ninguna') + ')'); return; }
+      tls = [t];
+    }
+    if (!Number.isInteger(q) || q < 0 || q > MAX_STOCK_VARIANTE) { errores.push('[stock] cantidad no válida: debe ser un entero de 0 a ' + MAX_STOCK_VARIANTE + ' por color y talla'); return; }
+    cols.forEach(function (n) {
+      tls.forEach(function (t) {
+        const antes = spv[n][t];
+        const nuevo = modo === 'sumar' ? antes + q : modo === 'restar' ? antes - q : q;
+        const et = n + ' ' + t;
+        if (nuevo < 0) errores.push('[stock] no hay suficiente stock de ' + et + ' (hay ' + antes + ')');
+        else if (nuevo > MAX_STOCK_VARIANTE) errores.push('[stock] ' + et + ' quedaría con ' + nuevo + '; el máximo es ' + MAX_STOCK_VARIANTE + ' por color y talla');
+        else { spv[n][t] = nuevo; cambios.push(et + '=' + nuevo); }
+      });
+    });
   });
-  return { ok: errores.length === 0, errores: errores, stock_por_color: spc, stock: sumaEnteros(spc), cambios: cambios };
+  const d = derivarStock({ stock_por_variante: spv });
+  return { ok: errores.length === 0, errores: errores, stock_por_variante: spv, stock_por_color: d.stock_por_color, stock: d.stock, cambios: cambios };
 }
 // Tabla de la guía de tallas para un producto: misma categoría y subcategoría incluida; si no, la primera de su categoría.
 function tablaDeTallas(guia, p) {
@@ -1758,17 +1802,11 @@ function calcularTotales(items, envio, productos, site, opciones) {
     lineas.push({ id: p.id, nombre: p.nombre, color: color, talla: talla, cantidad: it.cantidad, precio_unit: precioVigente(p) });
   });
   if (opciones.verificarStock !== false) {
-    const pide = {};
-    lineas.forEach(function (l) { const k = l.id + '|' + l.color; pide[k] = (pide[k] || 0) + l.cantidad; });
     lineas.forEach(function (l) {
-      const p = catalogo[l.id];
-      const k = l.id + '|' + l.color;
-      const hay = esObjeto(p.stock_por_color) ? p.stock_por_color[l.color] : esObjeto(p.stock_por_talla) ? p.stock_por_talla[l.talla] : p.stock;
-      if (Number.isInteger(hay) && pide[k] > hay) {
-        errores.push('[stock] ' + l.id + ': no hay suficiente stock de ' + l.nombre + ' en ' + l.color + ' (pides ' + pide[k] + ', quedan ' + hay + ')');
-        pide[k] = -1; // un solo mensaje por producto y color
+      const hay = stockVariante(catalogo[l.id], l.color, l.talla);
+      if (hay !== null && l.cantidad > hay) {
+        errores.push('[stock] ' + l.id + ': ' + (hay === 0 ? 'agotado: ' + l.nombre + ' en ' + l.color + ' talla ' + l.talla : 'no hay suficiente stock de ' + l.nombre + ' en ' + l.color + ' talla ' + l.talla + ' (pides ' + l.cantidad + ', quedan ' + hay + ')'));
       }
-      if (esObjeto(p.stock_por_color) && esObjeto(p.stock_por_talla) && p.stock_por_talla[l.talla] === 0) errores.push('[stock] ' + l.id + ': la talla ' + l.talla + ' de ' + l.nombre + ' está agotada');
     });
   }
   const subC = lineas.reduce(function (s, l) { return s + aCentimos(l.precio_unit) * l.cantidad; }, 0);
@@ -2090,16 +2128,16 @@ function pedidoDesdeFila(fila) {
   if (!esObjeto(fila) || typeof fila.pedido_json !== 'string') return null;
   try { return JSON.parse(fila.pedido_json); } catch (e) { return null; }
 }
-// Stock tras un pedido pagado (opcional, se publica con WF5): resta las cantidades por color. -> { ok, errores[], cambios[{id, stock_por_color, stock}] }
+// Stock tras un pedido pagado (opcional, se publica con WF5): resta las cantidades por color+talla. -> { ok, errores[], cambios[{id, stock_por_variante, stock_por_color, stock}] }
 function stockTrasPedido(productos, pedido) {
   const catalogo = porId(productos);
   const errores = [], cambios = [], porProducto = {};
-  (esObjeto(pedido) && Array.isArray(pedido.items) ? pedido.items : []).forEach(function (it) { (porProducto[it.id] = porProducto[it.id] || []).push({ color: it.color, cantidad: it.cantidad }); });
+  (esObjeto(pedido) && Array.isArray(pedido.items) ? pedido.items : []).forEach(function (it) { (porProducto[it.id] = porProducto[it.id] || []).push({ color: it.color, talla: it.talla, cantidad: it.cantidad }); });
   Object.keys(porProducto).forEach(function (id) {
     if (!catalogo[id]) { errores.push('[producto] ' + corto(id) + ' no existe'); return; }
-    const r = aplicarStockColor(catalogo[id], porProducto[id], 'restar');
+    const r = aplicarStockVariante(catalogo[id], porProducto[id], 'restar');
     if (!r.ok) r.errores.forEach(function (e) { errores.push(e); });
-    else cambios.push({ id: id, stock_por_color: r.stock_por_color, stock: r.stock });
+    else cambios.push({ id: id, stock_por_variante: r.stock_por_variante, stock_por_color: r.stock_por_color, stock: r.stock });
   });
   return { ok: errores.length === 0, errores: errores, cambios: cambios };
 }
@@ -2119,8 +2157,8 @@ OPERACIONES (op)
 - crear: producto nuevo. id = null.
 - actualizar: cambiar datos de un producto que ya existe (precio, nombre, descripción...). id obligatorio, tomado del CATÁLOGO. Pon SOLO los campos que cambian; todos los demás van en null o [].
 - desactivar: ocultar un producto ("ocultar", "ya no hay", "retirar", "agotado para siempre"). reactivar: volver a mostrarlo.
-- desactivar / reactivar / stock / agregar_imagen: todos los campos en null o [], salvo stock_por_color, stock_tallas y stock_modo (en stock) y alt_imagen (en agregar_imagen).
-- stock: cambiar cantidades. Si el mensaje habla de COLORES ("quedan 2 del blanco", "llegaron 5 más en arena"), usa stock_por_color; si habla de TALLAS ("quedan 2 de la L"), usa stock_tallas. stock_modo dice cómo aplicarlas: "fijar" si dice cuántas hay en total ("quedan 2", "hay 10"), "sumar" si llegaron más ("llegaron 5 más"), "restar" si se vendieron ("vendí 1"). En las demás operaciones stock_modo es null.
+- desactivar / reactivar / stock / agregar_imagen: todos los campos en null o [], salvo stock_por_variante y stock_modo (en stock) y alt_imagen (en agregar_imagen).
+- stock: cambiar cantidades. El stock se lleva por COLOR Y TALLA: usa stock_por_variante con {color, talla, cantidad} ("quedan 2 del blanco en M" -> blanco, M, 2; "quedan 2 de la L" -> color null, talla L; "llegaron 5 más en arena" -> arena, talla null). color null = todos los colores; talla null = todas las tallas. stock_modo dice cómo aplicarlas: "fijar" si dice cuántas hay en total ("quedan 2", "hay 10"), "sumar" si llegaron más ("llegaron 5 más"), "restar" si se vendieron ("vendí 1"). En las demás operaciones stock_modo es null.
 - agregar_imagen: añadir la foto adjunta a un producto existente.
 - No existe borrar definitivamente.
 
@@ -2141,9 +2179,8 @@ SUBCATEGORÍA, según la categoría (si ninguna encaja, "otros"):
 La guayabera es "camisas". Una línea elegante "old money" se marca con la etiqueta "old-money", no con la subcategoría.
 
 TALLAS (tallas): adultos XS S M L XL XXL; niños 2 4 6 8 10 12 14 16; calzado 35 a 44; talla única = "UNICA". "de la 38 a la 42" -> 38 39 40 41 42.
-- stock_tallas: una entrada {talla, cantidad} por talla, solo si el dueño da cantidades POR TALLA. Si no, [] (no lo pongas en faltantes).
 
-STOCK POR COLOR (stock_por_color): una entrada {color, cantidad} por color, con cantidades de 0 a 20. "10 por color" o "10 de cada color" -> cantidad 10 en TODOS los colores. "5 blancos y 3 negros" -> blanco 5, negro 3. Si no dice cantidades, [] (no lo pongas en faltantes).
+STOCK POR COLOR Y TALLA (stock_por_variante): una entrada {color, talla, cantidad} por cada grupo, con cantidades de 0 a 15 por color y talla. color null = todos los colores; talla null = todas las tallas. "5 por talla", "10 de cada talla y color" o "10 por color" -> UNA entrada {color: null, talla: null, cantidad}. "5 blancos y 3 negros" -> {blanco, null, 5} y {negro, null, 3}. "M 4, L 2" -> {null, M, 4} y {null, L, 2}. "3 negras en la S" -> {negro, S, 3}. Si no dice cantidades, [] (no lo pongas en faltantes).
 
 OTROS CAMPOS
 - colores: nombres en español tal como los dice el dueño o como se ven en la foto ("blanco", "verde palma").
@@ -2153,7 +2190,7 @@ OTROS CAMPOS
 - etiquetas: 2 a 5 palabras en minúsculas sin tildes ("lino", "fresca").
 - alt_imagen: si hay foto, una frase que la describa para personas ciegas; si no, null.
 - destacado: true solo si el dueño lo pide; si no, null.
-- faltantes solo puede incluir: nombre, categoria, subcategoria, precio, precio_oferta, tallas, stock_tallas, stock_por_color, stock_modo, colores, material, frescura, descripcion, etiquetas, alt_imagen, destacado, id, foto.
+- faltantes solo puede incluir: nombre, categoria, subcategoria, precio, precio_oferta, tallas, stock_por_variante, stock_modo, colores, material, frescura, descripcion, etiquetas, alt_imagen, destacado, id, foto.
 
 CATÁLOGO ACTUAL (id | nombre | categoria | precio):
 {{CATALOGO}}`;
@@ -2204,9 +2241,9 @@ function cuerpoOllama(opciones) {
 const API = {
   CONTRATO_VERSION, SCHEMA_VERSION, LIMITE_BYTES, CATEGORIAS, SUBCATEGORIAS, TALLAS, TALLAS_POR_CATEGORIA, ORIGENES_IMAGEN, ROLES,
   PROHIBIDO_MARKETING, ESQUEMAS, ESQUEMA_LLM_PRODUCTO, ESQUEMA_LLM_ARTICULO, OPS_LLM, WHATSAPP_EJEMPLO,
-  MAX_STOCK_COLOR, STOCK_COLOR_ASUMIDO, ZONAS_MEDIDA, TABLA_FRESCURA, FRESCURA_PUBLICA, RE,
+  MAX_STOCK_VARIANTE, STOCK_VARIANTE_ASUMIDO, AVISO_POCAS_UNIDADES, ZONAS_MEDIDA, TABLA_FRESCURA, FRESCURA_PUBLICA, RE,
   validar, validarEsquema, validarOperacion, inferirCategoria, pideCambio, puede, slugificar, siguienteId, colorHex, COLORES, textoSeguro, bloquesDesdeLLM, PROMPT_PRODUCTO, PROMPT_ARTICULO, cuerpoOllama, serializar, bytesUtf8,
-  frescuraPorMaterial, inferirFrescura, claveColor, stockTotal, aplicarStockColor, tablaDeTallas,
+  frescuraPorMaterial, inferirFrescura, claveColor, stockTotal, stockVariante, derivarStock, aplicarStockVariante, tablaDeTallas,
   // v3
   SUBCATEGORIAS_POR_CATEGORIA, ALIAS_SUBCATEGORIA, normalizarSubcategoria, ROLES_ASIGNABLES, puedeAsignarRol,
   OPCIONES_ENVIO, ENTREGAS_ENVIO, ZONAS_ENVIO, DEPARTAMENTOS, ESTADOS_PEDIDO, TRANSICIONES_PEDIDO, ESTADO_PEDIDO_TEXTO, ESTADOS_PAGO, MAPA_PAGO_MP,
