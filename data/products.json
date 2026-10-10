@@ -1,12 +1,13 @@
 {
   "$schema": "./schema/products.schema.json",
   "schema_version": 3,
-  "version": 6,
-  "actualizado": "2026-10-09T21:41:32-05:00",
+  "version": 7,
+  "actualizado": "2026-10-09T21:47:42-05:00",
   "borradores_aplicados": [
     "drf-muxzhknxoc",
     "drf-mv05zsguvl",
-    "drf-mv1sfnxp000101"
+    "drf-mv1sfnxp000101",
+    "drf-mv1sfy22000102"
   ],
   "moneda": "PEN",
   "productos": [
@@ -2448,16 +2449,16 @@
         "S",
         "M"
       ],
+      "stock_por_color": {
+        "Verde": 0
+      },
+      "stock": 0,
       "colores": [
         {
           "nombre": "Verde",
           "hex": "#2E7D4F"
         }
       ],
-      "stock_por_color": {
-        "Verde": 1
-      },
-      "stock": 1,
       "descripcion": "",
       "etiquetas": [],
       "imagenes": [
@@ -2473,7 +2474,7 @@
       "activo": true,
       "muestra": false,
       "fecha_creacion": "2026-10-08T18:26:33-05:00",
-      "fecha_actualizacion": "2026-10-08T18:26:33-05:00"
+      "fecha_actualizacion": "2026-10-09T21:47:42-05:00"
     }
   ]
 }
