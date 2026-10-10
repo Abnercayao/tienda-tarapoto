@@ -1,15 +1,16 @@
 {
   "$schema": "./schema/products.schema.json",
   "schema_version": 3,
-  "version": 9,
-  "actualizado": "2026-10-09T23:09:32-05:00",
+  "version": 10,
+  "actualizado": "2026-10-09T23:15:42-05:00",
   "borradores_aplicados": [
     "drf-muxzhknxoc",
     "drf-mv05zsguvl",
     "drf-mv1sfnxp000101",
     "drf-mv1sfy22000102",
     "drf-mv1vcnzu000103",
-    "drf-mv1vkrei000104"
+    "drf-mv1vkrei000104",
+    "drf-mv1vnrv5000105"
   ],
   "moneda": "PEN",
   "productos": [
@@ -1140,9 +1141,9 @@
       ],
       "stock_por_color": {
         "Crema": 11,
-        "Azul marino": 5
+        "Azul marino": 4
       },
-      "stock": 16,
+      "stock": 15,
       "colores": [
         {
           "nombre": "Crema",
@@ -1185,7 +1186,7 @@
       "activo": true,
       "muestra": true,
       "fecha_creacion": "2026-10-07T09:00:00-05:00",
-      "fecha_actualizacion": "2026-10-09T21:41:32-05:00"
+      "fecha_actualizacion": "2026-10-09T23:15:42-05:00"
     },
     {
       "id": "prd-0020",
